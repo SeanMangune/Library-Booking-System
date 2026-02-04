@@ -142,7 +142,7 @@
 
     <!-- Add/Edit Room Modal -->
     <div x-show="showModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto">
-        <div class="fixed inset-0 bg-black bg-opacity-50" @click="closeModal()"></div>
+        <div class="fixed inset-0 bg-black/30 backdrop-blur-sm" @click="closeModal()"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
             <div class="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl" @click.stop>
                 <!-- Modal Header -->
@@ -315,7 +315,7 @@
 
     <!-- Delete Confirmation Modal -->
     <div x-show="showDeleteModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto">
-        <div class="fixed inset-0 bg-black bg-opacity-50" @click="closeDeleteModal()"></div>
+        <div class="fixed inset-0 bg-black/30 backdrop-blur-sm" @click="closeDeleteModal()"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
             <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl" @click.stop>
                 <!-- Modal Header -->

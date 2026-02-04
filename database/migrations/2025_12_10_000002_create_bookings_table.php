@@ -10,6 +10,8 @@ return new class extends Migration
     {
         Schema::create('bookings', function (Blueprint $table) {
             $table->id();
+            $table->string('booking_code', 32)->nullable()->unique();
+            $table->string('qr_code_path')->nullable();
             $table->foreignId('room_id')->constrained()->cascadeOnDelete();
             $table->string('user_name');
             $table->string('user_email');

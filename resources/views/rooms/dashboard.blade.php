@@ -161,24 +161,23 @@
 
                     <!-- Calendar Days -->
                     <div class="grid grid-cols-7">
-                        <template x-for="(week, weekIndex) in calendarWeeks" :key="weekIndex">
-                            <template x-for="(day, dayIndex) in week" :key="weekIndex + '-' + dayIndex">
-                                <div class="min-h-[100px] border-b border-r border-gray-200 p-2"
-                                     :class="{
-                                         'bg-gray-50': !day.isCurrentMonth,
-                                         'bg-yellow-50': day.isToday
-                                     }">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="text-sm font-medium"
-                                              :class="day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'"
-                                              x-text="day.day"></span>
-                                    </div>
-                                    <div class="space-y-1">
-                                        <template x-for="event in day.events.slice(0, 2)" :key="event.id">
-                                            <div class="relative group">
-                                                <div class="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded truncate cursor-pointer hover:bg-blue-200 transition-colors"
-                                                     @click="openViewBookingModal(event)"
-                                                     x-text="event.formatted_time?.split(' - ')[0] + ' ' + event.title"></div>
+                        <template x-for="(day, dayIndex) in calendarDays" :key="dayIndex">
+                            <div class="min-h-[100px] border-b border-r border-gray-200 p-2"
+                                 :class="{
+                                     'bg-gray-50': !day.isCurrentMonth,
+                                     'bg-yellow-50': day.isToday
+                                 }">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-sm font-medium"
+                                          :class="day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'"
+                                          x-text="day.day"></span>
+                                </div>
+                                <div class="space-y-1">
+                                    <template x-for="event in day.events.slice(0, 2)" :key="event.id">
+                                        <div class="relative group">
+                                            <div class="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded truncate cursor-pointer hover:bg-blue-200 transition-colors"
+                                                 @click="openViewBookingModal(event)"
+                                                 x-text="event.formatted_time?.split(' - ')[0] + ' ' + event.title"></div>
                                                 <!-- Hover Tooltip -->
                                                 <div class="absolute left-0 bottom-full mb-2 z-50 hidden group-hover:block w-64 bg-gray-900 text-white text-xs rounded-lg shadow-xl p-3 pointer-events-none">
                                                     <div class="font-semibold text-sm mb-2" x-text="event.title || event.room_name"></div>
@@ -219,7 +218,6 @@
                                         </template>
                                     </div>
                                 </div>
-                            </template>
                         </template>
                     </div>
                 </div>
@@ -229,7 +227,7 @@
 
     <!-- View Booking Details Modal -->
     <div x-show="showViewModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto">
-        <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="showViewModal = false"></div>
+        <div class="fixed inset-0 bg-black/30 backdrop-blur-sm transition-opacity" @click="showViewModal = false"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
             <div class="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl transform transition-all" 
                  @click.stop
@@ -371,7 +369,7 @@
 
     <!-- Day Events Modal (for +X more) -->
     <div x-show="showDayEventsModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto">
-        <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="showDayEventsModal = false"></div>
+        <div class="fixed inset-0 bg-black/30 backdrop-blur-sm transition-opacity" @click="showDayEventsModal = false"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
             <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl transform transition-all" 
                  @click.stop
@@ -463,7 +461,7 @@
 
     <!-- Create Booking Modal -->
     <div x-show="showBookingModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto">
-        <div class="fixed inset-0 bg-black bg-opacity-50" @click="closeBookingModal()"></div>
+        <div class="fixed inset-0 bg-black/30 backdrop-blur-sm" @click="closeBookingModal()"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
             <div class="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl" @click.stop>
                 <!-- Modal Header -->
@@ -527,6 +525,22 @@
                                         </span>
                                         <input type="text" x-model="bookingForm.user_name" required
                                                placeholder="Search and select a user..."
+                                               class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        User Email <span class="text-red-500">*</span>
+                                    </label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                            </svg>
+                                        </span>
+                                        <input type="email" x-model="bookingForm.user_email" required
+                                               placeholder="Enter user email..."
                                                class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                     </div>
                                 </div>
@@ -669,6 +683,63 @@
             </div>
         </div>
     </div>
+
+    <!-- Booking Success Modal -->
+    <div x-show="showBookingSuccessModal" x-cloak class="fixed inset-0 z-[60] overflow-y-auto">
+        <div class="fixed inset-0 bg-black/30 backdrop-blur-sm transition-opacity" @click="closeBookingSuccessModal()"></div>
+        <div class="relative min-h-screen flex items-center justify-center p-4">
+            <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl" @click.stop>
+                <div class="bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-7 rounded-t-2xl text-center">
+                    <div class="w-14 h-14 mx-auto bg-white/20 rounded-full flex items-center justify-center mb-3">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <h2 class="text-lg font-bold text-white"
+                        x-text="bookingSuccessBooking?.status === 'pending' ? 'Booking Submitted!' : 'Booking Confirmed!'"></h2>
+                    <p class="text-emerald-100 text-sm mt-1" x-text="bookingSuccessMessage"></p>
+                </div>
+
+                <div class="p-6">
+                    <div class="bg-gray-50 rounded-xl p-4 mb-5">
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <p class="text-gray-500">Room</p>
+                                <p class="font-semibold text-gray-900" x-text="bookingSuccessBooking?.room?.name || '—'"></p>
+                            </div>
+                            <div>
+                                <p class="text-gray-500">Date</p>
+                                <p class="font-semibold text-gray-900" x-text="formatDate(bookingSuccessBooking?.date) || bookingForm.date"></p>
+                            </div>
+                            <div>
+                                <p class="text-gray-500">Time</p>
+                                <p class="font-semibold text-gray-900" x-text="formatTimeRange(bookingSuccessBooking?.start_time, bookingSuccessBooking?.end_time) || (bookingForm.start_time + ' - ' + bookingForm.end_time)"></p>
+                            </div>
+                            <div>
+                                <p class="text-gray-500">Status</p>
+                                <p class="font-semibold" :class="bookingSuccessBooking?.status === 'approved' ? 'text-emerald-600' : 'text-amber-600'"
+                                   x-text="(bookingSuccessBooking?.status || 'pending').toString().charAt(0).toUpperCase() + (bookingSuccessBooking?.status || 'pending').toString().slice(1)"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <template x-if="bookingSuccessBooking?.qr_code_url">
+                        <div class="text-center mb-5">
+                            <h3 class="text-sm font-semibold text-gray-700 mb-3">QR Code</h3>
+                            <div class="inline-block p-3 bg-white border border-gray-200 rounded-xl shadow-sm">
+                                <img :src="bookingSuccessBooking.qr_code_url" alt="Booking QR Code" class="w-40 h-40 mx-auto">
+                            </div>
+                        </div>
+                    </template>
+
+                    <button @click="closeBookingSuccessModal()"
+                            class="w-full px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors">
+                        Done
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 @push('scripts')
@@ -676,10 +747,11 @@
 function dashboardApp() {
     return {
         showBookingModal: false,
-        isSubmitting: false,
-        showBookingModal: false,
         showViewModal: false,
         showDayEventsModal: false,
+        showBookingSuccessModal: false,
+        bookingSuccessMessage: '',
+        bookingSuccessBooking: null,
         selectedBooking: null,
         selectedDay: null,
         isSubmitting: false,
@@ -698,6 +770,7 @@ function dashboardApp() {
             end_time: '10:00',
             attendees: 1,
             user_name: '',
+            user_email: '',
             description: '',
         },
 
@@ -773,6 +846,11 @@ function dashboardApp() {
             return weeks;
         },
 
+        get calendarDays() {
+            // Flatten the weeks array into a single array of days
+            return this.calendarWeeks.flat();
+        },
+
         init() {
             this.fetchCalendarData();
         },
@@ -828,6 +906,7 @@ function dashboardApp() {
                 end_time: '10:00',
                 attendees: 1,
                 user_name: '',
+                user_email: '',
                 description: '',
             };
             this.showBookingModal = true;
@@ -835,6 +914,37 @@ function dashboardApp() {
 
         closeBookingModal() {
             this.showBookingModal = false;
+        },
+
+        closeBookingSuccessModal() {
+            this.showBookingSuccessModal = false;
+            this.bookingSuccessMessage = '';
+            this.bookingSuccessBooking = null;
+            window.location.reload();
+        },
+
+        formatDate(value) {
+            if (!value) return '';
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) return String(value);
+            return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        },
+
+        formatTime(value) {
+            if (!value) return '';
+            const parts = String(value).split(':');
+            if (parts.length < 2) return String(value);
+            const h = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            if (Number.isNaN(h) || Number.isNaN(m)) return String(value);
+            const d = new Date();
+            d.setHours(h, m, 0, 0);
+            return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+        },
+
+        formatTimeRange(start, end) {
+            if (!start || !end) return '';
+            return this.formatTime(start) + ' - ' + this.formatTime(end);
         },
 
         openViewBookingModal(booking) {
@@ -866,9 +976,10 @@ function dashboardApp() {
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert(data.message);
+                    this.bookingSuccessMessage = data.message || 'Booking created successfully.';
+                    this.bookingSuccessBooking = data.booking || null;
                     this.closeBookingModal();
-                    window.location.reload();
+                    this.showBookingSuccessModal = true;
                 } else {
                     alert(data.message || 'Failed to create booking');
                 }

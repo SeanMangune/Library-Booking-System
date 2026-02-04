@@ -9,3 +9,21 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* FullCalendar: keep day number at the top */
+.fc .fc-daygrid-day-top{
+  display: flex;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+}
+
+.fc .fc-daygrid-day-number{
+  align-self: flex-start !important;
+  margin-top: 2px;
+}
+
+/* If some custom CSS forces vertical alignment, this helps */
+.fc .fc-daygrid-day-frame{
+  align-items: flex-start !important;
+}

@@ -56,7 +56,7 @@ class BookingController extends Controller
             'attendees' => 'required|integer|min:1',
             'user_id' => 'nullable|exists:users,id',
             'user_name' => 'required|string|max:255',
-            'user_email' => 'nullable|email',
+            'user_email' => 'required|email|max:255',
             'description' => 'nullable|string',
         ]);
 
@@ -86,6 +86,14 @@ class BookingController extends Controller
         // Set initial status based on room settings
         $validated['status'] = $room->requires_approval ? 'pending' : 'approved';
         $validated['time'] = Carbon::parse($validated['start_time'])->format('g:i A');
+        
+        // Calculate duration
+        $startTime = Carbon::parse($validated['start_time']);
+        $endTime = Carbon::parse($validated['end_time']);
+        $durationMinutes = $startTime->diffInMinutes($endTime);
+        $hours = floor($durationMinutes / 60);
+        $minutes = $durationMinutes % 60;
+        $validated['duration'] = $minutes > 0 ? "{$hours}h {$minutes}m" : "{$hours}h";
 
         $booking = Booking::create($validated);
 
@@ -113,7 +121,7 @@ class BookingController extends Controller
             'end_time' => 'required|after:start_time',
             'attendees' => 'required|integer|min:1',
             'user_name' => 'required|string|max:255',
-            'user_email' => 'nullable|email',
+            'user_email' => 'required|email|max:255',
             'description' => 'nullable|string',
         ]);
 
@@ -147,7 +155,14 @@ class BookingController extends Controller
             'reason' => $request->get('reason'),
         ]);
 
-        return response()->json(['success' => true, 'message' => 'Booking approved successfully']);
+        // Generate QR code when booking is approved
+        app(\App\Services\QrCodeService::class)->ensureBookingQr($booking);
+
+        return response()->json([
+            'success' => true, 
+            'message' => 'Booking approved successfully',
+            'booking' => $booking->fresh()->load('room'),
+        ]);
     }
 
     public function reject(Booking $booking, Request $request)

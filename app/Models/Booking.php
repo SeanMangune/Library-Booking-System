@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
+use App\Services\QrCodeService;
 
 class Booking extends Model
 {
@@ -25,12 +27,29 @@ class Booking extends Model
         'has_conflict',
         'conflicts_with',
         'reason',
+        'qr_code_path',
+        'booking_code',
     ];
 
     protected $casts = [
         'date' => 'date',
         'has_conflict' => 'boolean',
     ];
+
+    protected $appends = [
+        'qr_code_url',
+    ];
+
+    protected static function booted(): void
+    {
+        static::created(function (Booking $booking) {
+            // Only auto-generate QR code for bookings that are immediately approved
+            // Pending bookings will get QR codes when approved via the approval process
+            if ($booking->status === 'approved') {
+                app(QrCodeService::class)->ensureBookingQr($booking);
+            }
+        });
+    }
 
     public function room(): BelongsTo
     {
@@ -63,6 +82,12 @@ class Booking extends Model
     public function getFormattedDateAttribute(): string
     {
         return $this->date ? $this->date->format('M d, Y') : '';
+    }
+
+    public function getQrCodeUrlAttribute(): ?string
+    {
+        if (!$this->qr_code_path) return null;
+        return Storage::disk('public')->url($this->qr_code_path);
     }
 
     public function scopeToday($query)
