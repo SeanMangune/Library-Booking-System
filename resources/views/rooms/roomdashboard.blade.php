@@ -315,8 +315,8 @@
              x-transition:leave-start="opacity-100"
              x-transition:leave-end="opacity-0">
             
-            <!-- Backdrop -->
-            <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" @click="closeModal()"></div>
+            <!-- Backdrop: transparent with blur so the page shows through but is softened -->
+            <div class="fixed inset-0 bg-transparent backdrop-blur-sm" @click="closeModal()"></div>
             
             <!-- Modal Content -->
             <div class="relative min-h-screen flex items-center justify-center p-4">
@@ -575,16 +575,20 @@
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
                     
-                    // Previous month days
+                    // Previous month days (include full date and booking counts)
                     const prevMonth = new Date(this.currentYear, this.currentMonth, 0);
                     for (let i = startPadding - 1; i >= 0; i--) {
+                        const dayNum = prevMonth.getDate() - i;
+                        const dateObj = new Date(prevMonth.getFullYear(), prevMonth.getMonth(), dayNum);
+                        const dateStr = this.formatDateKey(dateObj);
+
                         days.push({
-                            day: prevMonth.getDate() - i,
-                            date: null,
+                            day: dayNum,
+                            date: dateStr,
                             isCurrentMonth: false,
-                            isToday: false,
+                            isToday: dateObj.getTime() === today.getTime(),
                             isSelected: false,
-                            bookingCount: 0
+                            bookingCount: this.calendarData[dateStr]?.length || 0
                         });
                     }
                     
@@ -605,16 +609,19 @@
                         });
                     }
                     
-                    // Next month days
+                    // Next month days (include full date and booking counts)
                     const remaining = 42 - days.length;
                     for (let i = 1; i <= remaining; i++) {
+                        const dateObj = new Date(this.currentYear, this.currentMonth + 1, i);
+                        const dateStr = this.formatDateKey(dateObj);
+
                         days.push({
                             day: i,
-                            date: null,
+                            date: dateStr,
                             isCurrentMonth: false,
-                            isToday: false,
+                            isToday: dateObj.getTime() === today.getTime(),
                             isSelected: false,
-                            bookingCount: 0
+                            bookingCount: this.calendarData[dateStr]?.length || 0
                         });
                     }
                     

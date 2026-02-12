@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Room;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class CalendarController extends Controller
 {
@@ -20,127 +21,195 @@ class CalendarController extends Controller
 
     public function events(Request $request)
     {
-        $query = Booking::with('room')
-            ->whereIn('status', ['approved', 'pending']);
+        try {
+            $query = Booking::with('room')
+                ->whereIn('status', ['approved', 'pending']);
 
-        if ($request->filled('room_id')) {
-            $query->where('room_id', $request->room_id);
-        }
+            if ($request->filled('room_id')) {
+                $query->where('room_id', $request->room_id);
+            }
 
-        if ($request->filled('start') && $request->filled('end')) {
-            $query->whereBetween('date', [
-                Carbon::parse($request->start)->format('Y-m-d'),
-                Carbon::parse($request->end)->format('Y-m-d'),
+            if ($request->filled('start') && $request->filled('end')) {
+                $query->whereBetween('date', [
+                    Carbon::parse($request->start)->format('Y-m-d'),
+                    Carbon::parse($request->end)->format('Y-m-d'),
+                ]);
+            }
+
+            $bookings = $query->get();
+
+            return response()->json($bookings->map(function ($booking) {
+                $date = $this->asCarbonDate($booking->date);
+
+                $startTime = $this->normalizeTime($booking->start_time, '09:00:00');
+                $endTime   = $this->normalizeTime($booking->end_time, '10:00:00');
+
+                $roomName = $booking->room?->name;
+
+                return [
+                    'id' => $booking->id,
+                    'title' => $booking->title ?: ($roomName ?: 'Booking'),
+                    'start' => $date->format('Y-m-d') . 'T' . $startTime,
+                    'end' => $date->format('Y-m-d') . 'T' . $endTime,
+                    'backgroundColor' => $this->getEventColor($booking->status),
+                    'borderColor' => $this->getEventColor($booking->status),
+                    'extendedProps' => [
+                        'room' => $roomName,
+                        'room_name' => $roomName,
+                        'roomId' => $booking->room_id,
+                        'attendees' => $booking->attendees,
+                        'userName' => $booking->user_name,
+                        'user_name' => $booking->user_name,
+                        'status' => $booking->status,
+                        'description' => $booking->description,
+                        // safer than relying on an accessor that may throw
+                        'formatted_time' => $startTime . ' - ' . $endTime,
+                        'date' => $date->format('M d, Y'),
+
+                        'booking_code' => $booking->booking_code ?? null,
+                        'qr_code_url' => $booking->getAttribute('qr_code_url') ?? null,
+                    ],
+                ];
+            }));
+        } catch (\Throwable $e) {
+            Log::error('CalendarController@events failed', [
+                'message' => $e->getMessage(),
+                'exception' => get_class($e),
+                'trace' => config('app.debug') ? $e->getTraceAsString() : null,
             ]);
+
+            return response()->json([
+                'message' => 'Failed to load calendar events.',
+            ], 500);
         }
-
-        $bookings = $query->get();
-
-        return response()->json($bookings->map(function($booking) {
-            $startTime = $booking->start_time ?? '09:00';
-            $endTime = $booking->end_time ?? '10:00';
-            
-            // Ensure time format is correct (HH:MM)
-            if (strlen($startTime) === 5) {
-                $startTime .= ':00';
-            }
-            if (strlen($endTime) === 5) {
-                $endTime .= ':00';
-            }
-            
-            return [
-                'id' => $booking->id,
-                'title' => $booking->title ?: $booking->room->name,
-                'start' => $booking->date->format('Y-m-d') . 'T' . $startTime,
-                'end' => $booking->date->format('Y-m-d') . 'T' . $endTime,
-                'backgroundColor' => $this->getEventColor($booking->status),
-                'borderColor' => $this->getEventColor($booking->status),
-                'extendedProps' => [
-                    'room' => $booking->room->name,
-                    'room_name' => $booking->room->name,
-                    'roomId' => $booking->room_id,
-                    'attendees' => $booking->attendees,
-                    'userName' => $booking->user_name,
-                    'user_name' => $booking->user_name,
-                    'status' => $booking->status,
-                    'description' => $booking->description,
-                    'formatted_time' => $booking->formatted_time,
-                    'date' => $booking->date->format('M d, Y'),
-                ],
-            ];
-        }));
     }
 
     public function dayEvents(Request $request)
     {
-        $date = $request->get('date', today()->format('Y-m-d'));
+        try {
+            $date = $request->get('date', today()->format('Y-m-d'));
 
-        $query = Booking::with('room')
-            ->whereDate('date', $date);
+            $query = Booking::with('room')
+                ->whereDate('date', $date);
 
-        if ($request->filled('room_id')) {
-            $query->where('room_id', $request->room_id);
+            if ($request->filled('room_id')) {
+                $query->where('room_id', $request->room_id);
+            }
+
+            $bookings = $query->orderBy('start_time')->get();
+
+            return response()->json([
+                'date' => $date,
+                'bookings' => $bookings->map(function ($booking) {
+                    return [
+                        'id' => $booking->id,
+                        'title' => $booking->title,
+                        'room_name' => $booking->room?->name,
+                        'room_id' => $booking->room_id,
+                        'start_time' => $booking->start_time,
+                        'end_time' => $booking->end_time,
+                        'formatted_time' => ($booking->start_time && $booking->end_time)
+                            ? ($booking->start_time . ' - ' . $booking->end_time)
+                            : null,
+                        'user_name' => $booking->user_name,
+                        'attendees' => $booking->attendees,
+                        'status' => $booking->status,
+
+                        'booking_code' => $booking->booking_code ?? null,
+                        'qr_code_url' => $booking->getAttribute('qr_code_url') ?? null,
+                    ];
+                }),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('CalendarController@dayEvents failed', [
+                'message' => $e->getMessage(),
+                'exception' => get_class($e),
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to load day events.',
+            ], 500);
         }
-
-        $bookings = $query->orderBy('start_time')->get();
-
-        return response()->json([
-            'date' => $date,
-            'bookings' => $bookings->map(function($booking) {
-                return [
-                    'id' => $booking->id,
-                    'title' => $booking->title,
-                    'room_name' => $booking->room->name,
-                    'room_id' => $booking->room_id,
-                    'start_time' => $booking->start_time,
-                    'end_time' => $booking->end_time,
-                    'formatted_time' => $booking->formatted_time,
-                    'user_name' => $booking->user_name,
-                    'attendees' => $booking->attendees,
-                    'status' => $booking->status,
-                ];
-            }),
-        ]);
     }
 
     public function monthData(Request $request)
     {
-        $month = $request->get('month', now()->month);
-        $year = $request->get('year', now()->year);
+        try {
+            $month = $request->get('month', now()->month);
+            $year = $request->get('year', now()->year);
 
-        $startOfMonth = Carbon::createFromDate($year, $month, 1)->startOfMonth();
-        $endOfMonth = Carbon::createFromDate($year, $month, 1)->endOfMonth();
+            $startOfMonth = Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endOfMonth = Carbon::createFromDate($year, $month, 1)->endOfMonth();
 
-        $query = Booking::with('room')
-            ->whereBetween('date', [$startOfMonth, $endOfMonth]);
+            $query = Booking::with('room')
+                ->whereBetween('date', [$startOfMonth, $endOfMonth]);
 
-        if ($request->filled('room_id')) {
-            $query->where('room_id', $request->room_id);
+            if ($request->filled('room_id')) {
+                $query->where('room_id', $request->room_id);
+            }
+
+            $bookings = $query->get();
+
+            $grouped = $bookings->groupBy(function ($booking) {
+                return $this->asCarbonDate($booking->date)->format('Y-m-d');
+            })->map(function ($dayBookings) {
+                return $dayBookings->map(function ($booking) {
+                    return [
+                        'id' => $booking->id,
+                        'title' => $booking->title,
+                        'room_name' => $booking->room?->name,
+                        'room_id' => $booking->room_id,
+                        'start_time' => $booking->start_time,
+                        'end_time' => $booking->end_time,
+                        'formatted_time' => ($booking->start_time && $booking->end_time)
+                            ? ($booking->start_time . ' - ' . $booking->end_time)
+                            : null,
+                        'user_name' => $booking->user_name,
+                        'status' => $booking->status,
+                        'attendees' => $booking->attendees,
+
+                        'booking_code' => $booking->booking_code ?? null,
+                        'qr_code_url' => $booking->getAttribute('qr_code_url') ?? null,
+                    ];
+                })->values();
+            });
+
+            return response()->json($grouped);
+        } catch (\Throwable $e) {
+            Log::error('CalendarController@monthData failed', [
+                'message' => $e->getMessage(),
+                'exception' => get_class($e),
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to load month data.',
+            ], 500);
+        }
+    }
+
+    private function asCarbonDate($value): Carbon
+    {
+        if ($value instanceof \Carbon\CarbonInterface) return Carbon::instance($value);
+        if (empty($value)) return now();
+        return Carbon::parse($value);
+    }
+
+    private function normalizeTime($value, string $fallback): string
+    {
+        $t = is_string($value) ? trim($value) : '';
+        if ($t === '') return $fallback;
+
+        // H:MM -> HH:MM:SS
+        if (preg_match('/^(\d{1,2}):(\d{2})$/', $t, $m)) {
+            return str_pad($m[1], 2, '0', STR_PAD_LEFT) . ':' . $m[2] . ':00';
         }
 
-        $bookings = $query->get();
+        // H:MM:SS -> HH:MM:SS
+        if (preg_match('/^(\d{1,2}):(\d{2}):(\d{2})$/', $t, $m)) {
+            return str_pad($m[1], 2, '0', STR_PAD_LEFT) . ':' . $m[2] . ':' . $m[3];
+        }
 
-        // Group bookings by date
-        $grouped = $bookings->groupBy(function($booking) {
-            return $booking->date->format('Y-m-d');
-        })->map(function($dayBookings) {
-            return $dayBookings->map(function($booking) {
-                return [
-                    'id' => $booking->id,
-                    'title' => $booking->title,
-                    'room_name' => $booking->room->name,
-                    'room_id' => $booking->room_id,
-                    'start_time' => $booking->start_time,
-                    'end_time' => $booking->end_time,
-                    'formatted_time' => $booking->formatted_time,
-                    'user_name' => $booking->user_name,
-                    'status' => $booking->status,
-                    'attendees' => $booking->attendees,
-                ];
-            })->values();
-        });
-
-        return response()->json($grouped);
+        return $fallback;
     }
 
     private function getEventColor($status)

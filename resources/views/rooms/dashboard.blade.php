@@ -229,7 +229,7 @@
 
     <!-- View Booking Details Modal -->
     <div x-show="showViewModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto">
-        <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="showViewModal = false"></div>
+        <div class="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" @click="showViewModal = false"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
             <div class="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl transform transition-all" 
                  @click.stop
@@ -371,7 +371,7 @@
 
     <!-- Day Events Modal (for +X more) -->
     <div x-show="showDayEventsModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto">
-        <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="showDayEventsModal = false"></div>
+        <div class="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" @click="showDayEventsModal = false"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
             <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl transform transition-all" 
                  @click.stop
@@ -463,7 +463,7 @@
 
     <!-- Create Booking Modal -->
     <div x-show="showBookingModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto">
-        <div class="fixed inset-0 bg-black bg-opacity-50" @click="closeBookingModal()"></div>
+        <div class="fixed inset-0 bg-black/40 backdrop-blur-sm" @click="closeBookingModal()"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
             <div class="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl" @click.stop>
                 <!-- Modal Header -->
@@ -671,6 +671,26 @@
     </div>
 </div>
 
+@push('styles')
+<style>
+/* Ensure dashboard calendar rows render in natural top-to-bottom order and do not wrap into columns */
+#dashboard-calendar .fc-daygrid-body {
+    display: block !important;
+}
+#dashboard-calendar .fc-daygrid-body .fc-row {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    order: 0 !important;
+}
+#dashboard-calendar .fc-daygrid-body .fc-daygrid-day {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 80px; /* keep cells a reasonable height */
+}
+</style>
+@endpush
+
 @push('scripts')
 <script>
 function dashboardApp() {
@@ -770,7 +790,7 @@ function dashboardApp() {
                 weeks.push(week);
             }
 
-            return weeks;
+            return weeks.reverse();
         },
 
         init() {

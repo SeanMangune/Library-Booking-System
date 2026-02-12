@@ -150,7 +150,7 @@
 
     <!-- Booking Modal -->
     <div x-show="showBookingModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto">
-        <div class="fixed inset-0 bg-black bg-opacity-50" @click="closeBookingModal()"></div>
+        <div class="fixed inset-0 bg-black/30 backdrop-blur-sm" @click="closeBookingModal()"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
             <div class="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl" @click.stop>
                 <!-- Modal Header -->
@@ -203,6 +203,15 @@
                                            placeholder="Enter user name..."
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                 </div>
+
+                                <!-- <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        User Email <span class="text-red-500">*</span>
+                                    </label>
+                                    <input type="email" x-model="bookingForm.user_email" required
+                                           placeholder="Enter user email..."
+                                           class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                </div> -->
 
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -292,9 +301,138 @@
         </div>
     </div>
 
+    <!-- Booking Success Modal -->
+    <div x-show="showSuccessModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto">
+    <!-- Backdrop -->
+    <div class="fixed inset-0 bg-black/30 backdrop-blur-sm transition-opacity z-50" @click="closeSuccessModal()"></div>
+
+    <!-- Modal -->
+    <div class="relative min-h-screen flex items-center justify-center p-4 z-50">
+        <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl z-50" @click.stop>
+                <!-- <div class="bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-7 rounded-t-2xl text-center">
+                    <div class="w-14 h-14 mx-auto bg-white/20 rounded-full flex items-center justify-center mb-3">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <h2 class="text-lg font-bold text-white"
+                        x-text="successBooking?.status === 'pending' ? 'Booking Submitted!' : 'Booking Confirmed!'"></h2>
+                    <p class="text-emerald-100 text-sm mt-1" x-text="successMessage"></p>
+                </div> -->
+
+                <div class="success-header">
+    <div class="success-icon-wrap">
+        <svg class="success-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+    </div>
+
+    <h2 class="success-title"
+        x-text="successBooking?.status === 'pending' ? 'Booking Submitted!' : 'Booking Confirmed!'"></h2>
+
+    <p class="success-text" x-text="successMessage"></p>
+</div>
+
+<style>
+/* Header container */
+.success-header{
+    background: linear-gradient(to right, #0d9488, #059669); /* teal-600 → emerald-600 */
+    padding: 1.75rem 1.5rem; /* px-6 py-7 */
+    border-top-left-radius: 1rem;
+    border-top-right-radius: 1rem; /* rounded-t-2xl */
+    text-align: center;
+}
+
+/* Icon circle */
+.success-icon-wrap{
+    width: 56px;   /* w-14 */
+    height: 56px;  /* h-14 */
+    margin: 0 auto 0.75rem auto; /* mx-auto mb-3 */
+    background: rgba(255,255,255,0.2); /* bg-white/20 */
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Check icon */
+.success-icon{
+    width: 32px;  /* w-8 */
+    height: 32px; /* h-8 */
+    color: #ffffff;
+}
+
+/* Title */
+.success-title{
+    font-size: 1.125rem; /* text-lg */
+    font-weight: 700;    /* font-bold */
+    color: #ffffff;
+    margin: 0;
+}
+
+/* Subtitle */
+.success-text{
+    font-size: 0.875rem; /* text-sm */
+    margin-top: 0.25rem;
+    color: #d1fae5; /* emerald-100 */
+}
+</style>
+
+
+                <div class="p-6">
+                    <div class="bg-gray-50 rounded-xl p-4 mb-5">
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <p class="text-gray-500">Room</p>
+                                <p class="font-semibold text-gray-900" x-text="successBooking?.room?.name || selectedRoom?.name || '—'"></p>
+                            </div>
+                            <div>
+                                <p class="text-gray-500">Date</p>
+                                <p class="font-semibold text-gray-900" x-text="formatDate(successBooking?.date) || bookingForm.date"></p>
+                            </div>
+                            <div>
+                                <p class="text-gray-500">Time</p>
+                                <p class="font-semibold text-gray-900" x-text="formatTimeRange(successBooking?.start_time, successBooking?.end_time) || (bookingForm.start_time + ' - ' + bookingForm.end_time)"></p>
+                            </div>
+                            <div>
+                                <p class="text-gray-500">Status</p>
+                                <p class="font-semibold" :class="successBooking?.status === 'approved' ? 'text-emerald-600' : 'text-amber-600'"
+                                   x-text="(successBooking?.status || 'pending').toString().charAt(0).toUpperCase() + (successBooking?.status || 'pending').toString().slice(1)"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <template x-if="successBooking?.qr_code_url">
+                        <div class="text-center mb-5">
+                            <h3 class="text-sm font-semibold text-gray-700 mb-3">QR Code</h3>
+                            <div class="inline-block p-3 bg-white border border-gray-200 rounded-xl shadow-sm">
+                                <img :src="successBooking.qr_code_url" alt="Booking QR Code" class="w-40 h-40 mx-auto">
+                            </div>
+                            <div class="mt-3">
+                                <a :href="successBooking.qr_code_url" download
+                                   class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                    </svg>
+                                    Download
+                                </a>
+                            </div>
+                        </div>
+                    </template>
+
+                    <button @click="closeSuccessModal()"
+                            class="w-full px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors">
+                        Done
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Event Detail Modal -->
     <div x-show="showEventModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto">
-        <div class="fixed inset-0 bg-black bg-opacity-50" @click="closeEventModal()"></div>
+        <div class="fixed inset-0 bg-black/30 backdrop-blur-sm" @click="closeEventModal()"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
             <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl" @click.stop>
                 <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 rounded-t-2xl">
@@ -392,6 +530,9 @@ function calendarApp() {
         roomSearch: '',
         showBookingModal: false,
         showEventModal: false,
+        showSuccessModal: false,
+        successMessage: '',
+        successBooking: null,
         selectedEvent: null,
         isSubmitting: false,
         
@@ -403,6 +544,7 @@ function calendarApp() {
             end_time: '10:00',
             attendees: 1,
             user_name: '',
+            user_email: '',
             description: '',
         },
 
@@ -525,6 +667,38 @@ function calendarApp() {
             this.selectedEvent = null;
         },
 
+        closeSuccessModal() {
+            this.showSuccessModal = false;
+            this.successMessage = '';
+            this.successBooking = null;
+            // Refresh the page after modal closes
+            window.location.reload();
+        },
+
+        formatDate(value) {
+            if (!value) return '';
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) return String(value);
+            return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        },
+
+        formatTime(value) {
+            if (!value) return '';
+            const parts = String(value).split(':');
+            if (parts.length < 2) return String(value);
+            const h = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            if (Number.isNaN(h) || Number.isNaN(m)) return String(value);
+            const d = new Date();
+            d.setHours(h, m, 0, 0);
+            return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+        },
+
+        formatTimeRange(start, end) {
+            if (!start || !end) return '';
+            return this.formatTime(start) + ' - ' + this.formatTime(end);
+        },
+
         async submitBooking() {
             this.isSubmitting = true;
             try {
@@ -540,9 +714,10 @@ function calendarApp() {
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert(data.message);
+                    this.successMessage = data.message || 'Booking created successfully.';
+                    this.successBooking = data.booking || null;
                     this.closeBookingModal();
-                    this.calendar?.refetchEvents();
+                    this.showSuccessModal = true;
                 } else {
                     alert(data.message || 'Failed to create booking');
                 }

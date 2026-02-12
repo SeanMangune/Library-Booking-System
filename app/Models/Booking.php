@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
+use App\Services\QrCodeService;
 
 class Booking extends Model
 {
@@ -25,12 +27,33 @@ class Booking extends Model
         'has_conflict',
         'conflicts_with',
         'reason',
+        'qr_token',
+        'booking_code',
     ];
 
     protected $casts = [
         'date' => 'date',
         'has_conflict' => 'boolean',
     ];
+
+    protected $appends = [
+        'qr_code_url',
+        'formatted_duration',
+        'verify_url',
+        'formatted_time',
+        'formatted_date',
+    ];
+
+    protected static function booted(): void
+    {
+        static::created(function (Booking $booking) {
+            // Only auto-generate QR code for bookings that are immediately approved
+            // Pending bookings will get QR codes when approved via the approval process
+            if ($booking->status === 'approved') {
+                app(QrCodeService::class)->ensureBookingQr($booking);
+            }
+        });
+    }
 
     public function room(): BelongsTo
     {
@@ -63,6 +86,47 @@ class Booking extends Model
     public function getFormattedDateAttribute(): string
     {
         return $this->date ? $this->date->format('M d, Y') : '';
+    }
+
+    public function getQrCodeUrlAttribute(): ?string
+    {
+        // Primary: token-based dynamic QR (served by controller using Endroid)
+        if ($this->qr_token) {
+            return url('/bookings/qr/' . $this->qr_token);
+        }
+
+        // Only token-based dynamic QR images are supported in the schema
+        return null;
+    }
+
+    /**
+     * Human-friendly duration (derived from stored duration or from start/end times)
+     */
+    public function getFormattedDurationAttribute(): string
+    {
+        if ($this->duration) {
+            return $this->duration;
+        }
+
+        if ($this->start_time && $this->end_time) {
+            $start = Carbon::parse($this->start_time);
+            $end = Carbon::parse($this->end_time);
+            $minutes = $start->diffInMinutes($end);
+            $hours = floor($minutes / 60);
+            $mins = $minutes % 60;
+            return $mins > 0 ? "{$hours}h {$mins}m" : "{$hours}h";
+        }
+
+        return '';
+    }
+
+    /**
+     * Public verification URL for this booking (null when token missing).
+     */
+    public function getVerifyUrlAttribute(): ?string
+    {
+        if (! $this->qr_token) return null;
+        return url('/verify?token=' . $this->qr_token);
     }
 
     public function scopeToday($query)
