@@ -42,6 +42,7 @@
                              'title' => $booking->title,
                              'room_name' => $booking->room->name,
                              'date' => $booking->date->format('M d, Y'),
+                             'formatted_date' => $booking->formatted_date,
                              'formatted_time' => $booking->formatted_time,
                              'user_name' => $booking->user_name,
                              'attendees' => $booking->attendees,
@@ -82,6 +83,7 @@
                              'title' => $booking->title,
                              'room_name' => $booking->room->name,
                              'date' => $booking->date->format('M d, Y'),
+                             'formatted_date' => $booking->formatted_date,
                              'formatted_time' => $booking->formatted_time,
                              'user_name' => $booking->user_name,
                              'attendees' => $booking->attendees,
@@ -289,7 +291,7 @@
                                     </div>
                                     <div>
                                         <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Date</p>
-                                        <p class="text-gray-900 font-semibold" x-text="selectedBooking.date"></p>
+                                        <p class="text-gray-900 font-semibold" x-text="selectedBooking.formatted_date || selectedBooking.date"></p>
                                     </div>
                                 </div>
 

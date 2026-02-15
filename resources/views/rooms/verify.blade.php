@@ -3,27 +3,195 @@
 @section('title', 'Verify Booking')
 
 @section('content')
-<div class="max-w-3xl mx-auto py-10">
-    <div class="bg-white rounded-2xl shadow-sm p-6 text-center">
-        @if($booking)
-            <div class="mb-4">
-                <h2 class="text-xl font-bold">Booking verified</h2>
-                <p class="text-sm text-gray-500 mt-1">Token: <code>{{ $token }}</code></p>
-            </div>
-            <div class="text-left bg-gray-50 rounded-lg p-4">
-                <p class="text-xs text-gray-500">Room</p>
-                <p class="font-semibold text-gray-900">{{ $booking->room->name }}</p>
-                <p class="text-xs text-gray-500 mt-3">Date & time</p>
-                <p class="font-semibold text-gray-900">{{ $booking->date->format('M j, Y') }} — {{ $booking->formatted_time }}</p>
-                <p class="text-xs text-gray-500 mt-3">Booked by</p>
-                <p class="font-semibold text-gray-900">{{ $booking->user_name }} &lt;{{ $booking->user_email }}&gt;</p>
-            </div>
-        @else
-            <div class="py-8">
-                <h2 class="text-lg font-semibold">Invalid or expired token</h2>
-                <p class="text-sm text-gray-500 mt-2">No booking found for token <code>{{ $token }}</code>.</p>
-            </div>
-        @endif
+<div class="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+    @if($booking)
+    <div class="bg-white shadow rounded-2xl overflow-hidden border border-gray-100">
+        <div class="verify-header">
+    <div class="verify-left">
+        <div class="verify-icon-box">
+            <svg class="verify-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+        </div>
+
+        <div>
+            <h1 class="verify-title">Booking verified</h1>
+            <p class="verify-subtitle">
+                Token: <span class="verify-token">{{ $token }}</span>
+            </p>
+        </div>
+    </div>
+
+    <div>
+        <span class="status-badge">
+            {{ ucfirst($booking->status ?? 'unknown') }}
+        </span>
     </div>
 </div>
+
+<style>
+/* Main header container */
+.verify-header{
+    background: linear-gradient(to right, #059669, #14b8a6); /* emerald-600 → teal-500 */
+    padding: 1.25rem 1.5rem; /* px-6 py-5 */
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Left flex group */
+.verify-left{
+    display: flex;
+    align-items: center;
+    gap: 1rem; /* gap-4 */
+}
+
+/* Icon box */
+.verify-icon-box{
+    width: 40px;   /* w-10 */
+    height: 40px;
+    background: rgba(255,255,255,0.2); /* bg-white/20 */
+    border-radius: 8px; /* rounded-lg */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Icon */
+.verify-icon{
+    width: 20px; /* w-5 */
+    height: 20px;
+    color: #ffffff;
+}
+
+/* Title */
+.verify-title{
+    font-size: 1.125rem; /* text-lg */
+    font-weight: 600;    /* font-semibold */
+    margin: 0;
+}
+
+/* Subtitle */
+.verify-subtitle{
+    font-size: 0.875rem; /* text-sm */
+    color: rgba(255,255,255,0.8); /* text-white/80 */
+    margin: 0;
+}
+
+/* Token monospace */
+.verify-token{
+    font-family: monospace;
+}
+
+/* Status badge */
+.status-badge{
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.75rem; /* px-3 py-1.5 */
+    border-radius: 9999px; /* rounded-full */
+    font-size: 0.875rem;
+    font-weight: 600;
+    background: rgba(255,255,255,0.12);
+    color: #D1FAE5; /* your updated color */
+}
+</style>
+
+
+        <div class="p-6 sm:p-8">
+            <div class="grid grid-cols-1 gap-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide">Room</p>
+                        <p class="mt-1 font-semibold text-gray-900">{{ $booking->room?->name ?? '—' }}</p>
+                        @if($booking->room?->location)
+                            <p class="text-sm text-gray-500 mt-1">{{ $booking->room->location }}</p>
+                        @endif
+                    </div>
+
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide">Date</p>
+                        <p class="mt-1 font-semibold text-gray-900">{{ $booking->formatted_date ?? ($booking->date?->format('M j, Y') ?? '—') }}</p>
+                        <p class="text-xs text-gray-400 mt-1">Timezone: {{ config('app.timezone') }}</p>
+                    </div>
+
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide">Time</p>
+                        <p class="mt-1 font-semibold text-gray-900">{{ $booking->formatted_time ?? ($booking->start_time . ' - ' . $booking->end_time) }}</p>
+                    </div>
+
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide">Attendees</p>
+                        <p class="mt-1 font-semibold text-gray-900">{{ $booking->attendees ?? '—' }} people</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="sm:col-span-2 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide">Booked by</p>
+                        <p class="mt-1 font-semibold text-gray-900">{{ $booking->user_name ?? '—' }}</p>
+                        <p class="text-sm text-gray-500 mt-1">{{ $booking->user_email ?? '' }}</p>
+                    </div>
+
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide">Status</p>
+                        <div class="mt-2">
+                            @php $status = $booking->status ?? 'unknown'; @endphp
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold"
+                                  style="background: {{ $status === 'approved' ? '#ECFDF5' : '#FEF3C7' }}; color: {{ $status === 'approved' ? '#065F46' : '#92400E' }};">
+                                {{ ucfirst($status) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                @if($booking->booking_code || $booking->duration || $booking->description)
+                <div class="space-y-3">
+                    @if($booking->booking_code)
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-gray-500 uppercase tracking-wide">Booking code</p>
+                            <p class="font-mono font-semibold text-gray-900 mt-1">{{ $booking->booking_code }}</p>
+                        </div>
+                        <button class="text-sm text-gray-600 hover:text-gray-900" onclick="navigator.clipboard?.writeText('{{ $booking->booking_code }}')">Copy</button>
+                    </div>
+                    @endif
+
+                    @if($booking->duration)
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide">Duration</p>
+                        <p class="font-semibold text-gray-900 mt-1">{{ $booking->duration }}</p>
+                    </div>
+                    @endif
+
+                    @if($booking->description)
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide">Notes</p>
+                        <p class="text-gray-700 mt-1">{{ $booking->description }}</p>
+                    </div>
+                    @endif
+                </div>
+                @endif
+
+                <div class="pt-4">
+                    <a href="{{ route('dashboard') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm">Back to dashboard</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    @else
+    <div class="max-w-xl mx-auto text-center py-20">
+        <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-50 mb-6">
+            <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </div>
+        <h2 class="text-2xl font-semibold">Invalid or expired token</h2>
+        <p class="text-gray-500 mt-2">We couldn't find a booking for token <code>{{ $token }}</code>. The link may be incorrect or expired.</p>
+        <div class="mt-6">
+            <a href="{{ route('dashboard') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm">Back to dashboard</a>
+        </div>
+    </div>
+    @endif
+</div>
+
 @endsection

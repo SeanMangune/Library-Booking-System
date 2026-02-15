@@ -90,6 +90,7 @@
                 'room_location' => $booking->room->location,
                 'room_capacity' => $booking->room->capacity,
                 'date' => $booking->date->format('M j, Y'),
+                'formatted_date' => $booking->formatted_date,
                 'formatted_time' => $booking->formatted_time,
                 'time' => $booking->time,
                 'duration' => $booking->duration,
@@ -275,7 +276,7 @@
                             </div>
                             <div>
                                 <p class="text-xs text-gray-500">Date</p>
-                                <p class="text-sm font-semibold text-gray-900" x-text="selectedBooking?.date"></p>
+                                <p class="text-sm font-semibold text-gray-900" x-text="selectedBooking?.formatted_date || selectedBooking?.date"></p>
                             </div>
                         </div>
                         <div class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl">

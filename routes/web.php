@@ -67,6 +67,9 @@ Route::post('/bookings/{booking}/reject', [BookingController::class, 'reject'])-
 // Return a PNG QR image for a booking token (used by frontend <img src="/bookings/qr/{token}")
 Route::get('/bookings/qr/{token}', [BookingController::class, 'qrImage'])->name('bookings.qr');
 
+// Public verification page for scanned QR tokens
+Route::get('/verify', [BookingController::class, 'verify'])->name('bookings.verify');
+
 Route::get('/calendar-data', [CalendarController::class, 'monthData'])->name('calendar.data');
 
 

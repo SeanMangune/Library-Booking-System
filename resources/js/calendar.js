@@ -156,14 +156,16 @@ export function initCalendar(config = {}) {
         eventTimeFormat: {
             hour: 'numeric',
             minute: '2-digit',
-            meridiem: 'short'
+            meridiem: 'short',
+            hour12: true
         },
 
         // Slot time format for week/day views
         slotLabelFormat: {
             hour:  'numeric',
             minute:  '2-digit',
-            meridiem: 'short'
+            meridiem: 'short',
+            hour12: true
         },
 
         // Business hours (adjust as needed for your library)

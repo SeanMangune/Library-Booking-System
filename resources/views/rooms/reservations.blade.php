@@ -137,6 +137,7 @@
                                 'room_name' => $booking->room->name,
                                 'room_location' => $booking->room->location,
                                 'date' => $booking->date->format('M d, Y'),
+                                'formatted_date' => $booking->formatted_date,
                                 'formatted_time' => $booking->formatted_time,
                                 'user_name' => $booking->user_name,
                                 'user_email' => $booking->user_email,
@@ -236,7 +237,7 @@
                         </div>
                         <div class="p-4 bg-gray-50 rounded-xl">
                             <p class="text-xs font-medium text-gray-500 mb-1">Date & Time</p>
-                            <p class="font-semibold text-gray-900" x-text="viewBooking?.date"></p>
+                            <p class="font-semibold text-gray-900" x-text="viewBooking?.formatted_date || viewBooking?.date"></p>
                             <p class="text-sm text-gray-500" x-text="viewBooking?.formatted_time"></p>
                         </div>
                         <div class="p-4 bg-gray-50 rounded-xl">

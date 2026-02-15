@@ -458,7 +458,7 @@
                             </div>
                             <div class="p-4 bg-gray-50 rounded-xl">
                                 <p class="text-xs font-medium text-gray-500 mb-1">Date</p>
-                                <p class="font-semibold text-gray-900" x-text="selectedEvent?.date"></p>
+                                <p class="font-semibold text-gray-900" x-text="selectedEvent?.formatted_date || selectedEvent?.date"></p>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
@@ -574,18 +574,32 @@ function calendarApp() {
                 height: 'auto',
                 events: this.fetchEvents.bind(this),
                 eventClick: function(info) {
-                    const props = info.event.extendedProps;
+                    const props = info.event.extendedProps || {};
+
+                    // derive a friendly date for the modal (prefer server-provided formatted value)
+                    const derivedDate = props.formatted_date || props.date || self.formatDate(info.event.start);
+
+                    // derive a friendly time range (prefer server-provided formatted_time)
+                    let derivedTime = props.formatted_time;
+                    if (!derivedTime && info.event.start && info.event.end) {
+                        const s = `${String(info.event.start.getHours()).padStart(2,'0')}:${String(info.event.start.getMinutes()).padStart(2,'0')}`;
+                        const e = `${String(info.event.end.getHours()).padStart(2,'0')}:${String(info.event.end.getMinutes()).padStart(2,'0')}`;
+                        derivedTime = self.formatTimeRange(s, e);
+                    }
+
                     self.selectedEvent = {
                         id: info.event.id,
                         title: info.event.title,
                         room_name: props.room_name || props.room,
-                        date: props.date,
-                        formatted_time: props.formatted_time,
+                        date: derivedDate,
+                        formatted_date: props.formatted_date || derivedDate,
+                        formatted_time: derivedTime || '',
                         user_name: props.user_name || props.userName,
                         attendees: props.attendees,
                         status: props.status,
                         description: props.description,
                     };
+
                     self.showEventModal = true;
                 },
                 dateClick: function(info) {
@@ -691,12 +705,8 @@ function calendarApp() {
             if (Number.isNaN(h) || Number.isNaN(m)) return String(value);
             const d = new Date();
             d.setHours(h, m, 0, 0);
-            return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-        },
-
-        formatTimeRange(start, end) {
-            if (!start || !end) return '';
-            return this.formatTime(start) + ' - ' + this.formatTime(end);
+            // force AM/PM display regardless of browser locale
+            return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
         },
 
         async submitBooking() {
@@ -727,7 +737,7 @@ function calendarApp() {
             } finally {
                 this.isSubmitting = false;
             }
-        }
+        },
     }
 }
 </script>

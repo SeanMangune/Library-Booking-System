@@ -63,7 +63,9 @@ class CalendarController extends Controller
                         'status' => $booking->status,
                         'description' => $booking->description,
                         // safer than relying on an accessor that may throw
-                        'formatted_time' => $startTime . ' - ' . $endTime,
+                        // ensure human-friendly date/time values are present
+                        'formatted_time' => $booking->formatted_time,
+                        'formatted_date' => $booking->formatted_date,
                         'date' => $date->format('M d, Y'),
 
                         'booking_code' => $booking->booking_code ?? null,
@@ -108,9 +110,8 @@ class CalendarController extends Controller
                         'room_id' => $booking->room_id,
                         'start_time' => $booking->start_time,
                         'end_time' => $booking->end_time,
-                        'formatted_time' => ($booking->start_time && $booking->end_time)
-                            ? ($booking->start_time . ' - ' . $booking->end_time)
-                            : null,
+                        'formatted_time' => $booking->formatted_time,
+                        'formatted_date' => $booking->formatted_date,
                         'user_name' => $booking->user_name,
                         'attendees' => $booking->attendees,
                         'status' => $booking->status,
@@ -161,9 +162,8 @@ class CalendarController extends Controller
                         'room_id' => $booking->room_id,
                         'start_time' => $booking->start_time,
                         'end_time' => $booking->end_time,
-                        'formatted_time' => ($booking->start_time && $booking->end_time)
-                            ? ($booking->start_time . ' - ' . $booking->end_time)
-                            : null,
+                        'formatted_time' => $booking->formatted_time,
+                        'formatted_date' => $booking->formatted_date,
                         'user_name' => $booking->user_name,
                         'status' => $booking->status,
                         'attendees' => $booking->attendees,
