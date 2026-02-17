@@ -613,9 +613,33 @@ function calendarApp() {
                     self.calendarTitle = months[date.getMonth()] + ' ' + date.getFullYear();
                 },
                 eventDidMount: function(info) {
-                    // Add tooltip on hover
-                    const props = info.event.extendedProps;
-                    info.el.title = `${info.event.title}\n${props.room_name || props.room}\n${props.formatted_time || ''}\nBy: ${props.user_name || props.userName}\n${props.attendees} attendees`;
+                    const props = info.event.extendedProps || {};
+                    const selfRef = self;
+
+                    // Avoid the browser default tooltip (we render our own)
+                    info.el.removeAttribute('title');
+
+                    const onEnter = () => selfRef.showEventTooltip(info, props);
+                    const onLeave = () => selfRef.hideEventTooltip();
+
+                    info.el.addEventListener('mouseenter', onEnter);
+                    info.el.addEventListener('mouseleave', onLeave);
+                    info.el.addEventListener('focusin', onEnter);
+                    info.el.addEventListener('focusout', onLeave);
+
+                    info.el.__tooltipHandlers = { onEnter, onLeave };
+                },
+                eventWillUnmount: function(info) {
+                    const handlers = info.el.__tooltipHandlers;
+                    if (handlers) {
+                        info.el.removeEventListener('mouseenter', handlers.onEnter);
+                        info.el.removeEventListener('mouseleave', handlers.onLeave);
+                        info.el.removeEventListener('focusin', handlers.onEnter);
+                        info.el.removeEventListener('focusout', handlers.onLeave);
+                    }
+                    if (self.tooltipAnchorEl === info.el) {
+                        self.hideEventTooltip();
+                    }
                 },
             });
             
@@ -707,6 +731,136 @@ function calendarApp() {
             d.setHours(h, m, 0, 0);
             // force AM/PM display regardless of browser locale
             return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
+        },
+
+        tooltipEl: null,
+        tooltipAnchorEl: null,
+        tooltipCleanup: null,
+
+        showEventTooltip(info, props) {
+            this.hideEventTooltip();
+
+            const title = info?.event?.title || '';
+            const roomName = props.room_name || props.room || '';
+            const time = props.formatted_time || '';
+            const userName = props.user_name || props.userName || '';
+            const attendees = props.attendees != null ? String(props.attendees) : '';
+
+            const el = document.createElement('div');
+            el.className = 'fixed z-50 w-72 bg-gray-900 text-white text-xs rounded-lg shadow-xl p-3';
+            el.style.pointerEvents = 'none';
+
+            el.innerHTML = `
+                <div class="font-semibold text-sm mb-2">${this.escapeHtml(title || roomName)}</div>
+                <div class="space-y-1.5 text-gray-300">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                        <span>${this.escapeHtml(roomName)}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span>${this.escapeHtml(time)}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                        <span>${this.escapeHtml(userName)}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <span>${this.escapeHtml(attendees ? attendees + ' attendees' : '')}</span>
+                    </div>
+                </div>
+                <div data-arrow class="absolute left-6 top-full w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-gray-900"></div>
+            `;
+
+            document.body.appendChild(el);
+
+            const anchor = info?.el;
+            if (!anchor) {
+                el.remove();
+                return;
+            }
+
+            this.tooltipEl = el;
+            this.tooltipAnchorEl = anchor;
+
+            const position = () => {
+                if (!this.tooltipEl || !this.tooltipAnchorEl) return;
+                const rect = this.tooltipAnchorEl.getBoundingClientRect();
+                const tipRect = this.tooltipEl.getBoundingClientRect();
+
+                const viewportW = window.innerWidth;
+                const viewportH = window.innerHeight;
+                const padding = 8;
+                const gap = 10;
+
+                let left = rect.left + rect.width / 2;
+                const half = tipRect.width / 2;
+                left = Math.max(padding + half, Math.min(viewportW - padding - half, left));
+
+                let top = rect.top - tipRect.height - gap;
+                let placeBelow = false;
+                if (top < padding) {
+                    top = rect.bottom + gap;
+                    placeBelow = true;
+                }
+                if (top + tipRect.height > viewportH - padding) {
+                    top = Math.max(padding, viewportH - padding - tipRect.height);
+                }
+
+                this.tooltipEl.style.left = `${left}px`;
+                this.tooltipEl.style.top = `${top}px`;
+                this.tooltipEl.style.transform = 'translateX(-50%)';
+
+                const arrow = this.tooltipEl.querySelector('[data-arrow]');
+                if (arrow) {
+                    if (placeBelow) {
+                        arrow.className = 'absolute left-6 bottom-full w-0 h-0 border-l-8 border-r-8 border-b-8 border-transparent border-b-gray-900';
+                    } else {
+                        arrow.className = 'absolute left-6 top-full w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-gray-900';
+                    }
+                }
+            };
+
+            position();
+
+            const onScrollOrResize = () => position();
+            window.addEventListener('scroll', onScrollOrResize, true);
+            window.addEventListener('resize', onScrollOrResize);
+            this.tooltipCleanup = () => {
+                window.removeEventListener('scroll', onScrollOrResize, true);
+                window.removeEventListener('resize', onScrollOrResize);
+            };
+        },
+
+        hideEventTooltip() {
+            if (this.tooltipCleanup) {
+                this.tooltipCleanup();
+            }
+            this.tooltipCleanup = null;
+            this.tooltipAnchorEl = null;
+
+            if (this.tooltipEl) {
+                this.tooltipEl.remove();
+            }
+            this.tooltipEl = null;
+        },
+
+        escapeHtml(value) {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
         },
 
         async submitBooking() {
