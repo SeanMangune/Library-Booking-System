@@ -49,7 +49,7 @@ class RoomDashboardController extends Controller
             'upcomingReservations',
             'stats',
             'rooms',
-            'calendarData'
+            'calendarData',
         ));
     }
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Room;
 use App\Models\User;
+use App\Services\QcIdOcrVerifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
@@ -46,7 +47,7 @@ class BookingController extends Controller
         return view('rooms.reservations', compact('bookings', 'rooms'));
     }
 
-    public function store(Request $request)
+    public function store(Request $request, QcIdOcrVerifier $qcIdOcrVerifier)
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -59,9 +60,38 @@ class BookingController extends Controller
             'user_name' => 'nullable|string|max:255',
             'user_email' => 'nullable|email|max:255',
             'description' => 'nullable|string',
+            'qc_id_ocr_text' => 'required|string|min:20|max:12000',
+            'qc_id_cardholder_name' => 'nullable|string|max:255',
         ]);
 
         $room = Room::findOrFail($validated['room_id']);
+
+        $qcIdVerification = $qcIdOcrVerifier->verify(
+            $validated['qc_id_ocr_text'],
+            $validated['user_name'] ?? null,
+        );
+
+        if (! $qcIdVerification['is_valid']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please upload a valid Quezon City Citizen ID (QC ID) before creating a booking.',
+                'verification' => $qcIdVerification,
+            ], 422);
+        }
+
+        if (($qcIdVerification['name_matches'] ?? null) === false) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The booking name must match the cardholder name on the uploaded QC ID.',
+                'verification' => $qcIdVerification,
+            ], 422);
+        }
+
+        if (! empty($qcIdVerification['cardholder_name'])) {
+            $validated['user_name'] = $qcIdVerification['cardholder_name'];
+        }
+
+        unset($validated['qc_id_ocr_text'], $validated['qc_id_cardholder_name']);
 
         // Check for time conflicts
         $hasConflict = Booking::where('room_id', $validated['room_id'])
@@ -103,7 +133,8 @@ class BookingController extends Controller
             'message' => $room->requires_approval 
                 ? 'Booking submitted for approval' 
                 : 'Booking confirmed successfully',
-            'booking' => $booking->load('room')
+            'booking' => $booking->load('room'),
+            'verification' => $qcIdVerification,
         ]);
     }
 

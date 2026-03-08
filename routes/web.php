@@ -3,12 +3,12 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\QcIdRegistrationController;
+use App\Http\Controllers\QcIdVerificationController;
 use App\Http\Controllers\Rooms\RoomDashboardController;
 use App\Http\Controllers\Rooms\RoomController;
 use App\Http\Controllers\Rooms\BookingController;
 use App\Http\Controllers\Rooms\CalendarController;
-use App\Http\Controllers\BookingVerificationController;
-use App\Http\Controllers\Bookings\BookingAccessController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
 
@@ -34,6 +34,8 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 // Dashboard (user + admin)
 Route::middleware('auth')->group(function () {
     Route::get('/rooms', [RoomDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/qcid-registration', [QcIdRegistrationController::class, 'show'])->name('qcid.registration.show');
+    Route::post('/qcid-registration', [QcIdRegistrationController::class, 'store'])->name('qcid.registration.store');
 
     // Profile (user + admin)
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -45,6 +47,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/calendar/events', [CalendarController::class, 'events'])->name('calendar.events');
         Route::get('/calendar/day', [CalendarController::class, 'dayEvents'])->name('calendar.day');
         Route::get('/calendar/month', [CalendarController::class, 'monthData'])->name('calendar.month');
+        Route::post('/qc-id/verify', QcIdVerificationController::class)->name('qcid.verify');
 
         // Booking creation (used by dashboard + calendar modals)
         Route::post('/room-reservations', [BookingController::class, 'store'])->name('reservations.store');

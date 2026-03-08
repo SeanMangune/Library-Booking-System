@@ -204,6 +204,70 @@
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                 </div>
 
+                                <div class="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            QC ID Verification <span class="text-red-500">*</span>
+                                        </label>
+                                        <p class="text-xs text-gray-500">Upload a clear photo of a Quezon City Citizen ID. The system will read the card using OCR and reject non-QC IDs.</p>
+                                    </div>
+
+                                    <input type="file"
+                                           accept="image/png,image/jpeg,image/jpg,image/webp"
+                                           @change="handleQcIdUpload($event)"
+                                           class="block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-teal-700">
+
+                                    <div x-show="qcIdPreviewUrl" x-cloak class="rounded-lg overflow-hidden border border-gray-200 bg-white">
+                                        <img :src="qcIdPreviewUrl" alt="QC ID preview" class="w-full h-44 object-cover">
+                                    </div>
+
+                                    <div x-show="qcIdIsProcessing" x-cloak class="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-700">
+                                        <div class="flex items-center justify-between gap-3">
+                                            <span x-text="qcIdStatusMessage || 'Reading QC ID…'"></span>
+                                            <span class="font-semibold" x-text="Math.round(qcIdProgress || 0) + '%' "></span>
+                                        </div>
+                                    </div>
+
+                                    <div x-show="qcIdError" x-cloak class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" x-text="qcIdError"></div>
+
+                                    <div x-show="qcIdVerification?.is_valid" x-cloak class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
+                                        <div class="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p class="text-sm font-semibold text-emerald-800">QC ID verified</p>
+                                                <p class="text-xs text-emerald-700" x-text="'Confidence score: ' + (qcIdVerification?.confidence_score ?? 0) + '%' "></p>
+                                            </div>
+                                            <button type="button"
+                                                    @click="reprocessQcId()"
+                                                    class="inline-flex items-center rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors">
+                                                Re-read ID
+                                            </button>
+                                        </div>
+
+                                        <dl class="grid grid-cols-1 gap-2 text-xs text-emerald-900 sm:grid-cols-2">
+                                            <div>
+                                                <dt class="font-medium text-emerald-700">Cardholder</dt>
+                                                <dd x-text="qcIdVerification?.cardholder_name || '—'"></dd>
+                                            </div>
+                                            <div>
+                                                <dt class="font-medium text-emerald-700">Birth Date</dt>
+                                                <dd x-text="qcIdVerification?.date_of_birth || '—'"></dd>
+                                            </div>
+                                            <div>
+                                                <dt class="font-medium text-emerald-700">Date Issued</dt>
+                                                <dd x-text="qcIdVerification?.date_issued || '—'"></dd>
+                                            </div>
+                                            <div>
+                                                <dt class="font-medium text-emerald-700">Valid Until</dt>
+                                                <dd x-text="qcIdVerification?.valid_until || '—'"></dd>
+                                            </div>
+                                            <div class="sm:col-span-2">
+                                                <dt class="font-medium text-emerald-700">Address</dt>
+                                                <dd x-text="qcIdVerification?.address || '—'"></dd>
+                                            </div>
+                                        </dl>
+                                    </div>
+                                </div>
+
                                 <!-- <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
                                         User Email <span class="text-red-500">*</span>
@@ -281,12 +345,15 @@
 
                     <!-- Footer -->
                     <div class="flex items-center justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
+                        <p x-show="!qcIdVerification?.is_valid" x-cloak class="mr-auto text-sm text-amber-600">
+                            Upload and verify a QC ID before creating the booking.
+                        </p>
                         <button type="button" @click="closeBookingModal()"
                                 class="px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
                             Cancel
                         </button>
-                        <button type="submit" :disabled="isSubmitting"
-                                class="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50">
+                        <button type="submit" :disabled="isSubmitting || !qcIdVerification?.is_valid"
+                                class="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             <span class="flex items-center gap-2">
                                 <svg x-show="isSubmitting" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -520,6 +587,7 @@
 @endpush
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
 function calendarApp() {
     return {
@@ -535,6 +603,13 @@ function calendarApp() {
         successBooking: null,
         selectedEvent: null,
         isSubmitting: false,
+        qcIdFile: null,
+        qcIdPreviewUrl: '',
+        qcIdIsProcessing: false,
+        qcIdProgress: 0,
+        qcIdStatusMessage: '',
+        qcIdError: '',
+        qcIdVerification: null,
         
         bookingForm: {
             title: '',
@@ -546,6 +621,8 @@ function calendarApp() {
             user_name: '',
             user_email: '',
             description: '',
+            qc_id_ocr_text: '',
+            qc_id_cardholder_name: '',
         },
 
         init() {
@@ -561,6 +638,162 @@ function calendarApp() {
                     item.style.display = name.includes(query) ? '' : 'none';
                 });
             });
+
+            this.$watch('bookingForm.user_name', (value) => {
+                if (!this.qcIdVerification?.cardholder_name) {
+                    return;
+                }
+
+                if (!this.namesMatch(value, this.qcIdVerification.cardholder_name)) {
+                    this.qcIdVerification = null;
+                    this.bookingForm.qc_id_cardholder_name = '';
+                    this.bookingForm.qc_id_ocr_text = '';
+                    this.qcIdError = 'The booking name changed after verification. Please upload the QC ID again.';
+                }
+            });
+        },
+
+        normalizeName(value) {
+            return String(value || '')
+                .toUpperCase()
+                .replace(/[^A-Z\s]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        },
+
+        namesMatch(first, second) {
+            const firstTokens = this.normalizeName(first).split(' ').filter(token => token.length >= 2);
+            const secondTokens = this.normalizeName(second).split(' ').filter(token => token.length >= 2);
+
+            if (!firstTokens.length || !secondTokens.length) {
+                return false;
+            }
+
+            const overlap = firstTokens.filter(token => secondTokens.includes(token));
+            const threshold = Math.min(firstTokens.length, secondTokens.length);
+
+            return threshold <= 2 ? overlap.length === threshold : overlap.length >= 2;
+        },
+
+        resetQcIdState({ keepPreview = true } = {}) {
+            this.qcIdIsProcessing = false;
+            this.qcIdProgress = 0;
+            this.qcIdStatusMessage = '';
+            this.qcIdError = '';
+            this.qcIdVerification = null;
+            this.bookingForm.qc_id_ocr_text = '';
+            this.bookingForm.qc_id_cardholder_name = '';
+
+            if (!keepPreview) {
+                if (this.qcIdPreviewUrl) {
+                    URL.revokeObjectURL(this.qcIdPreviewUrl);
+                }
+
+                this.qcIdPreviewUrl = '';
+                this.qcIdFile = null;
+            }
+        },
+
+        async handleQcIdUpload(event) {
+            const file = event.target?.files?.[0];
+            this.resetQcIdState({ keepPreview: false });
+
+            if (!file) {
+                return;
+            }
+
+            if (!file.type.startsWith('image/')) {
+                this.qcIdError = 'Please upload an image file for the QC ID.';
+                return;
+            }
+
+            this.qcIdFile = file;
+            this.qcIdPreviewUrl = URL.createObjectURL(file);
+
+            await this.runQcIdVerification(file);
+        },
+
+        async reprocessQcId() {
+            if (!this.qcIdFile) {
+                this.qcIdError = 'Upload a QC ID image first.';
+                return;
+            }
+
+            this.resetQcIdState();
+            await this.runQcIdVerification(this.qcIdFile);
+        },
+
+        async runQcIdVerification(file) {
+            if (!window.Tesseract) {
+                this.qcIdError = 'OCR is not available right now. Please refresh the page and try again.';
+                return;
+            }
+
+            this.qcIdIsProcessing = true;
+            this.qcIdStatusMessage = 'Reading QC ID image…';
+            this.qcIdProgress = 0;
+
+            try {
+                const result = await window.Tesseract.recognize(file, 'eng', {
+                    logger: (message) => {
+                        if (message.status) {
+                            this.qcIdStatusMessage = message.status;
+                        }
+
+                        if (typeof message.progress === 'number') {
+                            this.qcIdProgress = message.progress * 100;
+                        }
+                    },
+                });
+
+                const extractedText = result?.data?.text?.trim() || '';
+                if (!extractedText) {
+                    throw new Error('No readable text was found in the uploaded QC ID image.');
+                }
+
+                this.bookingForm.qc_id_ocr_text = extractedText;
+                this.qcIdStatusMessage = 'Validating QC ID format…';
+
+                const response = await fetch('/rooms/qc-id/verify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    },
+                    body: JSON.stringify({
+                        ocr_text: extractedText,
+                        user_name: this.bookingForm.user_name,
+                    }),
+                });
+
+                const payload = await response.json();
+                const v = payload.verification || null;
+
+                // Always populate with whatever was detected
+                this.qcIdVerification = v;
+                if (v?.cardholder_name) {
+                    this.bookingForm.qc_id_cardholder_name = v.cardholder_name;
+                    this.bookingForm.user_name = v.cardholder_name;
+                }
+
+                if (!payload.success) {
+                    this.qcIdError = payload.message || 'The uploaded image is not recognized as a QC ID.';
+                    return;
+                }
+
+                this.qcIdError = '';
+                this.qcIdProgress = 100;
+                this.qcIdStatusMessage = 'QC ID verified.';
+            } catch (error) {
+                console.error('QC ID verification failed:', error);
+                this.qcIdError = error?.message || 'Unable to read the QC ID image. Please upload a clearer photo.';
+                this.qcIdVerification = null;
+                this.bookingForm.qc_id_cardholder_name = '';
+                this.bookingForm.qc_id_ocr_text = '';
+            } finally {
+                this.qcIdIsProcessing = false;
+            }
         },
 
         initCalendar() {
@@ -693,10 +926,12 @@ function calendarApp() {
             if (this.selectedRoom) {
                 this.bookingForm.room_id = this.selectedRoom.id;
             }
+            this.qcIdError = '';
             this.showBookingModal = true;
         },
 
         closeBookingModal() {
+            this.qcIdError = '';
             this.showBookingModal = false;
         },
 
@@ -864,11 +1099,17 @@ function calendarApp() {
         },
 
         async submitBooking() {
+            if (!this.qcIdVerification?.is_valid || !this.bookingForm.qc_id_ocr_text) {
+                this.qcIdError = 'Upload and verify a valid QC ID before creating the booking.';
+                return;
+            }
+
             this.isSubmitting = true;
             try {
                 const response = await fetch('/rooms/room-reservations', {
                     method: 'POST',
                     headers: {
+                        'Accept': 'application/json',
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                     },
@@ -877,12 +1118,13 @@ function calendarApp() {
 
                 const data = await response.json();
                 
-                if (data.success) {
+                if (response.ok && data.success) {
                     this.successMessage = data.message || 'Booking created successfully.';
                     this.successBooking = data.booking || null;
                     this.closeBookingModal();
                     this.showSuccessModal = true;
                 } else {
+                    this.qcIdError = data.message || 'Failed to create booking';
                     alert(data.message || 'Failed to create booking');
                 }
             } catch (error) {
