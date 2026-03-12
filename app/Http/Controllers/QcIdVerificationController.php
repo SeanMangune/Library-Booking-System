@@ -21,9 +21,13 @@ class QcIdVerificationController extends Controller
         );
 
         if (! $verification['is_valid']) {
+            $message = ! empty($verification['rejected_id_type'])
+                ? "This appears to be a {$verification['rejected_id_type']}. Only Quezon City Citizen IDs (QC IDs) are accepted."
+                : 'Only a Quezon City Citizen ID (QC ID) is accepted. Please upload a clearer QC ID image.';
+
             return response()->json([
                 'success' => false,
-                'message' => 'Only a Quezon City Citizen ID (QC ID) is accepted. Please upload a clearer QC ID image.',
+                'message' => $message,
                 'verification' => $verification,
             ], 200);  // 200 so client can still read the partial data
         }

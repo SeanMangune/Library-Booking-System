@@ -46,16 +46,20 @@ class QcIdRegistrationController extends Controller
             'valid_until' => ['nullable', 'date'],
             'address' => ['nullable', 'string', 'max:1000'],
             'ocr_text' => ['required', 'string', 'min:20', 'max:12000'],
-            'qcid_image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'qcid_image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:25600'],
         ]);
 
         $verification = $verifier->verify($validated['ocr_text'], $validated['full_name']);
 
         if (! $verification['is_valid']) {
+            $message = ! empty($verification['rejected_id_type'])
+                ? "This appears to be a {$verification['rejected_id_type']}. Only a valid Quezon City Citizen ID is accepted."
+                : 'Only a valid Quezon City Citizen ID is accepted. Please upload a clearer QC ID image.';
+
             return back()
                 ->withInput()
                 ->withErrors([
-                    'qcid_image' => 'Only a valid Quezon City Citizen ID is accepted. Please upload a clearer QC ID image.',
+                    'qcid_image' => $message,
                 ]);
         }
 

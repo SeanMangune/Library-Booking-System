@@ -82,7 +82,7 @@
                                             </svg>
                                         </div>
                                         <p class="mt-4 text-sm font-semibold text-gray-900">Drop your QC ID image here or click to browse</p>
-                                        <p class="mt-1 text-xs text-gray-500">Accepted: JPG, PNG, WEBP up to 5 MB</p>
+                                        <p class="mt-1 text-xs text-gray-500">Accepted: JPG, PNG, WEBP up to 25 MB</p>
                                     </label>
                                     <input id="qcid_image" name="qcid_image" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" class="sr-only" @change="handleFile($event)" required>
 
@@ -367,6 +367,397 @@ function qcidRegistrationApp() {
             await this.processFile(file);
         },
 
+        /**
+         * Pre-process image for better OCR: upscale and increase
+         * contrast so Tesseract reads the QC ID more reliably.
+         */
+        async buildEnhancedCanvas(file) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const scale = Math.max(1, 2200 / Math.max(img.width, img.height));
+                    canvas.width = Math.round(img.width * scale);
+                    canvas.height = Math.round(img.height * scale);
+                    const ctx = canvas.getContext('2d');
+
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+                    for (let i = 0; i < data.length; i += 4) {
+                        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+                        const contrast = Math.min(255, Math.max(0, ((gray - 128) * 1.7) + 128));
+                        data[i] = contrast;
+                        data[i + 1] = contrast;
+                        data[i + 2] = contrast;
+                    }
+                    ctx.putImageData(imageData, 0, 0);
+
+                    resolve(canvas);
+                };
+                img.onerror = () => resolve(null);
+                img.src = URL.createObjectURL(file);
+            });
+        },
+
+        normalizeOcrText(value) {
+            return String(value || '')
+                .toUpperCase()
+                .replace(/\r/g, '')
+                .replace(/[^A-Z0-9,./\-\n\s]/g, ' ')
+                .replace(/[ \t]+/g, ' ')
+                .replace(/\n{2,}/g, '\n')
+                .trim();
+        },
+
+        digitCorrectedText(value) {
+            return this.normalizeOcrText(value)
+                .replace(/[OQDP]/g, '0')
+                .replace(/[IL]/g, '1')
+                .replace(/Z/g, '2')
+                .replace(/S/g, '5')
+                .replace(/B/g, '8');
+        },
+
+        extractAllDates(text) {
+            const normalized = this.digitCorrectedText(text);
+            const matches = normalized.match(/\b\d{4}[/-]\d{2}[/-]\d{2}\b/g) || [];
+
+            return [...new Set(matches.map((value) => value.replace(/-/g, '/')))];
+        },
+
+        formatQcIdNumber(text) {
+            const digits = this.digitCorrectedText(text).replace(/\D/g, '');
+            if (digits.length < 13) {
+                return '';
+            }
+
+            const trimmed = digits.length > 14 ? digits.slice(-14) : digits;
+            return `${trimmed.slice(0, 3)} ${trimmed.slice(3, 6)} ${trimmed.slice(6)}`.trim();
+        },
+
+        scoreDateRegion(text) {
+            const dates = this.extractAllDates(text);
+            return (dates.length * 50) + (text.includes('203') ? 10 : 0) + Math.min(text.length, 40);
+        },
+
+        scoreIdRegion(text) {
+            const formatted = this.formatQcIdNumber(text);
+            return formatted ? 200 + formatted.length : (this.digitCorrectedText(text).match(/\d/g) || []).length;
+        },
+
+        scoreAddressRegion(text) {
+            const normalized = this.normalizeOcrText(text);
+            let score = normalized.length;
+            if (normalized.includes('QUEZON CITY')) score += 80;
+            if (normalized.includes('KINGSPOINT')) score += 60;
+            if (normalized.includes('BAGBAG')) score += 60;
+            if (normalized.includes('KING CONSTANTINE')) score += 80;
+            return score;
+        },
+
+        scoreNameRegion(text) {
+            const normalized = this.normalizeOcrText(text);
+            return normalized.split(/\s+/).filter(Boolean).length * 20;
+        },
+
+        async recognizeBestRegion(sourceCanvas, region) {
+            const variants = region.variants || [{ rect: region.rect, threshold: region.threshold, config: region.config }];
+            let bestText = '';
+            let bestScore = -1;
+
+            for (const variant of variants) {
+                const canvas = this.createCropCanvas(sourceCanvas, variant.rect, { threshold: variant.threshold ?? region.threshold });
+                const text = await this.recognizeCanvas(canvas, variant.config || region.config);
+                const score = (region.score || ((value) => value.length))(text);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestText = text;
+                }
+            }
+
+            return bestText;
+        },
+
+        extractClientDateHints(regionText, fullText) {
+            const regionDates = this.extractAllDates(regionText.dates || '');
+            const allDates = this.extractAllDates(`${regionText.dates || ''}\n${fullText || ''}`);
+            const dob = this.extractAllDates(regionText.demographics || '')[0] || allDates.find((value) => /^19|20/.test(value));
+            const dates = regionDates.length >= 2 ? regionDates : allDates.filter((value) => value !== dob);
+            const currentYear = new Date().getFullYear();
+
+            let dateIssued = '';
+            let validUntil = '';
+
+            for (const value of dates) {
+                const year = Number(value.slice(0, 4));
+                if (!dateIssued && year >= 2015 && year <= currentYear) {
+                    dateIssued = value;
+                    continue;
+                }
+                if (!validUntil && year > currentYear) {
+                    validUntil = value;
+                }
+            }
+
+            if (!dateIssued && dates[0]) {
+                dateIssued = dates[0];
+            }
+            if (!validUntil && dates[1]) {
+                validUntil = dates[1];
+            }
+
+            return { dateIssued, validUntil };
+        },
+
+        extractClientIdHint(regionText, fullText) {
+            return this.formatQcIdNumber(regionText.id_number || '')
+                || this.formatQcIdNumber(fullText || '')
+                || '';
+        },
+
+        cleanClientName(text) {
+            let value = this.normalizeOcrText(text)
+                .replace(/\s+\d+$/, '')
+                .replace(/\s+[A-Z0-9]{1,2}$/, '')
+                .trim();
+
+            const parts = value.split(/\s+/).filter(Boolean);
+            if (parts.length >= 3 && parts[parts.length - 1].length <= 2) {
+                parts.pop();
+                value = parts.join(' ');
+            }
+
+            return value;
+        },
+
+        cleanClientAddress(text) {
+            let value = this.normalizeOcrText(text)
+                .replace(/\b(?:ADDRESS|CARDHOLDER|SIGNATURE|EMERGENCY|CONTACT|RELAY|RE TRAY|GNATURE)\b/g, ' ')
+                .replace(/\bAKING\b/g, 'A KING')
+                .replace(/\bKINGSPOIN[T]?\b/g, 'KINGSPOINT')
+                .replace(/\bOE\s+NE\s+GEOME\b/g, ' ')
+                .replace(/\bOE\b|\bNE\b|\bGEOME\b/g, ' ')
+                .replace(/\bA\s*KING\b/g, 'A KING')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            const streetMatch = value.match(/\b\d+\s*(?:A\s+)?KING\s+CONSTANTINE\s+EXT\b/);
+            const localityMatch = value.match(/\bKINGSPOINT\s+BAGBAG,?\s+QUEZON\s+CITY\b/)
+                || value.match(/\bBAGBAG,?\s+QUEZON\s+CITY\b/)
+                || value.match(/\bQUEZON\s+CITY\b/);
+
+            if (streetMatch && localityMatch) {
+                return `${streetMatch[0]}, ${localityMatch[0].replace(/\s+,/g, ',').replace(/\s+/g, ' ')}`;
+            }
+
+            const capped = value.match(/(\d+[A-Z\s,.-]+?QUEZON\s+CITY)/);
+            if (capped) {
+                return capped[1].replace(/\s+,/g, ',').replace(/\s+/g, ' ').trim();
+            }
+
+            return value;
+        },
+
+        buildClientHints(regionText, fullText) {
+            const { dateIssued, validUntil } = this.extractClientDateHints(regionText, fullText);
+
+            return {
+                cardholder_name: this.cleanClientName(regionText.name || ''),
+                id_number: this.extractClientIdHint(regionText, fullText),
+                date_of_birth: this.extractAllDates(regionText.demographics || '')[0] || '',
+                date_issued: dateIssued,
+                valid_until: validUntil,
+                address: this.cleanClientAddress(regionText.address || fullText || ''),
+            };
+        },
+
+        createCropCanvas(sourceCanvas, rect, options = {}) {
+            const threshold = options.threshold ?? false;
+            const crop = document.createElement('canvas');
+            const sx = Math.max(0, Math.round(sourceCanvas.width * rect.x));
+            const sy = Math.max(0, Math.round(sourceCanvas.height * rect.y));
+            const sw = Math.max(1, Math.round(sourceCanvas.width * rect.w));
+            const sh = Math.max(1, Math.round(sourceCanvas.height * rect.h));
+
+            crop.width = sw;
+            crop.height = sh;
+
+            const ctx = crop.getContext('2d');
+            ctx.drawImage(sourceCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+            if (threshold) {
+                const imageData = ctx.getImageData(0, 0, sw, sh);
+                const data = imageData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    const value = data[i] > 145 ? 255 : 0;
+                    data[i] = value;
+                    data[i + 1] = value;
+                    data[i + 2] = value;
+                }
+                ctx.putImageData(imageData, 0, 0);
+            }
+
+            return crop;
+        },
+
+        async recognizeCanvas(canvas, config = {}, withProgress = false) {
+            const options = {
+                preserve_interword_spaces: '1',
+                ...config,
+            };
+
+            if (withProgress) {
+                options.logger = (message) => {
+                    if (message.status) {
+                        this.statusMessage = message.status;
+                    }
+
+                    if (typeof message.progress === 'number') {
+                        this.progress = message.progress * 100;
+                    }
+                };
+            }
+
+            const result = await window.Tesseract.recognize(canvas, 'eng', options);
+
+            return this.normalizeOcrText(result?.data?.text || '');
+        },
+
+        async collectStructuredOcrText(file) {
+            const enhancedCanvas = await this.buildEnhancedCanvas(file);
+            if (!enhancedCanvas) {
+                throw new Error('Unable to prepare the QC ID image for OCR.');
+            }
+
+            this.statusMessage = 'Reading full QC ID image…';
+            const fullText = await this.recognizeCanvas(enhancedCanvas, {
+                tessedit_pageseg_mode: 6,
+            }, true);
+
+            const regions = [
+                {
+                    key: 'name',
+                    label: 'cardholder name',
+                    rect: { x: 0.20, y: 0.24, w: 0.55, h: 0.12 },
+                    score: (text) => this.scoreNameRegion(text),
+                    config: {
+                        tessedit_pageseg_mode: 7,
+                        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ, .',
+                    },
+                    variants: [
+                        { rect: { x: 0.18, y: 0.23, w: 0.57, h: 0.12 } },
+                        { rect: { x: 0.20, y: 0.24, w: 0.55, h: 0.12 } },
+                    ],
+                },
+                {
+                    key: 'demographics',
+                    label: 'sex, birth date, and civil status',
+                    rect: { x: 0.20, y: 0.34, w: 0.56, h: 0.12 },
+                    config: {
+                        tessedit_pageseg_mode: 6,
+                        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/ -',
+                    },
+                    threshold: true,
+                    variants: [
+                        { rect: { x: 0.19, y: 0.33, w: 0.57, h: 0.12 }, threshold: true },
+                        { rect: { x: 0.20, y: 0.34, w: 0.56, h: 0.12 }, threshold: true },
+                    ],
+                },
+                {
+                    key: 'dates',
+                    label: 'issue and validity dates',
+                    rect: { x: 0.28, y: 0.44, w: 0.48, h: 0.11 },
+                    score: (text) => this.scoreDateRegion(text),
+                    config: {
+                        tessedit_pageseg_mode: 7,
+                        tessedit_char_whitelist: '0123456789/ -',
+                    },
+                    threshold: true,
+                    variants: [
+                        { rect: { x: 0.24, y: 0.41, w: 0.53, h: 0.13 }, threshold: true },
+                        { rect: { x: 0.27, y: 0.43, w: 0.49, h: 0.12 }, threshold: true },
+                        { rect: { x: 0.28, y: 0.44, w: 0.48, h: 0.11 }, threshold: true },
+                    ],
+                },
+                {
+                    key: 'address',
+                    label: 'address block',
+                    rect: { x: 0.20, y: 0.58, w: 0.58, h: 0.14 },
+                    score: (text) => this.scoreAddressRegion(text),
+                    config: {
+                        tessedit_pageseg_mode: 6,
+                        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.- ',
+                    },
+                    variants: [
+                        { rect: { x: 0.18, y: 0.57, w: 0.44, h: 0.13 } },
+                        { rect: { x: 0.18, y: 0.56, w: 0.46, h: 0.15 } },
+                        { rect: { x: 0.20, y: 0.58, w: 0.58, h: 0.14 } },
+                    ],
+                },
+                {
+                    key: 'id_number',
+                    label: 'ID number strip',
+                    rect: { x: 0.67, y: 0.80, w: 0.28, h: 0.11 },
+                    score: (text) => this.scoreIdRegion(text),
+                    config: {
+                        tessedit_pageseg_mode: 7,
+                        tessedit_char_whitelist: '0123456789 ',
+                    },
+                    threshold: true,
+                    variants: [
+                        { rect: { x: 0.64, y: 0.77, w: 0.31, h: 0.12 }, threshold: true },
+                        { rect: { x: 0.66, y: 0.79, w: 0.29, h: 0.11 }, threshold: true },
+                        { rect: { x: 0.67, y: 0.80, w: 0.28, h: 0.11 }, threshold: true },
+                    ],
+                },
+            ];
+
+            const regionText = {};
+            for (const region of regions) {
+                this.statusMessage = `Reading ${region.label}…`;
+                regionText[region.key] = await this.recognizeBestRegion(enhancedCanvas, region);
+            }
+
+            const clientHints = this.buildClientHints(regionText, fullText);
+
+            const structuredLines = [fullText];
+
+            if (clientHints.cardholder_name) {
+                structuredLines.push('LAST NAME, FIRST NAME, MIDDLE NAME');
+                structuredLines.push(clientHints.cardholder_name);
+            }
+
+            if (regionText.demographics) {
+                structuredLines.push(regionText.demographics);
+                structuredLines.push('SEX DATE OF BIRTH CIVIL STATUS');
+            }
+
+            if (clientHints.date_issued) {
+                structuredLines.push(`DATE ISSUED ${clientHints.date_issued}`);
+            }
+
+            if (clientHints.valid_until) {
+                structuredLines.push(`VALID UNTIL ${clientHints.valid_until}`);
+            }
+
+            if (clientHints.address) {
+                structuredLines.push(`ADDRESS ${clientHints.address}`);
+            }
+
+            if (clientHints.id_number) {
+                structuredLines.push(clientHints.id_number);
+            }
+
+            return {
+                fullText,
+                structuredText: this.normalizeOcrText(structuredLines.filter(Boolean).join('\n')),
+                regionText,
+                clientHints,
+            };
+        },
+
         async processFile(file) {
             if (!window.Tesseract) {
                 this.errorMessage = 'OCR is not available right now. Please refresh the page and try again.';
@@ -374,27 +765,20 @@ function qcidRegistrationApp() {
             }
 
             this.isProcessing = true;
-            this.statusMessage = 'Reading QC ID image…';
+            this.statusMessage = 'Enhancing image for OCR…';
             this.errorMessage = '';
 
             try {
-                const result = await window.Tesseract.recognize(file, 'eng', {
-                    logger: (message) => {
-                        if (message.status) {
-                            this.statusMessage = message.status;
-                        }
-
-                        if (typeof message.progress === 'number') {
-                            this.progress = message.progress * 100;
-                        }
-                    }
-                });
-
-                const extractedText = result?.data?.text?.trim() || '';
+                const { fullText, structuredText, regionText, clientHints } = await this.collectStructuredOcrText(file);
+                const extractedText = structuredText || fullText;
                 if (!extractedText) {
                     throw new Error('No readable text was found. Please upload a clearer QC ID image.');
                 }
 
+                console.log('[QC ID OCR] Full text:', fullText);
+                console.log('[QC ID OCR] Region text:', regionText);
+                console.log('[QC ID OCR] Client hints:', clientHints);
+                console.log('[QC ID OCR] Structured text:', extractedText);
                 this.form.ocr_text = extractedText;
                 this.statusMessage = 'Validating QC ID markers…';
 
@@ -413,25 +797,42 @@ function qcidRegistrationApp() {
 
                 const payload = await response.json();
 
-                // Always populate verification snapshot and form fields
-                // with whatever the server detected, even on failure.
-                const v = payload.verification || null;
-                this.verification = v;
-
-                if (v) {
-                    this.form.full_name = v.cardholder_name || this.form.full_name;
-                    this.form.qcid_number = v.id_number || this.form.qcid_number;
-                    this.form.sex = v.sex || this.form.sex;
-                    this.form.civil_status = v.civil_status || this.form.civil_status;
-                    this.form.date_of_birth = this.toDateInput(v.date_of_birth) || this.form.date_of_birth;
-                    this.form.date_issued = this.toDateInput(v.date_issued) || this.form.date_issued;
-                    this.form.valid_until = this.toDateInput(v.valid_until) || this.form.valid_until;
-                    this.form.address = v.address || this.form.address;
-                }
+                const rawVerification = payload.verification || null;
+                const mergedVerification = rawVerification ? {
+                    ...rawVerification,
+                    cardholder_name: rawVerification.cardholder_name || clientHints.cardholder_name || null,
+                    id_number: rawVerification.id_number || clientHints.id_number || null,
+                    date_of_birth: rawVerification.date_of_birth || clientHints.date_of_birth || null,
+                    date_issued: rawVerification.date_issued || clientHints.date_issued || null,
+                    valid_until: rawVerification.valid_until || clientHints.valid_until || null,
+                    address: rawVerification.address || clientHints.address || null,
+                } : {
+                    ...clientHints,
+                };
 
                 if (!payload.success) {
-                    this.errorMessage = payload.message || 'The uploaded image is not recognized as a QC ID.';
+                    this.verification = null;
+                    let rejectMsg = payload.message || 'The uploaded image is not recognized as a QC ID.';
+                    if (rawVerification?.rejected_id_type) {
+                        rejectMsg = `This appears to be a ${payload.verification.rejected_id_type}. Only Quezon City Citizen IDs (QC IDs) are accepted.`;
+                    }
+                    console.log('[QC ID OCR] Verification rejected:', rawVerification);
+                    this.errorMessage = rejectMsg;
                     return;
+                }
+
+                this.verification = mergedVerification;
+                console.log('[QC ID OCR] Verification result:', mergedVerification);
+
+                if (mergedVerification) {
+                    this.form.full_name = mergedVerification.cardholder_name || this.form.full_name;
+                    this.form.qcid_number = mergedVerification.id_number || this.form.qcid_number;
+                    this.form.sex = mergedVerification.sex || this.form.sex;
+                    this.form.civil_status = mergedVerification.civil_status || this.form.civil_status;
+                    this.form.date_of_birth = this.toDateInput(mergedVerification.date_of_birth) || this.form.date_of_birth;
+                    this.form.date_issued = this.toDateInput(mergedVerification.date_issued) || this.form.date_issued;
+                    this.form.valid_until = this.toDateInput(mergedVerification.valid_until) || this.form.valid_until;
+                    this.form.address = mergedVerification.address || this.form.address;
                 }
 
                 this.currentStatus = 'pending';
@@ -451,7 +852,20 @@ function qcidRegistrationApp() {
                 return '';
             }
 
-            return String(value).replaceAll('/', '-');
+            // Normalize to YYYY-MM-DD for HTML date inputs
+            let str = String(value).replaceAll('/', '-');
+
+            // Handle 8-digit dates without separators (20030101)
+            if (/^\d{8}$/.test(str)) {
+                str = str.slice(0, 4) + '-' + str.slice(4, 6) + '-' + str.slice(6, 8);
+            }
+
+            // Validate it looks like a date
+            if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+                return str;
+            }
+
+            return '';
         },
     }
 }

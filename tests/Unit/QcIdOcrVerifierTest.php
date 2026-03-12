@@ -113,4 +113,41 @@ TEXT;
         // 1-char OCR typo
         $this->assertTrue($verifier->namesLikelyMatch('Sean Mangune', 'MANGUNE SEAK'));
     }
+
+    public function test_it_prefers_structured_region_hints_for_dates_and_address(): void
+    {
+        $text = <<<'TEXT'
+Q CITIZENCARD
+MANGUNE, SEAN MICHAEL CALINAWAN AN
+M 2003/10/01 SINGLE
+SEX DATE OF BIRTH CIVIL STATUS
+2024/02/16 2034/10/01
+DATE ISSUED VALID UNTIL
+ADDRESS
+19 A KING CONSTANTINE EXT, KINGSPOINT BAGBAG, QUEZON CITY SIGNATURE
+005 000 01257479
+TEXT;
+
+        $result = (new QcIdOcrVerifier())->verify($text, 'Sean Michael Mangune');
+
+        $this->assertSame('MANGUNE, SEAN MICHAEL CALINAWAN', $result['cardholder_name']);
+        $this->assertSame('2024/02/16', $result['date_issued']);
+        $this->assertSame('2034/10/01', $result['valid_until']);
+        $this->assertSame('19 A KING CONSTANTINE EXT, KINGSPOINT BAGBAG, QUEZON CITY', $result['address']);
+    }
+
+    public function test_it_keeps_qc_id_numbers_digits_only(): void
+    {
+        $text = <<<'TEXT'
+Q CITIZENCARD
+QUEZON CITY
+DATE ISSUED 2024/02/16
+VALID UNTIL 2034/10/01
+005 000 01257479
+TEXT;
+
+        $result = (new QcIdOcrVerifier())->verify($text);
+
+        $this->assertSame('005 000 01257479', $result['id_number']);
+    }
 }

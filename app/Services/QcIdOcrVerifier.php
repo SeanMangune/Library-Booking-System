@@ -103,6 +103,23 @@ class QcIdOcrVerifier
 
         $confidenceScore = min(100, $score);
 
+        // ── non-QC ID rejection ──────────────────────────────────────
+        // Always check for non-QC IDs. If detected AND no strong
+        // QC-specific marker is present, force rejection.
+        $rejectedIdType = $this->detectNonQcId($normalized);
+        if ($rejectedIdType !== null) {
+            $hasStrongQcMarker = in_array('qc_citizen_card', $markerKeys)
+                || in_array('kasama_pag_unlad', $markerKeys);
+
+            if (! $hasStrongQcMarker) {
+                $looksLikeQcId = false;
+                $confidenceScore = 0;
+            } else {
+                // Strong QC markers present – false positive, ignore
+                $rejectedIdType = null;
+            }
+        }
+
         return [
             'is_valid' => $looksLikeQcId,
             'confidence_score' => $confidenceScore,
@@ -117,6 +134,7 @@ class QcIdOcrVerifier
             'address' => $fields['address'] ?? null,
             'id_number' => $fields['id_number'] ?? null,
             'name_matches' => $nameMatches,
+            'rejected_id_type' => $rejectedIdType,
             'normalized_text' => $normalized,
         ];
     }
@@ -370,16 +388,95 @@ class QcIdOcrVerifier
      */
     private function extractFields(string $normalized, array $lines): array
     {
-        return [
+        // QC ID layout-aware extraction (value row appears above label row)
+        // Prioritise layout results because the forward-match (label→value)
+        // can pick up the wrong date when values sit above their labels.
+        $layoutFields = $this->extractQcIdLayoutFields($normalized, $lines);
+
+        $fields = [
             'cardholder_name' => $this->extractCardholderName($normalized, $lines),
-            'sex' => $this->extractSex($normalized),
-            'date_of_birth' => $this->extractDate('DATE\s*(?:OF)?\s*BIRTH\s*[:\s]*', $normalized),
-            'civil_status' => $this->extractMatch('/CIVIL\s*STATUS\s*[:\s]*([A-Z]{4,20})/', $normalized),
-            'date_issued' => $this->extractDate('DATE\s*ISSUED\s*[:\s]*', $normalized),
-            'valid_until' => $this->extractDate('VALID\s*UNTIL\s*[:\s]*', $normalized),
-            'address' => $this->extractAddress($lines),
-            'id_number' => $this->extractIdNumber($normalized),
+            'sex' => ($layoutFields['sex'] ?? null) ?? $this->extractSex($normalized),
+            'date_of_birth' => ($layoutFields['date_of_birth'] ?? null) ?? $this->extractDate('DATE\s*(?:OF)?\s*BIRTH\s*[:\s]*', $normalized),
+            'civil_status' => ($layoutFields['civil_status'] ?? null) ?? $this->extractCivilStatus($normalized),
+            'date_issued' => ($layoutFields['date_issued'] ?? null) ?? $this->extractDate('DATE\s*ISSUED\s*[:\s]*', $normalized),
+            'valid_until' => ($layoutFields['valid_until'] ?? null) ?? $this->extractDate('VALID\s*UNTIL\s*[:\s]*', $normalized),
+            'address' => $this->extractAddress($lines, $normalized),
+            'id_number' => $this->extractIdNumber($normalized, $lines),
         ];
+
+        // Positional fallback: if dates are still missing, collect all
+        // date-like strings in the text and assign using year heuristics.
+        // DOB year: 1940-2015, date_issued year: recent past, valid_until: future.
+        $missingDates = empty($fields['date_of_birth'])
+            || empty($fields['date_issued'])
+            || empty($fields['valid_until']);
+
+        if ($missingDates) {
+            $allDates = $this->collectAllDates($normalized);
+            $currentYear = (int) date('Y');
+
+            // Remove dates already assigned
+            $assignedDates = array_filter([
+                $fields['date_of_birth'] ?? null,
+                $fields['date_issued'] ?? null,
+                $fields['valid_until'] ?? null,
+            ]);
+            $remainingDates = array_values(array_diff($allDates, $assignedDates));
+
+            // Try year-based smart assignment for remaining dates
+            foreach ($remainingDates as $date) {
+                $year = (int) substr($date, 0, 4);
+
+                if (empty($fields['date_of_birth']) && $year >= 1940 && $year <= 2015) {
+                    $fields['date_of_birth'] = $date;
+                } elseif (empty($fields['valid_until']) && $year > $currentYear) {
+                    $fields['valid_until'] = $date;
+                } elseif (empty($fields['date_issued']) && $year >= 2015 && $year <= $currentYear) {
+                    $fields['date_issued'] = $date;
+                }
+            }
+
+            // Still missing? fall back to positional order
+            if (empty($fields['date_of_birth']) && isset($allDates[0])) {
+                $fields['date_of_birth'] = $allDates[0];
+            }
+            if (empty($fields['date_issued']) && isset($allDates[1])) {
+                $fields['date_issued'] = $allDates[1];
+            }
+            if (empty($fields['valid_until']) && isset($allDates[2])) {
+                $fields['valid_until'] = $allDates[2];
+            }
+        }
+
+        // ── Date sanity ─────────────────────────────────────────────
+        // If valid_until equals date_of_birth, the OCR likely garbled
+        // the validity year (e.g. 2034 → 2003).  Clear it rather than
+        // show a clearly wrong duplicate.
+        if (! empty($fields['valid_until']) && ! empty($fields['date_of_birth'])
+            && $fields['valid_until'] === $fields['date_of_birth']) {
+            $fields['valid_until'] = null;
+        }
+        if (! empty($fields['date_issued']) && ! empty($fields['date_of_birth'])
+            && $fields['date_issued'] === $fields['date_of_birth']) {
+            $fields['date_issued'] = null;
+        }
+
+        // Year-range heuristic: swap mis-assigned dates.
+        // DOB year is typically 1940-2015; valid_until year > current year.
+        $currentYear = (int) date('Y');
+        foreach (['date_issued', 'valid_until'] as $key) {
+            if (! empty($fields[$key]) && ! empty($fields['date_of_birth'])) {
+                $otherYear = (int) substr($fields[$key], 0, 4);
+                $dobYear   = (int) substr($fields['date_of_birth'], 0, 4);
+                // A date with birth-like year sitting in valid_until,
+                // while DOB holds a future year → swap.
+                if ($dobYear > $currentYear && $otherYear >= 1940 && $otherYear <= 2015) {
+                    [$fields['date_of_birth'], $fields[$key]] = [$fields[$key], $fields['date_of_birth']];
+                }
+            }
+        }
+
+        return $fields;
     }
 
     /**
@@ -395,6 +492,16 @@ class QcIdOcrVerifier
         // Nearby context: MALE / FEMALE close to SEX label
         if (preg_match('/\bSEX\b/', $normalized) && preg_match('/\b(MALE|FEMALE)\b/', $normalized, $m)) {
             return $m[1][0]; // first letter
+        }
+
+        // QC ID layout: M/F followed by date (actual card order: M 2003/01/01)
+        if (preg_match('/\b([MF])\s+\d{2,4}[\/\-]\d{2}/', $normalized, $m)) {
+            return $m[1];
+        }
+
+        // QC ID layout: M/F followed by civil status value (value before label)
+        if (preg_match('/\b([MF])\s+(?:SINGLE|MARRIED|WIDOW(?:ED)?|SEPARATED|DIVORCED|ANNULLED)\b/', $normalized, $m)) {
+            return $m[1];
         }
 
         return null;
@@ -425,27 +532,266 @@ class QcIdOcrVerifier
             return substr($raw, 0, 4) . '/' . substr($raw, 4, 2) . '/' . substr($raw, 6, 2);
         }
 
+        // Try: LABEL followed by garbled date (e.g. 20030/01 or 2003/0101)
+        if (preg_match('/' . $labelPattern . '(\d[\d\/\-]{4,10}\d)/', $normalized, $m)) {
+            $parsed = $this->parseGarbledDate($m[1]);
+            if ($parsed !== null) {
+                return $parsed;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Collect all date-like strings from the normalized text in order of
+     * appearance. Used as a positional fallback when label-based
+     * extraction fails (common with noisy OCR).
+     *
+     * @return list<string>  Dates in YYYY/MM/DD format.
+     */
+    private function collectAllDates(string $normalized): array
+    {
+        $dates = [];
+        $digitCorrected = $this->ocrToDigits($normalized);
+
+        // Match dates with separators: YYYY/MM/DD
+        if (preg_match_all('/\b(\d{4}[\/-]\d{2}[\/-]\d{2})\b/', $normalized, $m)) {
+            foreach ($m[1] as $d) {
+                $dates[] = $d;
+            }
+        }
+        if ($digitCorrected !== $normalized && preg_match_all('/\b(\d{4}[\/-]\d{2}[\/-]\d{2})\b/', $digitCorrected, $m)) {
+            foreach ($m[1] as $d) {
+                if (! in_array($d, $dates)) {
+                    $dates[] = $d;
+                }
+            }
+        }
+
+        // Match 8-digit dates without separators (e.g. 20030101)
+        if (preg_match_all('/\b(\d{8})\b/', $normalized, $m)) {
+            foreach ($m[1] as $d) {
+                $year = (int) substr($d, 0, 4);
+                if ($year >= 1900 && $year <= 2099) {
+                    $dates[] = substr($d, 0, 4) . '/' . substr($d, 4, 2) . '/' . substr($d, 6, 2);
+                }
+            }
+        }
+
+        // Match garbled dates (e.g. 20030/01, 2034/0101)
+        if (preg_match_all('/\b(\d{4,5}[\/-]\d{2,4}(?:[\/-]\d{2})?)\b/', $normalized, $m)) {
+            foreach ($m[1] as $d) {
+                // Skip if we already matched this as a clean date
+                if (in_array($d, $dates)) {
+                    continue;
+                }
+                $parsed = $this->parseGarbledDate($d);
+                if ($parsed !== null && ! in_array($parsed, $dates)) {
+                    $dates[] = $parsed;
+                }
+            }
+        }
+
+        // Deduplicate while preserving order
+        return array_values(array_unique($dates));
+    }
+
+    /**
+     * Attempt to parse a garbled OCR date string into YYYY/MM/DD.
+     *
+     * Handles common Tesseract artefacts like:
+     *   20030/01 → 2003/01/01  (extra digit merged)
+     *   2003/0101 → 2003/01/01 (separator dropped)
+     *   2003 01 01 → 2003/01/01 (spaces as separators)
+     */
+    private function parseGarbledDate(string $raw): ?string
+    {
+        // Strip everything except digits
+        $digits = preg_replace('/[^\d]/', '', $raw);
+
+        // 8 digits: clean YYYYMMDD
+        if (strlen($digits) === 8) {
+            $year = (int) substr($digits, 0, 4);
+            if ($year >= 1900 && $year <= 2099) {
+                return substr($digits, 0, 4) . '/' . substr($digits, 4, 2) . '/' . substr($digits, 6, 2);
+            }
+        }
+
+        // 7 digits: likely a dropped/merged digit situation
+        // Try: YYYY M DD (e.g. 2003 1 01 → 2003/01/01) or YYYY MM D
+        if (strlen($digits) === 7) {
+            $year = (int) substr($digits, 0, 4);
+            if ($year >= 1900 && $year <= 2099) {
+                $month = substr($digits, 4, 1);
+                $day = substr($digits, 5, 2);
+                if ((int) $month >= 1 && (int) $month <= 9 && (int) $day >= 1 && (int) $day <= 31) {
+                    return substr($digits, 0, 4) . '/0' . $month . '/' . $day;
+                }
+                // Try: YYYY MM D
+                $month = substr($digits, 4, 2);
+                $day = substr($digits, 6, 1);
+                if ((int) $month >= 1 && (int) $month <= 12 && (int) $day >= 1 && (int) $day <= 9) {
+                    return substr($digits, 0, 4) . '/' . $month . '/0' . $day;
+                }
+            }
+        }
+
+        // 9 digits: likely extra digit added somewhere
+        if (strlen($digits) === 9) {
+            // Try dropping the 5th digit (most common OCR error in year/month boundary)
+            $try = substr($digits, 0, 4) . substr($digits, 5);
+            if (strlen($try) === 8) {
+                $year = (int) substr($try, 0, 4);
+                if ($year >= 1900 && $year <= 2099) {
+                    return substr($try, 0, 4) . '/' . substr($try, 4, 2) . '/' . substr($try, 6, 2);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Correct common OCR letter↔digit confusions.
+     * QC ID numbers are ALL digits, so convert letters to their most
+     * likely numeric equivalents.
+     */
+    private function ocrToDigits(string $raw): string
+    {
+        return strtr($raw, [
+            'O' => '0', 'o' => '0',
+            'D' => '0', 'Q' => '0',
+            'I' => '1', 'l' => '1', 'L' => '1',
+            'Z' => '2', 'z' => '2',
+            'E' => '3',
+            'A' => '4', 'a' => '4',
+            'S' => '5', 's' => '5',
+            'G' => '6', 'b' => '6',
+            'T' => '7',
+            'B' => '8',
+            'P' => '0', 'p' => '0',
+        ]);
+    }
+
+    private function formatIdNumber(string $value): ?string
+    {
+        $digits = preg_replace('/\D/', '', $this->ocrToDigits($value)) ?? '';
+
+        if ($digits === '') {
+            return null;
+        }
+
+        if (strlen($digits) >= 13 && strlen($digits) <= 14) {
+            return substr($digits, 0, 3) . ' ' . substr($digits, 3, 3) . ' ' . substr($digits, 6);
+        }
+
+        if (strlen($digits) >= 7 && strlen($digits) <= 9) {
+            return $digits;
+        }
+
         return null;
     }
 
     /**
      * Extract QC ID number – very tolerant of spacing / separators.
+     * QC ID numbers are ALL digits, formatted as NNN NNN NNNNNNNN.
      */
-    private function extractIdNumber(string $normalized): ?string
+    private function extractIdNumber(string $normalized, array $lines = []): ?string
     {
         // Standard: 005 000 01257419  (3-3-7/8 or continuous 13-14)
         if (preg_match('/\b(\d{3}\s*\d{3}\s*\d{5,8})\b/', $normalized, $m)) {
-            return trim($m[1]);
+            return $this->formatIdNumber($m[1]);
         }
 
         // Continuous long digit string (10-14 digits)
         if (preg_match('/\b(\d{10,14})\b/', $normalized, $m)) {
-            return $m[1];
+            return $this->formatIdNumber($m[1]);
         }
 
         // Digits with possible OCR artifacts (dashes, dots)
         if (preg_match('/\b(\d{3}[\s\.\-]*\d{3}[\s\.\-]*\d{5,8})\b/', $normalized, $m)) {
-            return preg_replace('/[^\d\s]/', '', $m[1]) ?? $m[1];
+            return $this->formatIdNumber($m[1]);
+        }
+
+        // Mixed alphanumeric 3+3+digits: apply OCR digit correction
+        // e.g. "P05 000 DA257479" → "005 000 04257479"
+        // or   "BOS BOB 01257479" → "805 808 01257479"
+        if (preg_match('/\b([A-Z0-9]{2,4})\s+([A-Z0-9]{2,4})\s+([A-Z0-9]{5,9})\b/', $normalized, $m)) {
+            $corrected = $this->ocrToDigits($m[1]) . ' ' . $this->ocrToDigits($m[2]) . ' ' . $this->ocrToDigits($m[3]);
+            // Verify the corrected string is mostly digits
+            $digitCount = preg_match_all('/\d/', $corrected);
+            $totalChars = strlen(preg_replace('/\s/', '', $corrected));
+            if ($digitCount >= $totalChars * 0.8) {
+                return $this->formatIdNumber($corrected);
+            }
+        }
+
+        // Line-based: search from the BOTTOM (ID is below QR code)
+        $reversedLines = array_reverse($lines);
+        foreach ($reversedLines as $line) {
+            $tokens = preg_split('/\s+/', trim($line)) ?: [];
+            if (count($tokens) >= 3) {
+                $lastThree = array_slice($tokens, -3);
+                if (preg_match('/\d{5,}/', $lastThree[2])) {
+                    $formatted = $this->formatIdNumber(implode(' ', $lastThree));
+                    if ($formatted !== null) {
+                        return $formatted;
+                    }
+                }
+            }
+
+            if (preg_match('/\b([A-Z0-9]{2,4}\s+[A-Z0-9]{2,4}\s+[A-Z0-9]{5,9})\b/', $line, $m)) {
+                $formatted = $this->formatIdNumber($m[1]);
+                if ($formatted !== null) {
+                    return $formatted;
+                }
+            }
+
+            // Pure digit pattern
+            if (preg_match('/\b(\d{3}\s*\d{3}\s*\d{5,8})\b/', $line, $m)) {
+                return $this->formatIdNumber($m[1]);
+            }
+
+            // Mixed alphanumeric → correct to digits
+            if (preg_match('/([A-Z0-9]{2,4})\s+([A-Z0-9]{2,4})\s+([A-Z0-9]{5,9})/', $line, $m)) {
+                $corrected = $this->ocrToDigits($m[1]) . ' ' . $this->ocrToDigits($m[2]) . ' ' . $this->ocrToDigits($m[3]);
+                $digitCount = preg_match_all('/\d/', $corrected);
+                $totalChars = strlen(preg_replace('/\s/', '', $corrected));
+                if ($digitCount >= $totalChars * 0.8) {
+                    return $this->formatIdNumber($corrected);
+                }
+            }
+
+            // Correct full line then find digit pattern
+            $correctedLine = $this->ocrToDigits($line);
+            if (preg_match('/\b(\d{3}\s*\d{3}\s*\d{5,8})\b/', $correctedLine, $m)) {
+                return $this->formatIdNumber($m[1]);
+            }
+
+            // Isolated long digit sequence (7+ digits) at end of line
+            if (preg_match('/(\d{7,14})\s*$/', trim($correctedLine), $m)) {
+                $formatted = $this->formatIdNumber($m[1]);
+                if ($formatted !== null) {
+                    return $formatted;
+                }
+            }
+        }
+
+        // OCR letter↔digit confusion on the full text: correct then match.
+        // Keep this after the bottom-line search so it does not win with
+        // incidental digit runs from the rest of the card.
+        $ocrCorrected = $this->ocrToDigits($normalized);
+        if (preg_match('/\b(\d{3}\s*\d{3}\s*\d{5,8})\b/', $ocrCorrected, $m)) {
+            return $this->formatIdNumber($m[1]);
+        }
+
+        // Last resort: find longest digit sequence (7+) in corrected text
+        if (preg_match_all('/\d{7,14}/', $ocrCorrected, $m)) {
+            $formatted = $this->formatIdNumber((string) end($m[0]));
+            if ($formatted !== null) {
+                return $formatted;
+            }
         }
 
         return null;
@@ -506,8 +852,12 @@ class QcIdOcrVerifier
     /**
      * @param  list<string>  $lines
      */
-    private function extractAddress(array $lines): ?string
+    private function extractAddress(array $lines, string $normalized): ?string
     {
+        if (preg_match('/ADDRESS\s+([A-Z0-9,\.\-\s]+?QUEZON\s*CITY)/', $normalized, $m)) {
+            return $this->cleanAddress($m[1]);
+        }
+
         // Strategy 1: Line containing "QUEZON CITY"
         foreach ($lines as $index => $line) {
             if (! preg_match('/QUEZON\s*CITY/', $line)) {
@@ -515,33 +865,38 @@ class QcIdOcrVerifier
             }
 
             $parts = [];
-            $previous = $lines[$index - 1] ?? null;
-            $next = $lines[$index + 1] ?? null;
-
-            if ($previous && ! $this->looksLikeLabel($previous) && ! str_contains($previous, 'VALID UNTIL')) {
-                $parts[] = $previous;
+            // Collect up to 2 preceding non-label lines (street + area)
+            for ($back = min(2, $index); $back >= 1; $back--) {
+                $prev = $lines[$index - $back] ?? null;
+                if ($prev && ! $this->looksLikeLabel($prev)
+                    && ! str_contains($prev, 'VALID UNTIL')
+                    && ! str_contains($prev, 'DATE ISSUED')
+                    && ! preg_match('/^\d{4}[\/\-]\d{2}[\/\-]\d{2}/', $prev)) {
+                    $parts[] = $prev;
+                }
             }
 
             $parts[] = $line;
 
+            $next = $lines[$index + 1] ?? null;
             if ($next && ! $this->looksLikeLabel($next) && ! str_contains($next, 'IN CASE OF EMERGENCY')) {
                 $parts[] = $next;
             }
 
-            return trim(implode(' ', array_unique($parts)));
+            return $this->cleanAddress(implode(', ', array_unique($parts)));
         }
 
-        // Strategy 2: Line containing CONSTITUENCY or BARANGAY (common
-        // in QC addresses) even if "QUEZON CITY" was garbled.
+        // Strategy 2: Line containing CONSTITUENCY or BARANGAY / KINGSPOINT / BAGBAG
         foreach ($lines as $index => $line) {
-            if (! preg_match('/CONSTITUENCY|BARANGAY|BRGY/', $line)) {
+            if (! preg_match('/CONSTITUENCY|BARANGAY|BRGY|KINGSPOINT|BAGBAG/', $line)) {
                 continue;
             }
 
             $parts = [];
+            // Collect preceding line (street)
             $previous = $lines[$index - 1] ?? null;
-
-            if ($previous && ! $this->looksLikeLabel($previous)) {
+            if ($previous && ! $this->looksLikeLabel($previous)
+                && ! preg_match('/^\d{4}[\/\-]\d{2}/', $previous)) {
                 $parts[] = $previous;
             }
 
@@ -552,7 +907,25 @@ class QcIdOcrVerifier
                 $parts[] = $next;
             }
 
-            return trim(implode(' ', array_unique($parts)));
+            return $this->cleanAddress(implode(', ', array_unique($parts)));
+        }
+
+        // Strategy 3: Look for street-like pattern (number + name + ST/AVE/RD/BLVD)
+        foreach ($lines as $index => $line) {
+            if (preg_match('/\d+[\-A-Z]*\s+[A-Z]+.*?\b(?:ST|STREET|AVE|AVENUE|RD|ROAD|BLVD|DRIVE|DR)\b/i', $line)) {
+                $parts = [$line];
+                // Include next 1-2 non-label lines
+                for ($fwd = 1; $fwd <= 2; $fwd++) {
+                    $next = $lines[$index + $fwd] ?? null;
+                    if ($next && ! $this->looksLikeLabel($next)
+                        && ! str_contains($next, 'IN CASE OF EMERGENCY')) {
+                        $parts[] = $next;
+                    } else {
+                        break;
+                    }
+                }
+                return $this->cleanAddress(implode(', ', $parts));
+            }
         }
 
         return null;
@@ -572,7 +945,41 @@ class QcIdOcrVerifier
         $value = preg_replace('/\s+/', ' ', trim($value)) ?? trim($value);
         $value = trim($value, ' .,');
 
-        return $value;
+        // Remove trailing digits / single characters that are OCR noise
+        // e.g. "CALINAWAN 3" → "CALINAWAN"
+        $value = preg_replace('/\s+\d+$/', '', $value) ?? $value;
+        // Remove trailing single character (not part of a name)
+        $value = preg_replace('/\s+[A-Z0-9]$/', '', $value) ?? $value;
+
+        $parts = preg_split('/\s+/', $value) ?: [];
+        if (count($parts) >= 3) {
+            $last = end($parts);
+            if ($last !== false && strlen($last) <= 2) {
+                array_pop($parts);
+                $value = implode(' ', $parts);
+            }
+        }
+
+        return trim($value);
+    }
+
+    private function cleanAddress(string $value): string
+    {
+        $value = mb_strtoupper($value, 'UTF-8');
+        $value = preg_replace('/[^A-Z0-9,\.\-\s]/u', ' ', $value) ?? $value;
+        $value = preg_replace('/\b(?:ADDRESS|CARDHOLDER|SIGNATURE|EMERGENCY|CONTACT|RELAY|GNATURE)\b/', ' ', $value) ?? $value;
+        $value = preg_replace('/\s+/', ' ', trim($value)) ?? trim($value);
+
+        if (preg_match('/(\d+[A-Z\-]*\s+[A-Z0-9,\.\-\s]+?QUEZON\s*CITY)/', $value, $m)) {
+            $value = $m[1];
+        } elseif (preg_match('/([A-Z0-9,\.\-\s]+?QUEZON\s*CITY)/', $value, $m)) {
+            $value = $m[1];
+        }
+
+        $value = preg_replace('/\s*,\s*/', ', ', $value) ?? $value;
+        $value = preg_replace('/\s{2,}/', ' ', $value) ?? $value;
+
+        return trim($value, ' ,.-');
     }
 
     private function looksLikeLabel(string $value): bool
@@ -591,5 +998,293 @@ class QcIdOcrVerifier
         $tokens = explode(' ', trim($value));
 
         return array_values(array_filter($tokens, fn (string $token) => strlen($token) >= 2));
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // QC ID layout-aware extraction
+    // ────────────────────────────────────────────────────────────────────
+
+    /**
+     * Extract fields from the QC ID's "value above label" layout.
+     *
+     * QC ID cards print values in a row ABOVE their labels:
+     *   M  SINGLE  2003/01/01        (values)
+     *   SEX  CIVIL STATUS  DATE OF BIRTH  (labels)
+     *
+     * OCR reads top-to-bottom, so values appear before labels in the text.
+     *
+     * @param  list<string>  $lines
+     * @return array<string, string|null>
+     */
+    private function extractQcIdLayoutFields(string $normalized, array $lines): array
+    {
+        $fields = [];
+        $civilStatuses = 'SINGLE|MARRIED|WIDOW(?:ED)?|SEPARATED|DIVORCED|ANNULLED';
+        $datePat = '(\d{2,4}[\/\-]\d{2}[\/\-]\d{2,4})';
+        // Also match 8-digit dates with no separators (e.g. 20030101)
+        $datePat8 = '(\d{8})';
+
+        // ── Normalized-text patterns ───
+        // QC ID actual column order: SEX  DATE_OF_BIRTH  CIVIL_STATUS
+        // So OCR produces: M 2003/01/01 SINGLE ... SEX DATE OF BIRTH
+
+        // Pattern A: M DATE CIVIL_STATUS ... SEX (actual QC ID order)
+        if (preg_match(
+            '/\b([MF])\s+' . $datePat . '\s+(' . $civilStatuses . ')\b/',
+            $normalized, $m
+        )) {
+            $fields['sex'] = $m[1];
+            $fields['date_of_birth'] = $m[2];
+            $fields['civil_status'] = $m[3];
+        }
+
+        // Pattern A2: M 8-digit-date CIVIL_STATUS (no separators)
+        if (! isset($fields['sex']) && preg_match(
+            '/\b([MF])\s+' . $datePat8 . '\s+(' . $civilStatuses . ')\b/',
+            $normalized, $m
+        )) {
+            $fields['sex'] = $m[1];
+            $fields['date_of_birth'] = substr($m[2], 0, 4) . '/' . substr($m[2], 4, 2) . '/' . substr($m[2], 6, 2);
+            $fields['civil_status'] = $m[3];
+        }
+
+        // Pattern B: M CIVIL_STATUS DATE ... SEX (alternate order)
+        if (! isset($fields['sex']) && preg_match(
+            '/\b([MF])\s+(' . $civilStatuses . ')\s+' . $datePat . '/',
+            $normalized, $m
+        )) {
+            $fields['sex'] = $m[1];
+            $fields['civil_status'] = $m[2];
+            $fields['date_of_birth'] = $m[3];
+        }
+
+        // Pattern C: M GARBLED_DATE CIVIL_STATUS (e.g. M 20030/01 SINGLE)
+        if (! isset($fields['sex']) && preg_match(
+            '/\b([MF])\s+(\d[\d\/\-\s]{5,12}?\d)\s+(' . $civilStatuses . ')\b/',
+            $normalized, $m
+        )) {
+            $fields['sex'] = $m[1];
+            $fields['civil_status'] = $m[3];
+            // Try to parse the garbled date
+            $dateCandidate = $this->parseGarbledDate($m[2]);
+            if ($dateCandidate !== null) {
+                $fields['date_of_birth'] = $dateCandidate;
+            }
+        }
+
+        // Pattern D: sex + DOB only (no civil status parsed)
+        if (! isset($fields['sex']) && preg_match(
+            '/\b([MF])\s+' . $datePat . '/',
+            $normalized, $m
+        )) {
+            $fields['sex'] = $m[1];
+            if (! isset($fields['date_of_birth'])) {
+                $fields['date_of_birth'] = $m[2];
+            }
+        }
+
+        // Civil status standalone (before SEX label)
+        if (! isset($fields['civil_status']) && preg_match(
+            '/\b(' . $civilStatuses . ')\b.*?\bSEX\b.*?CIVIL\s*STATUS/',
+            $normalized, $m
+        )) {
+            $fields['civil_status'] = $m[1];
+        }
+
+        // Date Issued + Valid Until: DATE1 DATE2 ... DATE ISSUED
+        if (preg_match(
+            '/' . $datePat . '\s+' . $datePat . '\s+.*?DATE\s*ISSUED/',
+            $normalized, $m
+        )) {
+            $fields['date_issued'] = $m[1];
+            $fields['valid_until'] = $m[2];
+        }
+
+        // Date Issued + Valid Until: 8-digit dates
+        if (! isset($fields['date_issued']) && preg_match(
+            '/' . $datePat8 . '\s+' . $datePat8 . '\s+.*?DATE\s*ISSUED/',
+            $normalized, $m
+        )) {
+            $fields['date_issued'] = substr($m[1], 0, 4) . '/' . substr($m[1], 4, 2) . '/' . substr($m[1], 6, 2);
+            $fields['valid_until'] = substr($m[2], 0, 4) . '/' . substr($m[2], 4, 2) . '/' . substr($m[2], 6, 2);
+        }
+
+        // DATE1 DATE2 anywhere before or near DATE ISSUED / VALID UNTIL labels
+        // Catches: 2024/02/15 2034/10/01 ... DATE ISSUED VALID UNTIL
+        if (! isset($fields['date_issued'])) {
+            if (preg_match_all('/' . $datePat . '/', $normalized, $allM, PREG_OFFSET_CAPTURE)) {
+                // Find dates that are NOT the DOB
+                $nonDobDates = [];
+                foreach ($allM[1] as $dateMatch) {
+                    $dateVal = $dateMatch[0];
+                    if (isset($fields['date_of_birth']) && $dateVal === $fields['date_of_birth']) {
+                        continue;
+                    }
+                    $nonDobDates[] = $dateVal;
+                }
+                // If we found exactly 2 non-DOB dates, assign them
+                if (count($nonDobDates) >= 2) {
+                    $fields['date_issued'] = $nonDobDates[0];
+                    $fields['valid_until'] = $nonDobDates[1];
+                } elseif (count($nonDobDates) === 1) {
+                    // Single extra date: guess by year
+                    $year = (int) substr($nonDobDates[0], 0, 4);
+                    $currentYear = (int) date('Y');
+                    if ($year > $currentYear) {
+                        $fields['valid_until'] = $nonDobDates[0];
+                    } else {
+                        $fields['date_issued'] = $nonDobDates[0];
+                    }
+                }
+            }
+        }
+
+        // ── Line-based patterns ───
+
+        foreach ($lines as $i => $line) {
+            // Label line containing SEX + (CIVIL STATUS or DATE OF BIRTH)
+            if (preg_match('/\bSEX\b/', $line) && preg_match('/DATE\s*(OF)?\s*BIRTH|CIVIL\s*STATUS/', $line)) {
+                $prevLine = $lines[$i - 1] ?? '';
+
+                if (! isset($fields['sex']) && preg_match('/\b([MF])\b/', $prevLine, $m)) {
+                    $fields['sex'] = $m[1];
+                }
+
+                if (! isset($fields['civil_status']) && preg_match('/\b(' . $civilStatuses . ')\b/', $prevLine, $m)) {
+                    $fields['civil_status'] = strtoupper($m[1]);
+                }
+
+                if (! isset($fields['date_of_birth'])) {
+                    if (preg_match('/' . $datePat . '/', $prevLine, $m)) {
+                        $fields['date_of_birth'] = $m[1];
+                    } elseif (preg_match('/(\d{8})/', $prevLine, $m)) {
+                        $raw = $m[1];
+                        $fields['date_of_birth'] = substr($raw, 0, 4) . '/' . substr($raw, 4, 2) . '/' . substr($raw, 6, 2);
+                    } else {
+                        // Garbled date (e.g. 20030/01, 2003/0101)
+                        if (preg_match('/(\d[\d\/\-]{4,10}\d)/', $prevLine, $m)) {
+                            $parsed = $this->parseGarbledDate($m[1]);
+                            if ($parsed !== null) {
+                                $fields['date_of_birth'] = $parsed;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Label line containing DATE ISSUED
+            if (preg_match('/DATE\s*ISSUED/', $line)) {
+                $prevLine = $lines[$i - 1] ?? '';
+
+                // Standard dates with separators
+                if (preg_match_all('/' . $datePat . '/', $prevLine, $m)) {
+                    if (! isset($fields['date_issued']) && isset($m[1][0])) {
+                        $fields['date_issued'] = $m[1][0];
+                    }
+                    if (! isset($fields['valid_until']) && isset($m[1][1])) {
+                        $fields['valid_until'] = $m[1][1];
+                    }
+                }
+
+                // 8-digit dates without separators
+                if (! isset($fields['date_issued']) && preg_match_all('/(\d{8})/', $prevLine, $m)) {
+                    if (isset($m[1][0])) {
+                        $fields['date_issued'] = substr($m[1][0], 0, 4) . '/' . substr($m[1][0], 4, 2) . '/' . substr($m[1][0], 6, 2);
+                    }
+                    if (! isset($fields['valid_until']) && isset($m[1][1])) {
+                        $fields['valid_until'] = substr($m[1][1], 0, 4) . '/' . substr($m[1][1], 4, 2) . '/' . substr($m[1][1], 6, 2);
+                    }
+                }
+
+                // Garbled dates fallback for valid_until
+                if (! isset($fields['valid_until'])) {
+                    // Remove already-matched clean dates from the line, then look for garbled ones
+                    $remaining = $prevLine;
+                    if (isset($fields['date_issued'])) {
+                        $remaining = str_replace(str_replace('/', '/', $fields['date_issued']), '', $remaining);
+                    }
+                    if (preg_match('/(\d[\d\/\-]{4,10}\d)/', $remaining, $m)) {
+                        $parsed = $this->parseGarbledDate($m[1]);
+                        if ($parsed !== null) {
+                            $fields['valid_until'] = $parsed;
+                        }
+                    }
+                }
+            }
+
+            // Separate VALID UNTIL label
+            if (! isset($fields['valid_until']) && preg_match('/VALID\s*UNTIL/', $line) && ! preg_match('/DATE\s*ISSUED/', $line)) {
+                $prevLine = $lines[$i - 1] ?? '';
+                if (preg_match('/' . $datePat . '/', $prevLine, $m)) {
+                    $fields['valid_until'] = $m[1];
+                } elseif (preg_match('/(\d{8})/', $prevLine, $m)) {
+                    $fields['valid_until'] = substr($m[1], 0, 4) . '/' . substr($m[1], 4, 2) . '/' . substr($m[1], 6, 2);
+                }
+            }
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Extract civil status – handles both label-before-value and value-before-label.
+     */
+    private function extractCivilStatus(string $normalized): ?string
+    {
+        $statuses = 'SINGLE|MARRIED|WIDOW(?:ED)?|SEPARATED|DIVORCED|ANNULLED';
+
+        // Label followed by value
+        if (preg_match('/CIVIL\s*STATUS\s*[:\s]*(' . $statuses . ')/', $normalized, $m)) {
+            return $m[1];
+        }
+
+        // Standalone value near SEX or date context
+        if (preg_match('/\b[MF]\s+(' . $statuses . ')\s+\d/', $normalized, $m)) {
+            return $m[1];
+        }
+
+        // Fallback: known value anywhere in the text
+        if (preg_match('/\b(' . $statuses . ')\b/', $normalized, $m)) {
+            return $m[1];
+        }
+
+        return null;
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // Non-QC ID detection
+    // ────────────────────────────────────────────────────────────────────
+
+    /**
+     * Detect if the text contains markers of a non-QC ID.
+     *
+     * @return string|null  The detected ID type name, or null.
+     */
+    private function detectNonQcId(string $normalized): ?string
+    {
+        $nonQcMarkers = [
+            'Philippine National ID (PhilSys)' => '/PHIL\w*\s*NATIONAL\s*ID|PHILSYS|PHILIPPINE\s*IDENTIFICATION\s*SYSTEM|PSN\s*\d/',
+            'Driver\'s License' => '/DRIVER\S?\s*S?\s*LICENSE|LAND\s*TRANSPORTATION|NON.?PROFESSIONAL\s*DRIVER|PROFESSIONAL\s*DRIVER/',
+            'PhilHealth ID' => '/PHILHEALTH|PHILIPPINE\s*HEALTH\s*INSURANCE|PHIC\b/',
+            'SSS ID' => '/SOCIAL\s*SECURITY\s*SYSTEM|\bSSS\b\s*(?:MEMBER|NUMBER|ID)/',
+            'UMID' => '/UNIFIED\s*MULTI.?PURPOSE\s*ID|U\.?M\.?I\.?D\b/',
+            'TIN Card' => '/TAXPAYER\s*IDENTIFICATION|BUREAU\s*OF\s*INTERNAL\s*REVENUE/',
+            'Philippine Passport' => '/PASSPORT\s*(?:NO|NUMBER)|DEPARTMENT\s*OF\s*FOREIGN\s*AFFAIRS/',
+            'PRC ID' => '/PROFESSIONAL\s*REGULATION|PRC\s*(?:ID|BOARD|LICENSE)/',
+            'Postal ID' => '/POSTAL\s*(?:ID|IDENTIFICATION)|PHILIPPINE\s*POSTAL|PHILPOST/',
+            'Voter\'s ID' => '/VOTER\S?\s*S?\s*(?:ID|IDENTIFICATION)|COMMISSION\s*ON\s*ELECTIONS|COMELEC/',
+            'Senior Citizen ID' => '/SENIOR\s*CITIZEN\s*(?:ID|CARD)/',
+            'PWD ID' => '/PERSON\s*WITH\s*DISABILITY|\bPWD\s*(?:ID|CARD)/',
+            'NBI Clearance' => '/NATIONAL\s*BUREAU\s*OF\s*INVESTIGATION|\bNBI\s*CLEARANCE/',
+            'School ID' => '/STUDENT\s*(?:ID|IDENTIFICATION)|UNIVERSITY\s*(?:ID|IDENTIFICATION)/',
+        ];
+
+        foreach ($nonQcMarkers as $idType => $pattern) {
+            if (preg_match($pattern, $normalized)) {
+                return $idType;
+            }
+        }
+
+        return null;
     }
 }
