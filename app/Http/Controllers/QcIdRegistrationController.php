@@ -9,6 +9,7 @@ use App\Notifications\QcIdSubmissionPendingNotification;
 use App\Services\QcIdOcrVerifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -69,6 +70,12 @@ class QcIdRegistrationController extends Controller
 
         $path = $request->file('qcid_image')->store('qcid-registrations/' . $user->id, 'public');
 
+        $verifiedQcidNumber = $this->normalizeQcidNumber($verification['id_number'] ?? null);
+        $verifiedAddress = $this->normalizeAddress($verification['address'] ?? null);
+        $verifiedDob = $this->normalizeDateForDatabase($verification['date_of_birth'] ?? null);
+        $verifiedIssued = $this->normalizeDateForDatabase($verification['date_issued'] ?? null);
+        $verifiedValidUntil = $this->normalizeDateForDatabase($verification['valid_until'] ?? null);
+
         $registration = QcIdRegistration::query()->firstOrNew([
             'user_id' => $user->id,
         ]);
@@ -81,13 +88,23 @@ class QcIdRegistrationController extends Controller
             'full_name' => $validated['full_name'],
             'email' => $isStaff ? '' : ($validated['email'] ?? ''),
             'contact_number' => $validated['contact_number'] ?? null,
-            'qcid_number' => $validated['qcid_number'] ?: ($verification['id_number'] ?? null),
+            'qcid_number' => ($validated['qcid_number'] ?? '') !== ''
+                ? $this->normalizeQcidNumber($validated['qcid_number'])
+                : $verifiedQcidNumber,
             'sex' => $validated['sex'] ?: ($verification['sex'] ?? null),
             'civil_status' => $validated['civil_status'] ?: ($verification['civil_status'] ?? null),
-            'date_of_birth' => $validated['date_of_birth'] ?: ($verification['date_of_birth'] ?? null),
-            'date_issued' => $validated['date_issued'] ?: ($verification['date_issued'] ?? null),
-            'valid_until' => $validated['valid_until'] ?: ($verification['valid_until'] ?? null),
-            'address' => $validated['address'] ?: ($verification['address'] ?? null),
+            'date_of_birth' => ($validated['date_of_birth'] ?? '') !== ''
+                ? $this->normalizeDateForDatabase($validated['date_of_birth'])
+                : $verifiedDob,
+            'date_issued' => ($validated['date_issued'] ?? '') !== ''
+                ? $this->normalizeDateForDatabase($validated['date_issued'])
+                : $verifiedIssued,
+            'valid_until' => ($validated['valid_until'] ?? '') !== ''
+                ? $this->normalizeDateForDatabase($validated['valid_until'])
+                : $verifiedValidUntil,
+            'address' => ($validated['address'] ?? '') !== ''
+                ? $this->normalizeAddress($validated['address'])
+                : $verifiedAddress,
             'ocr_text' => $validated['ocr_text'],
             'verification_status' => 'pending',
             'verification_notes' => null,
@@ -112,5 +129,79 @@ class QcIdRegistrationController extends Controller
         return redirect()
             ->route('qcid.registration.show')
             ->with('status', 'QC ID registration submitted successfully. Your details are now pending verification.');
+    }
+
+    private function normalizeDateForDatabase(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        $value = str_replace('.', '/', $value);
+
+        foreach (['Y-m-d', 'Y/m/d', 'm/d/Y', 'd/m/Y', 'Ymd'] as $format) {
+            try {
+                $parsed = Carbon::createFromFormat($format, $value);
+                if ($parsed !== false) {
+                    return $parsed->format('Y-m-d');
+                }
+            } catch (\Throwable) {
+                // Try next known format.
+            }
+        }
+
+        try {
+            return Carbon::parse($value)->format('Y-m-d');
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function normalizeQcidNumber(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $digits = preg_replace('/\D/', '', $value) ?? '';
+        if ($digits === '') {
+            return null;
+        }
+
+        if (strlen($digits) === 13) {
+            $digits = '0' . $digits;
+        }
+
+        if (strlen($digits) !== 14) {
+            return null;
+        }
+
+        return substr($digits, 0, 3) . ' ' . substr($digits, 3, 3) . ' ' . substr($digits, 6, 8);
+    }
+
+    private function normalizeAddress(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = mb_strtoupper(trim($value), 'UTF-8');
+        if ($value === '') {
+            return null;
+        }
+
+        $value = preg_replace('/\b(?:DATE\s*ISSUED|VALID\s*UNTIL|DATE\s*(?:OF)?\s*BIRTH|CIVIL\s*STATUS|CARD\s*HOLDER|SIGNATURE|REPUBLIC\s+OF\s+THE\s+PHILIPPINES|Q\s*CITIZEN\s*CARD)\b/', ' ', $value) ?? $value;
+        $value = preg_replace('/\s+/', ' ', trim($value)) ?? trim($value);
+
+        if (preg_match('/([A-Z0-9,\.\-\s]{8,}?QUEZON\s+CITY)/', $value, $m)) {
+            $value = trim($m[1]);
+        }
+
+        return $value !== '' ? $value : null;
     }
 }

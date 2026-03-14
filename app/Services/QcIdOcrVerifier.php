@@ -768,6 +768,11 @@ class QcIdOcrVerifier
             $digits = '0' . $digits;
         }
 
+        // Some OCR runs drop 2 leading zeros from the 8-digit tail.
+        if (strlen($digits) === 12) {
+            $digits = '00' . $digits;
+        }
+
         // Some OCR runs drop one digit in the last block. Recover by
         // inserting a leading zero in the final segment: 3+3+7 -> 3+3+8.
         if (strlen($digits) === 13 && preg_match('/^\d{6}\d{7}$/', $digits) === 1) {
@@ -980,13 +985,21 @@ class QcIdOcrVerifier
             return $resolved;
         }
 
-        // Standard: 005 000 01257419  (3-3-7/8 or continuous 13-14)
+        // Standard: 005 000 01257419  (3-3-6/8 or continuous 12-14)
         if (preg_match('/\b(\d{3}\s*\d{3}\s*\d{5,8})\b/', $normalized, $m)) {
             return $this->formatIdNumber($m[1]);
         }
 
-        // Continuous long digit string (10-14 digits)
-        if (preg_match('/\b(\d{10,14})\b/', $normalized, $m)) {
+        // Flexible separators and tail length (OCR often inserts dots/dashes).
+        if (preg_match('/\b(\d{3}\D*\d{3}\D*\d{6,8})\b/', $normalized, $m)) {
+            $formatted = $this->formatIdNumber($m[1]);
+            if ($formatted !== null) {
+                return $formatted;
+            }
+        }
+
+        // Continuous long digit string (12-14 digits)
+        if (preg_match('/\b(\d{12,14})\b/', $normalized, $m)) {
             return $this->formatIdNumber($m[1]);
         }
 
@@ -1050,9 +1063,17 @@ class QcIdOcrVerifier
                 return $this->formatIdNumber($m[1]);
             }
 
-            // Isolated long digit sequence (7+ digits) at end of line
-            if (preg_match('/(\d{7,14})\s*$/', trim($correctedLine), $m)) {
+            // Isolated long digit sequence (8+ digits) at end of line
+            if (preg_match('/(\d{8,14})\s*$/', trim($correctedLine), $m)) {
                 $formatted = $this->formatIdNumber($m[1]);
+                if ($formatted !== null) {
+                    return $formatted;
+                }
+            }
+
+            // Loose grouped fallback from bottom lines (most likely ID strip).
+            if (preg_match('/(\d{3})\D{0,4}(\d{3})\D{0,4}(\d{6,8})/', $correctedLine, $m)) {
+                $formatted = $this->formatIdNumber($m[1] . $m[2] . $m[3]);
                 if ($formatted !== null) {
                     return $formatted;
                 }
@@ -1068,7 +1089,7 @@ class QcIdOcrVerifier
         }
 
         // Last resort: find longest digit sequence (7+) in corrected text
-        if (preg_match_all('/\d{7,14}/', $ocrCorrected, $m)) {
+        if (preg_match_all('/\d{8,14}/', $ocrCorrected, $m)) {
             $formatted = $this->formatIdNumber((string) end($m[0]));
             if ($formatted !== null) {
                 return $formatted;
@@ -1205,6 +1226,11 @@ class QcIdOcrVerifier
             return $this->cleanAddress($m[1]);
         }
 
+        // Prefer explicit city-anchored chunks and avoid field-label contamination.
+        if (preg_match('/((?:BLK|LOT|UNIT|#|\d+[A-Z\-]*)[A-Z0-9,\.\-\s]{8,}?QUEZON\s*CITY)/', $normalized, $m)) {
+            return $this->cleanAddress($m[1]);
+        }
+
         // Strategy 1: Line containing "QUEZON CITY"
         foreach ($lines as $index => $line) {
             if (! preg_match('/QUEZON\s*CITY/', $line)) {
@@ -1314,10 +1340,10 @@ class QcIdOcrVerifier
     {
         $value = mb_strtoupper($value, 'UTF-8');
         $value = preg_replace('/[^A-Z0-9,\.\-\s]/u', ' ', $value) ?? $value;
-        $value = preg_replace('/\b(?:ADDRESS|CARDHOLDER|SIGNATURE|EMERGENCY|CONTACT|RELAY|GNATURE)\b/', ' ', $value) ?? $value;
+        $value = preg_replace('/\b(?:ADDRESS|CARDHOLDER|SIGNATURE|EMERGENCY|CONTACT|RELAY|GNATURE|DATE\s*ISSUED|VALID\s*UNTIL|DATE\s*(?:OF)?\s*BIRTH|CIVIL\s*STATUS|REPUBLIC\s+OF\s+THE\s+PHILIPPINES|Q\s*CITIZEN\s*CARD)\b/', ' ', $value) ?? $value;
         $value = preg_replace('/\s+/', ' ', trim($value)) ?? trim($value);
 
-        if (preg_match('/(\d+[A-Z\-]*\s+[A-Z0-9,\.\-\s]+?QUEZON\s*CITY)/', $value, $m)) {
+        if (preg_match('/((?:BLK|LOT|UNIT|#|\d+[A-Z\-]*)\s+[A-Z0-9,\.\-\s]+?QUEZON\s*CITY)/', $value, $m)) {
             $value = $m[1];
         } elseif (preg_match('/([A-Z0-9,\.\-\s]+?QUEZON\s*CITY)/', $value, $m)) {
             $value = $m[1];

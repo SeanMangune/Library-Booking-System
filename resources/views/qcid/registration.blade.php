@@ -42,7 +42,8 @@
                     </div>
                     <div class="rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-white backdrop-blur-sm">
                         <p class="text-xs uppercase tracking-wide text-indigo-100">Confidence</p>
-                        <p class="mt-2 text-lg font-bold" x-text="verification?.confidence_score ? verification.confidence_score + '%' : '—'"></p>
+                        <p class="mt-2 text-lg font-bold" x-text="overallConfidenceLabel"></p>
+                        <p class="mt-1 text-[11px] text-indigo-100/90" x-text="overallConfidenceHint"></p>
                     </div>
                 </div>
             </div>
@@ -179,7 +180,14 @@
                                     <input name="contact_number" x-model="form.contact_number" value="{{ old('contact_number', $registration?->contact_number) }}" type="text" class="w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500" placeholder="09xxxxxxxxx">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">QC ID number</label>
+                                    <div class="mb-1 flex items-center justify-between gap-2">
+                                        <label class="block text-sm font-medium text-gray-700">QC ID number</label>
+                                        <button type="button"
+                                                @click="openConfidenceModal('qcid_number')"
+                                                class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                                                :class="confidenceBadgeClass('qcid_number')"
+                                                x-text="confidenceLabel('qcid_number')"></button>
+                                    </div>
                                     <input name="qcid_number" x-model="form.qcid_number" value="{{ old('qcid_number', $registration?->qcid_number) }}" type="text" class="w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500">
                                 </div>
                                 <div>
@@ -203,7 +211,14 @@
                                     <input name="valid_until" x-model="form.valid_until" value="{{ old('valid_until', optional($registration?->valid_until)->format('Y-m-d')) }}" type="date" class="w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500">
                                 </div>
                                 <div class="md:col-span-2">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                                    <div class="mb-1 flex items-center justify-between gap-2">
+                                        <label class="block text-sm font-medium text-gray-700">Address</label>
+                                        <button type="button"
+                                                @click="openConfidenceModal('address')"
+                                                class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                                                :class="confidenceBadgeClass('address')"
+                                                x-text="confidenceLabel('address')"></button>
+                                    </div>
                                     <textarea name="address" x-model="form.address" rows="3" class="w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500">{{ old('address', $registration?->address) }}</textarea>
                                 </div>
                             </div>
@@ -288,6 +303,40 @@
             </div>
         </div>
     </div>
+
+    <div x-show="showConfidenceModal"
+         x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4"
+         @keydown.escape.window="closeConfidenceModal()"
+         @click.self="closeConfidenceModal()">
+        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
+            <div class="relative overflow-hidden rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 p-4">
+                <div class="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-indigo-200/50 blur-2xl"></div>
+                <div class="pointer-events-none absolute -left-10 -bottom-10 h-24 w-24 rounded-full bg-fuchsia-200/40 blur-2xl"></div>
+                <div class="relative flex items-start justify-between gap-4">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-indigo-600">Extraction confidence</p>
+                    <h3 class="mt-1 text-lg font-bold text-slate-900" x-text="confidenceFieldTitle()"></h3>
+                </div>
+                <button type="button" @click="closeConfidenceModal()" class="rounded-lg border border-slate-200 bg-white/80 px-2 py-1 text-slate-600 hover:bg-white">×</button>
+                </div>
+            </div>
+
+            <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Current status</p>
+                <p class="mt-1 text-sm font-semibold" :class="confidenceTextClass(confidenceField)" x-text="confidenceLabel(confidenceField)"></p>
+                <p class="mt-3 text-sm text-slate-700" x-text="confidenceReason(confidenceField)"></p>
+            </div>
+
+            <p class="mt-4 text-sm text-slate-600" x-show="confidenceNeedsManualEntry(confidenceField)">
+                This field was not auto-filled because the text is unreadable or inconsistent across OCR passes. Please enter it manually and double-check against the physical ID.
+            </p>
+
+            <div class="mt-5 flex justify-end">
+                <button type="button" @click="closeConfidenceModal()" class="inline-flex items-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Got it</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 @push('scripts')
@@ -303,6 +352,26 @@ function qcidRegistrationApp() {
         errorMessage: '',
         currentStatus: @json($registration?->verification_status ?? 'not_submitted'),
         isStaffUser: @json($isStaffUser),
+        showConfidenceModal: false,
+        hasShownAutoConfidenceModal: false,
+        confidenceField: 'qcid_number',
+        fieldConfidence: {
+            qcid_number: {
+                level: 'unknown',
+                score: 0,
+                reason: 'Upload and re-read the QC ID to evaluate extraction confidence.',
+            },
+            address: {
+                level: 'unknown',
+                score: 0,
+                reason: 'Upload and re-read the QC ID to evaluate extraction confidence.',
+            },
+            date_issued: {
+                level: 'unknown',
+                score: 0,
+                reason: 'Upload and re-read the QC ID to evaluate extraction confidence.',
+            },
+        },
         form: {
             full_name: @json(old('full_name', $registration?->full_name ?? $user->name)),
             email: @json($initialRegistrationEmail),
@@ -339,10 +408,126 @@ function qcidRegistrationApp() {
             }[this.currentStatus] || 'bg-slate-100 text-slate-700';
         },
 
+        get overallConfidenceScore() {
+            const base = Number(this.verification?.confidence_score || 0);
+            let penalty = 0;
+
+            const levels = [
+                this.fieldConfidence.qcid_number?.level,
+                this.fieldConfidence.address?.level,
+                this.fieldConfidence.date_issued?.level,
+            ];
+
+            for (const level of levels) {
+                if (level === 'low') penalty += 30;
+                else if (level === 'medium') penalty += 12;
+            }
+
+            if (!this.form.qcid_number) penalty += 25;
+            if (!this.form.address) penalty += 20;
+            if (!this.form.date_issued) penalty += 20;
+
+            return Math.max(0, Math.min(100, base - penalty));
+        },
+
+        get overallConfidenceLabel() {
+            if (!this.verification?.is_valid) {
+                return '—';
+            }
+
+            return `${this.overallConfidenceScore}%`;
+        },
+
+        get overallConfidenceHint() {
+            if (!this.verification?.is_valid) {
+                return 'Awaiting verified OCR result';
+            }
+
+            if (this.overallConfidenceScore >= 85) return 'Strong extraction quality';
+            if (this.overallConfidenceScore >= 60) return 'Review extracted fields';
+            return 'Manual review required';
+        },
+
         syncDerivedState() {
             if (this.currentStatus === 'not_submitted' && this.verification?.is_valid) {
                 this.currentStatus = 'pending';
             }
+        },
+
+        openConfidenceModal(field) {
+            this.confidenceField = field;
+            this.showConfidenceModal = true;
+        },
+
+        closeConfidenceModal() {
+            this.showConfidenceModal = false;
+        },
+
+        maybeOpenAutoConfidenceModal() {
+            if (this.hasShownAutoConfidenceModal) {
+                return;
+            }
+
+            const priorityFields = ['qcid_number', 'address', 'date_issued'];
+            const firstLow = priorityFields.find((field) => this.fieldConfidence?.[field]?.level === 'low');
+            if (!firstLow) {
+                return;
+            }
+
+            this.hasShownAutoConfidenceModal = true;
+            this.confidenceField = firstLow;
+            this.showConfidenceModal = true;
+        },
+
+        confidenceFieldTitle() {
+            if (this.confidenceField === 'address') {
+                return 'Address extraction';
+            }
+
+            if (this.confidenceField === 'date_issued') {
+                return 'Date issued extraction';
+            }
+
+            return 'QC ID number extraction';
+        },
+
+        confidenceLabel(field) {
+            const level = this.fieldConfidence?.[field]?.level || 'unknown';
+            return {
+                high: 'High confidence',
+                medium: 'Needs review',
+                low: 'Manual entry required',
+                unknown: 'Not evaluated',
+            }[level] || 'Not evaluated';
+        },
+
+        confidenceBadgeClass(field) {
+            const level = this.fieldConfidence?.[field]?.level || 'unknown';
+            return {
+                high: 'bg-emerald-100 text-emerald-700',
+                medium: 'bg-amber-100 text-amber-700',
+                low: 'bg-rose-100 text-rose-700',
+                unknown: 'bg-slate-100 text-slate-600',
+            }[level] || 'bg-slate-100 text-slate-600';
+        },
+
+        confidenceTextClass(field) {
+            const level = this.fieldConfidence?.[field]?.level || 'unknown';
+            return {
+                high: 'text-emerald-700',
+                medium: 'text-amber-700',
+                low: 'text-rose-700',
+                unknown: 'text-slate-700',
+            }[level] || 'text-slate-700';
+        },
+
+        confidenceReason(field) {
+            return this.fieldConfidence?.[field]?.reason || 'No extraction details available yet.';
+        },
+
+        confidenceNeedsManualEntry(field) {
+            const level = this.fieldConfidence?.[field]?.level || 'unknown';
+            return level === 'low';
         },
 
         async handleFile(event) {
@@ -448,7 +633,7 @@ function qcidRegistrationApp() {
         },
 
         parseDateCandidate(value) {
-            const raw = String(value || '').replace(/-/g, '/').trim();
+            const raw = String(value || '').replace(/-/g, '/').replace(/\s+/g, '').trim();
 
             if (/^\d{8}$/.test(raw)) {
                 const year = Number(raw.slice(0, 4));
@@ -474,6 +659,28 @@ function qcidRegistrationApp() {
                 const year = Number(match[1]);
                 const month = Number(match[2]);
                 const day = Number(match[3]);
+                if (year >= 1900 && year <= 2099 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                    return `${String(year).padStart(4, '0')}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
+                }
+            }
+
+            // OCR case: YYYY/MMDD (missing separator between month/day)
+            match = raw.match(/^(\d{4})\/(\d{4})$/);
+            if (match) {
+                const year = Number(match[1]);
+                const month = Number(match[2].slice(0, 2));
+                const day = Number(match[2].slice(2, 4));
+                if (year >= 1900 && year <= 2099 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                    return `${String(year).padStart(4, '0')}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
+                }
+            }
+
+            // OCR case: YYYYMM/DD (missing separator between year/month)
+            match = raw.match(/^(\d{6})\/(\d{2})$/);
+            if (match) {
+                const year = Number(match[1].slice(0, 4));
+                const month = Number(match[1].slice(4, 6));
+                const day = Number(match[2]);
                 if (year >= 1900 && year <= 2099 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
                     return `${String(year).padStart(4, '0')}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
                 }
@@ -535,27 +742,27 @@ function qcidRegistrationApp() {
         extractStrictQcId(text) {
             const normalized = this.digitCorrectedText(text);
 
-            const grouped = normalized.match(/\b(\d{3})\s*(\d{3})\s*(\d{8})\b/);
+            const grouped = normalized.match(/\b(\d{3})\s*(\d{3})\s*(\d{6,8})\b/);
             if (grouped) {
-                return `${grouped[1]} ${grouped[2]} ${grouped[3]}`;
+                const digits = this.normalizeIdDigits(`${grouped[1]}${grouped[2]}${grouped[3]}`);
+                return this.formatIdFromDigits(digits);
             }
 
-            const candidates = normalized.match(/\b\d{13,14}\b/g) || [];
+            const candidates = normalized.match(/\b\d{12,14}\b/g) || [];
             if (candidates.length === 0) {
                 return '';
             }
 
             const chosen = candidates[candidates.length - 1];
-            const fourteen = chosen.length === 13 ? `0${chosen}` : chosen;
-            if (fourteen.length !== 14) {
-                return '';
-            }
-
-            return `${fourteen.slice(0, 3)} ${fourteen.slice(3, 6)} ${fourteen.slice(6, 14)}`;
+            const normalizedDigits = this.normalizeIdDigits(chosen);
+            return this.formatIdFromDigits(normalizedDigits);
         },
 
         normalizeIdDigits(value) {
             const digits = this.digitCorrectedText(value).replace(/\D/g, '');
+            if (digits.length === 12) {
+                return `00${digits}`;
+            }
             if (digits.length === 13) {
                 return `0${digits}`;
             }
@@ -570,7 +777,7 @@ function qcidRegistrationApp() {
             const normalized = this.digitCorrectedText(text);
             const candidates = [];
 
-            const groupedMatches = normalized.match(/\b\d{3}\s*\d{3}\s*\d{8}\b/g) || [];
+            const groupedMatches = normalized.match(/\b\d{3}\s*\d{3}\s*\d{6,8}\b/g) || [];
             for (const match of groupedMatches) {
                 const digits = this.normalizeIdDigits(match);
                 if (digits) {
@@ -578,7 +785,7 @@ function qcidRegistrationApp() {
                 }
             }
 
-            const compactMatches = normalized.match(/\b\d{13,14}\b/g) || [];
+            const compactMatches = normalized.match(/\b\d{12,14}\b/g) || [];
             for (const match of compactMatches) {
                 const digits = this.normalizeIdDigits(match);
                 if (digits) {
@@ -589,6 +796,15 @@ function qcidRegistrationApp() {
             // Additional fallback: detect grouped ID with noisy separators and 7-8 digit tail.
             const groupedLoose = normalized.match(/\b\d{3}[\s.\-]*\d{3}[\s.\-]*\d{7,8}\b/g) || [];
             for (const match of groupedLoose) {
+                const digitsOnly = match.replace(/\D/g, '');
+                const normalizedDigits = this.normalizeIdDigits(digitsOnly);
+                if (normalizedDigits) {
+                    candidates.push(normalizedDigits);
+                }
+            }
+
+            const groupedVeryLoose = normalized.match(/\b\d{3}\D{0,4}\d{3}\D{0,4}\d{6,8}\b/g) || [];
+            for (const match of groupedVeryLoose) {
                 const digitsOnly = match.replace(/\D/g, '');
                 const normalizedDigits = this.normalizeIdDigits(digitsOnly);
                 if (normalizedDigits) {
@@ -614,6 +830,68 @@ function qcidRegistrationApp() {
             }
 
             return `${pure.slice(0, 3)} ${pure.slice(3, 6)} ${pure.slice(6, 14)}`;
+        },
+
+        canonicalId(value) {
+            if (!value) {
+                return '';
+            }
+
+            const digits = this.normalizeIdDigits(value);
+            return this.formatIdFromDigits(digits);
+        },
+
+        evaluateIdExtraction(rawId, hintId, fullText, idRegionText = '') {
+            const regionCandidates = this.extractStrictQcIdCandidates(idRegionText || '');
+            const bottomStrip = this.canonicalId(this.extractBottomStripIdCandidateFromText(fullText || ''));
+            const looseTail = this.canonicalId(this.extractLooseIdFromTail(`${idRegionText || ''}\n${fullText || ''}`));
+            const rawCandidate = this.canonicalId(rawId || '');
+            const hintCandidate = this.canonicalId(hintId || '');
+
+            const weightedCandidates = [
+                ...regionCandidates,
+                ...regionCandidates,
+                bottomStrip,
+                bottomStrip,
+                looseTail,
+                rawCandidate,
+                hintCandidate,
+            ].filter(Boolean);
+
+            if (weightedCandidates.length === 0) {
+                return {
+                    value: null,
+                    level: 'low',
+                    score: 0,
+                    reason: 'No readable QC ID number candidate was found in the ID strip.',
+                };
+            }
+
+            const counts = new Map();
+            for (const candidate of weightedCandidates) {
+                counts.set(candidate, (counts.get(candidate) || 0) + 1);
+            }
+
+            const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+            const [bestId, bestScore] = ranked[0] || ['', 0];
+
+            if ((bestScore || 0) < 2) {
+                return {
+                    value: null,
+                    level: 'low',
+                    score: bestScore || 0,
+                    reason: 'QC ID number candidates were inconsistent, so auto-fill was skipped to avoid wrong data.',
+                };
+            }
+
+            return {
+                value: bestId || null,
+                level: (bestScore || 0) >= 3 ? 'high' : 'medium',
+                score: bestScore || 0,
+                reason: (bestScore || 0) >= 3
+                    ? 'QC ID number matched across multiple OCR passes.'
+                    : 'QC ID number matched with limited agreement. Please review before submitting.',
+            };
         },
 
         buildConsensusIdFromCandidates(candidates) {
@@ -703,6 +981,20 @@ function qcidRegistrationApp() {
 
             if (tailCandidates.length > 0) {
                 return tailCandidates[tailCandidates.length - 1];
+            }
+
+            return '';
+        },
+
+        extractAnyIdFallback(text) {
+            const normalized = this.digitCorrectedText(text);
+            const matches = normalized.match(/\d{3}\D{0,5}\d{3}\D{0,5}\d{6,8}|\d{12,14}/g) || [];
+            for (const value of matches.reverse()) {
+                const digits = this.normalizeIdDigits(value);
+                const formatted = this.formatIdFromDigits(digits);
+                if (formatted) {
+                    return formatted;
+                }
             }
 
             return '';
@@ -842,6 +1134,78 @@ function qcidRegistrationApp() {
             return { dateIssued, validUntil };
         },
 
+        findBestIssueDateCandidate(dates, validUntil, dateOfBirth) {
+            const currentYear = new Date().getFullYear();
+            const valid = this.parseDateCandidate(validUntil || '');
+            const dob = this.parseDateCandidate(dateOfBirth || '');
+
+            const candidates = (dates || [])
+                .map((value) => this.parseDateCandidate(value))
+                .filter(Boolean)
+                .filter((value) => value !== valid && value !== dob)
+                .filter((value) => {
+                    const year = Number(value.slice(0, 4));
+                    return year >= 2010 && year <= currentYear;
+                })
+                .sort((a, b) => Number(b.slice(0, 4)) - Number(a.slice(0, 4)));
+
+            return candidates[0] || '';
+        },
+
+        extractDateIssuedFromRegions(regionText, validUntil, dateOfBirth, fullText) {
+            const regionCandidates = [
+                ...this.extractAllDates(regionText?.date_issued || ''),
+                ...this.extractAllDates(regionText?.dates || ''),
+                ...this.extractAllDates(regionText?.demographics || ''),
+            ];
+
+            const fromRegions = this.findBestIssueDateCandidate(regionCandidates, validUntil, dateOfBirth);
+            if (fromRegions) {
+                return fromRegions;
+            }
+
+            const fromFull = this.findBestIssueDateCandidate(this.extractAllDates(fullText || ''), validUntil, dateOfBirth);
+            return fromFull || '';
+        },
+
+        evaluateDateIssuedExtraction(dateIssued, validUntil, dateOfBirth) {
+            const issued = this.parseDateCandidate(dateIssued || '');
+            const valid = this.parseDateCandidate(validUntil || '');
+            const dob = this.parseDateCandidate(dateOfBirth || '');
+            const currentYear = new Date().getFullYear();
+
+            if (!issued) {
+                return {
+                    level: 'low',
+                    score: 0,
+                    reason: 'Date issued could not be read clearly from the uploaded ID image.',
+                };
+            }
+
+            const issuedYear = Number(issued.slice(0, 4));
+            if (issuedYear < 2010 || issuedYear > currentYear) {
+                return {
+                    level: 'low',
+                    score: 0,
+                    reason: 'Detected date issued is outside expected range, so manual verification is needed.',
+                };
+            }
+
+            if ((valid && issued >= valid) || (dob && issued === dob)) {
+                return {
+                    level: 'medium',
+                    score: 1,
+                    reason: 'Detected date issued may conflict with other dates. Please review before submitting.',
+                };
+            }
+
+            return {
+                level: 'high',
+                score: 2,
+                reason: 'Date issued was extracted with a valid and consistent date pattern.',
+            };
+        },
+
         extractIssueValidityByLabelContext(text) {
             const normalized = this.digitCorrectedText(text);
             const lines = normalized.split('\n').map((line) => line.trim()).filter(Boolean);
@@ -920,7 +1284,7 @@ function qcidRegistrationApp() {
             return this.buildConsensusIdFromCandidates(candidates) || this.pickBestIdCandidate(candidates);
         },
 
-        chooseBetterDateIssued(rawIssued, hintIssued, validUntil, dateOfBirth, fullText) {
+        chooseBetterDateIssued(rawIssued, hintIssued, validUntil, dateOfBirth, fullText, regionText = {}) {
             const currentYear = new Date().getFullYear();
             const raw = this.parseDateCandidate(rawIssued || '');
             const hint = this.parseDateCandidate(hintIssued || '');
@@ -928,6 +1292,7 @@ function qcidRegistrationApp() {
             const dob = this.parseDateCandidate(dateOfBirth || '');
             const allDates = this.extractAllDates(fullText || '');
             const nearestIssued = this.parseDateCandidate(this.extractNearestDateToLabel(fullText || '', 'DATE\\s*ISSUED') || '');
+            const regionIssued = this.extractDateIssuedFromRegions(regionText, valid, dob, fullText || '');
 
             const isGoodIssued = (value) => {
                 if (!value) return false;
@@ -940,6 +1305,7 @@ function qcidRegistrationApp() {
 
             if (isGoodIssued(raw)) return raw;
             if (isGoodIssued(hint)) return hint;
+            if (isGoodIssued(regionIssued)) return regionIssued;
             if (isGoodIssued(nearestIssued)) return nearestIssued;
 
             const candidates = allDates.filter((value) => isGoodIssued(value));
@@ -953,32 +1319,73 @@ function qcidRegistrationApp() {
                 return hint && hint !== valid ? hint : '';
             }
 
-            return raw || hint || nearestIssued || '';
+            return raw || hint || regionIssued || nearestIssued || '';
         },
 
         chooseBetterId(rawId, hintId, fullText, idRegionText = '') {
-            const bottomStrip = this.extractBottomStripIdCandidateFromText(fullText || '');
-            const looseTail = this.extractLooseIdFromTail(`${idRegionText || ''}\n${fullText || ''}`);
-            const candidates = [
-                rawId || '',
-                hintId || '',
-                ...this.extractStrictQcIdCandidates(idRegionText || ''),
-                bottomStrip,
-                bottomStrip,
-                bottomStrip,
-                looseTail,
-                ...this.extractStrictQcIdCandidates(fullText || ''),
-            ].filter(Boolean);
+            return this.evaluateIdExtraction(rawId, hintId, fullText, idRegionText).value || '';
+        },
 
-            const ambiguityResolved = this.resolveAmbiguousIdCandidates(candidates);
-            if (ambiguityResolved) {
-                return ambiguityResolved;
+        evaluateAddressExtraction(rawAddress, hintAddress) {
+            const clean = (value) => this.cleanClientAddress(value || '');
+            const raw = clean(rawAddress);
+            const hint = clean(hintAddress);
+
+            const rawReliable = this.isReliableAddress(raw);
+            const hintReliable = this.isReliableAddress(hint);
+
+            if (!rawReliable && !hintReliable) {
+                return {
+                    value: null,
+                    level: 'low',
+                    score: 0,
+                    reason: 'Address text was unreadable or incomplete, so auto-fill was skipped.',
+                };
             }
 
-            return this.buildConsensusIdFromCandidates(candidates)
-                || this.pickBestIdCandidate(candidates)
-                || looseTail
-                || '';
+            if (rawReliable && !hintReliable) {
+                return {
+                    value: raw,
+                    level: 'medium',
+                    score: 2,
+                    reason: 'Address was extracted from one reliable OCR source. Please review before submitting.',
+                };
+            }
+
+            if (hintReliable && !rawReliable) {
+                return {
+                    value: hint,
+                    level: 'medium',
+                    score: 2,
+                    reason: 'Address was extracted from one reliable OCR source. Please review before submitting.',
+                };
+            }
+
+            if (raw === hint) {
+                return {
+                    value: raw,
+                    level: 'high',
+                    score: 3,
+                    reason: 'Address matched across multiple OCR sources.',
+                };
+            }
+
+            const hasCity = (value) => /QUEZON\s+CITY/.test(value || '');
+            const hasStreetCue = (value) => /\b(LOT|BLK|ST|STREET|AVE|ROAD|SUBD|BARANGAY|BRGY|PHASE|VILLAGE)\b/.test(value || '');
+
+            const rawScore = (hasCity(raw) ? 3 : 0) + (hasStreetCue(raw) ? 2 : 0) + Math.min(raw.length, 120) / 120;
+            const hintScore = (hasCity(hint) ? 3 : 0) + (hasStreetCue(hint) ? 2 : 0) + Math.min(hint.length, 120) / 120;
+
+            return {
+                value: hintScore >= rawScore ? hint : raw,
+                level: 'medium',
+                score: 2,
+                reason: 'Address candidates were close but not identical. Please review before submitting.',
+            };
+        },
+
+        chooseBetterAddress(rawAddress, hintAddress) {
+            return this.evaluateAddressExtraction(rawAddress, hintAddress).value;
         },
 
         cleanClientName(text) {
@@ -1002,11 +1409,25 @@ function qcidRegistrationApp() {
                 .replace(/\s+/g, ' ')
                 .trim();
 
+            // Remove tiny OCR garbage prefixes before the actual address.
+            value = value.replace(/^(?:[A-Z]{1,2}\s+){1,3}(?=(?:BLK|LOT|\d))/, '');
+
             // Keep the strongest chunk ending in QUEZON CITY when available.
             const qcChunk = value.match(/([A-Z0-9\s,.'\-]{10,}?QUEZON\s+CITY)/);
             if (qcChunk) {
                 value = qcChunk[1];
             }
+
+            value = value
+                .split(/\s+/)
+                .filter((token) => {
+                    if (/^[A-Z]{11,}$/.test(token) && !/[AEIOU]/.test(token)) {
+                        return false;
+                    }
+
+                    return true;
+                })
+                .join(' ');
 
             return value
                 .replace(/\s+,/g, ',')
@@ -1015,9 +1436,33 @@ function qcidRegistrationApp() {
                 .trim();
         },
 
+        isReliableAddress(value) {
+            const text = this.cleanClientAddress(value || '');
+            if (!text) {
+                return false;
+            }
+
+            if (!/QUEZON\s+CITY/.test(text)) {
+                return false;
+            }
+
+            if (!/\b(LOT|BLK|ST|STREET|AVE|AVENUE|ROAD|RD|SUBD|BARANGAY|BRGY|PHASE|VILLAGE)\b/.test(text)) {
+                return false;
+            }
+
+            const tokens = text.split(/\s+/).filter(Boolean);
+            const shortTokens = tokens.filter((token) => token.length <= 2 && !/^\d+$/.test(token)).length;
+            if (shortTokens >= 4) {
+                return false;
+            }
+
+            return true;
+        },
+
         buildClientHints(regionText, fullText) {
             const { dateIssued, validUntil } = this.extractClientDateHints(regionText, fullText);
-            const anchoredAddress = this.extractAddressByCityAnchor(`${regionText.address || ''}\n${fullText || ''}`);
+            const anchoredAddress = this.extractAddressByCityAnchor(regionText.address || '')
+                || this.extractAddressByCityAnchor(fullText || '');
 
             return {
                 cardholder_name: this.cleanClientName(regionText.name || ''),
@@ -1080,12 +1525,11 @@ function qcidRegistrationApp() {
 
             for (const line of tailLines.reverse()) {
                 const digits = line.replace(/\D/g, '');
-                if (digits.length >= 13 && digits.length <= 16) {
-                    const fourteen = digits.length === 13
-                        ? `0${digits}`
-                        : digits.slice(-14);
-                    if (fourteen.length === 14) {
-                        return this.formatIdFromDigits(fourteen);
+                if (digits.length >= 12 && digits.length <= 16) {
+                    const normalizedDigits = this.normalizeIdDigits(digits.slice(-14));
+                    const formatted = this.formatIdFromDigits(normalizedDigits);
+                    if (formatted) {
+                        return formatted;
                     }
                 }
             }
@@ -1107,7 +1551,8 @@ function qcidRegistrationApp() {
 
             const start = Math.max(0, cityIndex - 2);
             const selected = lines.slice(start, cityIndex + 1)
-                .filter((line) => !/REPUBLIC OF THE PHILIPPINES|Q CITIZENCARD|DATE ISSUED|VALID UNTIL|SEX|CIVIL STATUS|CARDHOLDER|SIGNATURE/.test(line));
+                .filter((line) => !/REPUBLIC OF THE PHILIPPINES|Q CITIZENCARD|DATE ISSUED|VALID UNTIL|SEX|CIVIL STATUS|CARDHOLDER|SIGNATURE|LAST NAME|FIRST NAME|MIDDLE NAME/.test(line))
+                .filter((line) => /QUEZON\s+CITY|\d|LOT|BLK|ST|STREET|AVE|ROAD|SUBD|BARANGAY|BRGY|PHASE|VILLAGE/.test(line));
 
             return selected.join(', ');
         },
@@ -1345,8 +1790,16 @@ function qcidRegistrationApp() {
                 structuredLines.push(`DATE ISSUED ${clientHints.date_issued}`);
             }
 
+            if (regionText.date_issued) {
+                structuredLines.push(`DATE ISSUED ${regionText.date_issued}`);
+            }
+
             if (clientHints.valid_until) {
                 structuredLines.push(`VALID UNTIL ${clientHints.valid_until}`);
+            }
+
+            if (regionText.valid_until) {
+                structuredLines.push(`VALID UNTIL ${regionText.valid_until}`);
             }
 
             if (clientHints.address) {
@@ -1372,6 +1825,7 @@ function qcidRegistrationApp() {
             }
 
             this.isProcessing = true;
+            this.hasShownAutoConfidenceModal = false;
             this.statusMessage = 'Enhancing image for OCR…';
             this.errorMessage = '';
 
@@ -1405,22 +1859,66 @@ function qcidRegistrationApp() {
                 const payload = await response.json();
 
                 const rawVerification = payload.verification || null;
+                const idEvaluation = this.evaluateIdExtraction(
+                    rawVerification?.id_number,
+                    clientHints.id_number,
+                    extractedText,
+                    regionText.id_number || '',
+                );
+                const addressEvaluation = this.evaluateAddressExtraction(
+                    rawVerification?.address,
+                    clientHints.address,
+                );
+
+                const resolvedDateIssued = this.chooseBetterDateIssued(
+                    rawVerification?.date_issued,
+                    clientHints.date_issued,
+                    rawVerification?.valid_until || clientHints.valid_until,
+                    rawVerification?.date_of_birth || clientHints.date_of_birth,
+                    extractedText,
+                    regionText,
+                ) || this.extractDateIssuedFromRegions(
+                    regionText,
+                    rawVerification?.valid_until || clientHints.valid_until,
+                    rawVerification?.date_of_birth || clientHints.date_of_birth,
+                    extractedText,
+                ) || null;
+
+                const dateIssuedEvaluation = this.evaluateDateIssuedExtraction(
+                    resolvedDateIssued,
+                    rawVerification?.valid_until || clientHints.valid_until,
+                    rawVerification?.date_of_birth || clientHints.date_of_birth,
+                );
+
+                this.fieldConfidence.qcid_number = {
+                    level: idEvaluation.level,
+                    score: idEvaluation.score,
+                    reason: idEvaluation.reason,
+                };
+                this.fieldConfidence.address = {
+                    level: addressEvaluation.level,
+                    score: addressEvaluation.score,
+                    reason: addressEvaluation.reason,
+                };
+                this.fieldConfidence.date_issued = {
+                    level: dateIssuedEvaluation.level,
+                    score: dateIssuedEvaluation.score,
+                    reason: dateIssuedEvaluation.reason,
+                };
+
                 const mergedVerification = rawVerification ? {
                     ...rawVerification,
                     cardholder_name: rawVerification.cardholder_name || clientHints.cardholder_name || null,
-                    id_number: this.chooseBetterId(rawVerification.id_number, clientHints.id_number, extractedText, regionText.id_number || '') || null,
+                    id_number: idEvaluation.value,
                     date_of_birth: rawVerification.date_of_birth || clientHints.date_of_birth || null,
-                    date_issued: this.chooseBetterDateIssued(
-                        rawVerification.date_issued,
-                        clientHints.date_issued,
-                        rawVerification.valid_until || clientHints.valid_until,
-                        rawVerification.date_of_birth || clientHints.date_of_birth,
-                        extractedText,
-                    ) || null,
+                    date_issued: resolvedDateIssued,
                     valid_until: rawVerification.valid_until || clientHints.valid_until || null,
-                    address: rawVerification.address || clientHints.address || null,
+                    address: addressEvaluation.value,
                 } : {
                     ...clientHints,
+                    id_number: idEvaluation.value,
+                    address: addressEvaluation.value,
+                    date_issued: resolvedDateIssued,
                 };
 
                 if (!payload.success) {
@@ -1439,18 +1937,19 @@ function qcidRegistrationApp() {
 
                 if (mergedVerification) {
                     this.form.full_name = mergedVerification.cardholder_name || this.form.full_name;
-                    this.form.qcid_number = mergedVerification.id_number || this.form.qcid_number;
+                    this.form.qcid_number = mergedVerification.id_number || '';
                     this.form.sex = mergedVerification.sex || this.form.sex;
                     this.form.civil_status = mergedVerification.civil_status || this.form.civil_status;
                     this.form.date_of_birth = this.toDateInput(mergedVerification.date_of_birth) || this.form.date_of_birth;
                     this.form.date_issued = this.toDateInput(mergedVerification.date_issued) || this.form.date_issued;
                     this.form.valid_until = this.toDateInput(mergedVerification.valid_until) || this.form.valid_until;
-                    this.form.address = mergedVerification.address || this.form.address;
+                    this.form.address = mergedVerification.address || '';
                 }
 
                 this.currentStatus = 'pending';
                 this.progress = 100;
                 this.statusMessage = 'QC ID verified successfully.';
+                this.maybeOpenAutoConfidenceModal();
             } catch (error) {
                 console.error('QC ID processing failed:', error);
                 this.verification = null;
