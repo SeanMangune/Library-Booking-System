@@ -57,6 +57,7 @@ class CalendarController extends Controller
                         'room' => $roomName,
                         'room_name' => $roomName,
                         'roomId' => $booking->room_id,
+                        'purpose' => $booking->title,
                         'attendees' => $booking->attendees,
                         'userName' => $booking->user_name,
                         'user_name' => $booking->user_name,
@@ -105,6 +106,7 @@ class CalendarController extends Controller
                 'bookings' => $bookings->map(function ($booking) {
                     return [
                         'id' => $booking->id,
+                        'purpose' => $booking->title,
                         'title' => $booking->title,
                         'room_name' => $booking->room?->name,
                         'room_id' => $booking->room_id,
@@ -157,6 +159,7 @@ class CalendarController extends Controller
                 return $dayBookings->map(function ($booking) {
                     return [
                         'id' => $booking->id,
+                        'purpose' => $booking->title,
                         'title' => $booking->title,
                         'room_name' => $booking->room?->name,
                         'room_id' => $booking->room_id,

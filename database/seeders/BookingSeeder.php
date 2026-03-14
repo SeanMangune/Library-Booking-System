@@ -25,7 +25,7 @@ class BookingSeeder extends Seeder
         $collaborativeB = Room::create([
             'name' => 'Collaborative Room B',
             'slug' => 'collaborative-room-b',
-            'capacity' => 8,
+            'capacity' => 10,
             'location' => '2F Library',
             'status' => 'operational',
             'requires_approval' => true,
@@ -35,7 +35,7 @@ class BookingSeeder extends Seeder
         $collaborativeC = Room::create([
             'name' => 'Collaborative Room C',
             'slug' => 'collaborative-room-c',
-            'capacity' => 12,
+            'capacity' => 10,
             'location' => '3F Library',
             'status' => 'operational',
             'requires_approval' => true,
@@ -45,7 +45,7 @@ class BookingSeeder extends Seeder
         $collaborativeD = Room::create([
             'name' => 'Collaborative Room D',
             'slug' => 'collaborative-room-d',
-            'capacity' => 6,
+            'capacity' => 10,
             'location' => '3F Library',
             'status' => 'operational',
             'requires_approval' => false,
@@ -55,7 +55,7 @@ class BookingSeeder extends Seeder
         $collaborativeE = Room::create([
             'name' => 'Collaborative Room E',
             'slug' => 'collaborative-room-e',
-            'capacity' => 15,
+            'capacity' => 10,
             'location' => '4F Library',
             'status' => 'operational',
             'requires_approval' => true,

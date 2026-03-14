@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\QcIdRegistration;
 use App\Models\User;
+use App\Notifications\NewQcIdSubmissionForStaffNotification;
+use App\Notifications\QcIdSubmissionPendingNotification;
 use App\Services\QcIdOcrVerifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
@@ -33,10 +36,11 @@ class QcIdRegistrationController extends Controller
     public function store(Request $request, QcIdOcrVerifier $verifier): RedirectResponse
     {
         $user = $this->actingUser($request);
+        $isStaff = $user->isStaff();
 
         $validated = $request->validate([
             'full_name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255'],
+            'email' => [$isStaff ? 'nullable' : 'required', 'email', 'max:255'],
             'contact_number' => ['nullable', 'string', 'max:50'],
             'qcid_number' => ['nullable', 'string', 'max:50'],
             'sex' => ['nullable', 'string', 'max:20'],
@@ -75,7 +79,7 @@ class QcIdRegistrationController extends Controller
 
         $registration->fill([
             'full_name' => $validated['full_name'],
-            'email' => $validated['email'],
+            'email' => $isStaff ? '' : ($validated['email'] ?? ''),
             'contact_number' => $validated['contact_number'] ?? null,
             'qcid_number' => $validated['qcid_number'] ?: ($verification['id_number'] ?? null),
             'sex' => $validated['sex'] ?: ($verification['sex'] ?? null),
@@ -93,6 +97,17 @@ class QcIdRegistrationController extends Controller
             'reviewed_at' => null,
         ]);
         $registration->save();
+
+        $user->notify(new QcIdSubmissionPendingNotification($registration));
+
+        $staffRecipients = User::query()
+            ->whereIn('role', [User::ROLE_ADMIN, User::ROLE_LIBRARIAN])
+            ->where('id', '!=', $user->id)
+            ->get();
+
+        if ($staffRecipients->isNotEmpty()) {
+            Notification::send($staffRecipients, new NewQcIdSubmissionForStaffNotification($registration, $user));
+        }
 
         return redirect()
             ->route('qcid.registration.show')

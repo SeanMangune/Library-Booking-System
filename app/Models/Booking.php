@@ -75,6 +75,17 @@ class Booking extends Model
         return $this->attendees > $this->room->capacity;
     }
 
+    public function requiresCapacityPermission(): bool
+    {
+        $this->loadMissing('room', 'user');
+
+        if (! $this->room) {
+            return false;
+        }
+
+        return $this->room->requiresCapacityPermissionFor((int) $this->attendees, $this->user);
+    }
+
     public function getFormattedTimeAttribute(): string
     {
         if ($this->start_time && $this->end_time) {

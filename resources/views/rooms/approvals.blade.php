@@ -86,6 +86,7 @@
             $bookingData = [
                 'id' => $booking->id,
                 'title' => $booking->title,
+                'purpose' => $booking->title,
                 'room_name' => $booking->room->name,
                 'room_location' => $booking->room->location,
                 'room_capacity' => $booking->room->capacity,
@@ -101,6 +102,9 @@
                 'description' => $booking->description,
                 'has_conflict' => $booking->has_conflict,
                 'exceeds_capacity' => $booking->exceedsCapacity(),
+                'requires_capacity_permission' => $booking->requiresCapacityPermission(),
+                'standard_capacity_limit' => $booking->room->standardBookingCapacityLimit(),
+                'student_capacity_limit' => $booking->room->maxStudentBookingCapacity(),
             ];
         @endphp
         <div class="booking-card bg-white rounded-xl border border-gray-200 shadow-sm p-5 hover:shadow-md transition-all cursor-pointer"
@@ -136,10 +140,19 @@
                                 Over Capacity
                             </span>
                             @endif
+
+                            @if($booking->requiresCapacityPermission())
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10A8 8 0 112 10a8 8 0 0116 0zm-7-4a1 1 0 10-2 0v4a1 1 0 102 0V6zm-1 8a1.25 1.25 0 100-2.5A1.25 1.25 0 0010 14z" clip-rule="evenodd"/>
+                                </svg>
+                                Permission Needed
+                            </span>
+                            @endif
                         </div>
                         
                         @if($booking->title)
-                        <p class="text-sm text-gray-700 mt-1">{{ $booking->title }}</p>
+                        <p class="text-sm text-gray-700 mt-1"><span class="font-medium">Purpose:</span> {{ $booking->title }}</p>
                         @endif
                         
                         <p class="text-sm text-gray-500 mt-1">
@@ -218,6 +231,30 @@
                 <!-- Modal Body -->
                 <div class="p-6">
                     <!-- Capacity Warning -->
+                    <template x-if="selectedBooking?.requires_capacity_permission">
+                        <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl mb-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10A8 8 0 112 10a8 8 0 0116 0zm-7-4a1 1 0 10-2 0v4a1 1 0 102 0V6zm-1 8a1.25 1.25 0 100-2.5A1.25 1.25 0 0010 14z" clip-rule="evenodd"/>
+                                </svg>
+                                <span class="text-sm font-semibold text-blue-800">Collaborative Room Permission</span>
+                            </div>
+                            <p class="text-sm text-blue-700 mb-3" x-text="'Collaborative rooms allow up to ' + selectedBooking?.standard_capacity_limit + ' attendees by default. This request asks for ' + selectedBooking?.attendees + ' attendees and needs librarian approval.'"></p>
+
+                            <div x-show="showExceptionInput" class="mb-3">
+                                <textarea x-model="exceptionReason"
+                                          placeholder="Enter the approval note for allowing the extra attendees..."
+                                          class="w-full p-3 border border-blue-200 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300 resize-none"
+                                          rows="3"></textarea>
+                            </div>
+
+                            <button x-show="!showExceptionInput" @click="showExceptionInput = true"
+                                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                Add approval note
+                            </button>
+                        </div>
+                    </template>
+
                     <template x-if="selectedBooking?.exceeds_capacity">
                         <div class="p-4 bg-purple-50 border border-purple-200 rounded-xl mb-4">
                             <div class="flex items-center gap-2 mb-2">
@@ -235,7 +272,7 @@
                                           rows="3"></textarea>
                             </div>
                             
-                            <button x-show="!showExceptionInput" @click="showExceptionInput = true"
+                            <button x-show="!showExceptionInput && !selectedBooking?.requires_capacity_permission" @click="showExceptionInput = true"
                                     class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors">
                                 Request Exception Reason
                             </button>
@@ -339,6 +376,13 @@
                         </div>
                     </div>
 
+                    <template x-if="selectedBooking?.purpose">
+                        <div class="mb-6 p-4 bg-gray-50 rounded-xl">
+                            <h3 class="text-sm font-semibold text-gray-700 mb-2">Purpose</h3>
+                            <p class="text-sm text-gray-600" x-text="selectedBooking?.purpose"></p>
+                        </div>
+                    </template>
+
                     <!-- Description -->
                     <template x-if="selectedBooking?.description">
                         <div class="mb-6 p-4 bg-gray-50 rounded-xl">
@@ -350,7 +394,7 @@
                     <!-- Action Buttons -->
                     <div class="flex gap-3">
                         <button @click="approveBooking()"
-                                :disabled="isLoading || (selectedBooking?.exceeds_capacity && !showExceptionInput)"
+                            :disabled="isLoading || ((selectedBooking?.exceeds_capacity || selectedBooking?.requires_capacity_permission) && !showExceptionInput)"
                                 class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                             <svg x-show="!isLoading || actionType !== 'approve'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -359,7 +403,7 @@
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                             </svg>
-                            <span x-text="isLoading && actionType === 'approve' ? 'Approving...' : (showExceptionInput ? 'Approve with Exception' : 'Approve')"></span>
+                            <span x-text="isLoading && actionType === 'approve' ? 'Approving...' : (showExceptionInput ? 'Approve with Note' : 'Approve')"></span>
                         </button>
                         <button @click="rejectBooking()"
                                 :disabled="isLoading"

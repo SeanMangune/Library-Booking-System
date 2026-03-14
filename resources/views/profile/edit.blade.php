@@ -102,7 +102,7 @@
                     </div>
 
                     <div class="mt-5 text-sm">
-                        @if(auth()->user()?->isAdmin())
+                        @if(auth()->user()?->isStaff())
                             <a href="{{ route('settings.edit') }}" class="text-indigo-600 hover:text-indigo-700 font-semibold">Go to Settings →</a>
                         @endif
                     </div>

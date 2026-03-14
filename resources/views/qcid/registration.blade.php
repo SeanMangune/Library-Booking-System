@@ -14,6 +14,12 @@
 @endsection
 
 @section('content')
+@php
+    $isStaffUser = $user->isStaff();
+    $initialRegistrationEmail = $isStaffUser
+        ? ''
+        : old('email', $registration?->email ?? $user->email);
+@endphp
 <div x-data="qcidRegistrationApp()" x-init="init()" class="max-w-7xl mx-auto space-y-6">
     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div class="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 px-6 py-7">
@@ -166,7 +172,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Email address</label>
-                                    <input name="email" x-model="form.email" value="{{ old('email', $registration?->email ?? $user->email) }}" type="email" required class="w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500">
+                                    <input name="email" x-model="form.email" value="{{ $initialRegistrationEmail }}" type="email" :required="!isStaffUser" :placeholder="isStaffUser ? 'For student accounts only' : 'name@example.com'" class="w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Mobile number</label>
@@ -296,9 +302,10 @@ function qcidRegistrationApp() {
         statusMessage: '',
         errorMessage: '',
         currentStatus: @json($registration?->verification_status ?? 'not_submitted'),
+        isStaffUser: @json($isStaffUser),
         form: {
             full_name: @json(old('full_name', $registration?->full_name ?? $user->name)),
-            email: @json(old('email', $registration?->email ?? $user->email)),
+            email: @json($initialRegistrationEmail),
             contact_number: @json(old('contact_number', $registration?->contact_number ?? '')),
             qcid_number: @json(old('qcid_number', $registration?->qcid_number ?? '')),
             sex: @json(old('sex', $registration?->sex ?? '')),
@@ -376,7 +383,7 @@ function qcidRegistrationApp() {
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const scale = Math.max(1, 2200 / Math.max(img.width, img.height));
+                    const scale = Math.max(1, 3000 / Math.max(img.width, img.height));
                     canvas.width = Math.round(img.width * scale);
                     canvas.height = Math.round(img.height * scale);
                     const ctx = canvas.getContext('2d');
@@ -422,19 +429,287 @@ function qcidRegistrationApp() {
 
         extractAllDates(text) {
             const normalized = this.digitCorrectedText(text);
-            const matches = normalized.match(/\b\d{4}[/-]\d{2}[/-]\d{2}\b/g) || [];
+            const matches = [
+                ...(normalized.match(/\b\d{4}[/-]\d{2}[/-]\d{2}\b/g) || []),
+                ...(normalized.match(/\b\d{4}[/-]\d{1}[/-]\d{1,2}\b/g) || []),
+                ...(normalized.match(/\b\d{2}[/-]\d{2}[/-]\d{4}\b/g) || []),
+                ...(normalized.match(/\b\d{1,2}[/-]\d{1,2}[/-]\d{4}\b/g) || []),
+            ];
 
-            return [...new Set(matches.map((value) => value.replace(/-/g, '/')))];
+            const normalizedDates = [];
+            for (const value of matches) {
+                const parsed = this.parseDateCandidate(value);
+                if (parsed && !normalizedDates.includes(parsed)) {
+                    normalizedDates.push(parsed);
+                }
+            }
+
+            return normalizedDates;
         },
 
-        formatQcIdNumber(text) {
-            const digits = this.digitCorrectedText(text).replace(/\D/g, '');
-            if (digits.length < 13) {
+        parseDateCandidate(value) {
+            const raw = String(value || '').replace(/-/g, '/').trim();
+
+            if (/^\d{8}$/.test(raw)) {
+                const year = Number(raw.slice(0, 4));
+                const month = Number(raw.slice(4, 6));
+                const day = Number(raw.slice(6, 8));
+                if (year >= 1900 && year <= 2099 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                    return `${String(year).padStart(4, '0')}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
+                }
+            }
+
+            let match = raw.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
+            if (match) {
+                const year = Number(match[1]);
+                const month = Number(match[2]);
+                const day = Number(match[3]);
+                if (year >= 1900 && year <= 2099 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                    return `${String(year).padStart(4, '0')}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
+                }
+            }
+
+            match = raw.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+            if (match) {
+                const year = Number(match[1]);
+                const month = Number(match[2]);
+                const day = Number(match[3]);
+                if (year >= 1900 && year <= 2099 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                    return `${String(year).padStart(4, '0')}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
+                }
+            }
+
+            match = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+            if (match) {
+                const a = Number(match[1]);
+                const b = Number(match[2]);
+                const year = Number(match[3]);
+                if (year < 1900 || year > 2099) {
+                    return '';
+                }
+
+                const month = a > 12 ? b : a;
+                const day = a > 12 ? a : b;
+                if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                    return `${String(year).padStart(4, '0')}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
+                }
+            }
+
+            match = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (match) {
+                const a = Number(match[1]);
+                const b = Number(match[2]);
+                const year = Number(match[3]);
+                if (year < 1900 || year > 2099) {
+                    return '';
+                }
+
+                const month = a > 12 ? b : a;
+                const day = a > 12 ? a : b;
+                if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                    return `${String(year).padStart(4, '0')}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
+                }
+            }
+
+            // OCR-garbled compact dates: YYYY/MDD or YYYY/MMD.
+            if (/^\d{7}$/.test(raw)) {
+                const year = Number(raw.slice(0, 4));
+                if (year >= 1900 && year <= 2099) {
+                    const monthA = Number(raw.slice(4, 5));
+                    const dayA = Number(raw.slice(5, 7));
+                    if (monthA >= 1 && monthA <= 9 && dayA >= 1 && dayA <= 31) {
+                        return `${String(year).padStart(4, '0')}/${String(monthA).padStart(2, '0')}/${String(dayA).padStart(2, '0')}`;
+                    }
+
+                    const monthB = Number(raw.slice(4, 6));
+                    const dayB = Number(raw.slice(6, 7));
+                    if (monthB >= 1 && monthB <= 12 && dayB >= 1 && dayB <= 9) {
+                        return `${String(year).padStart(4, '0')}/${String(monthB).padStart(2, '0')}/${String(dayB).padStart(2, '0')}`;
+                    }
+                }
+            }
+
+            return '';
+        },
+
+        extractStrictQcId(text) {
+            const normalized = this.digitCorrectedText(text);
+
+            const grouped = normalized.match(/\b(\d{3})\s*(\d{3})\s*(\d{8})\b/);
+            if (grouped) {
+                return `${grouped[1]} ${grouped[2]} ${grouped[3]}`;
+            }
+
+            const candidates = normalized.match(/\b\d{13,14}\b/g) || [];
+            if (candidates.length === 0) {
                 return '';
             }
 
-            const trimmed = digits.length > 14 ? digits.slice(-14) : digits;
-            return `${trimmed.slice(0, 3)} ${trimmed.slice(3, 6)} ${trimmed.slice(6)}`.trim();
+            const chosen = candidates[candidates.length - 1];
+            const fourteen = chosen.length === 13 ? `0${chosen}` : chosen;
+            if (fourteen.length !== 14) {
+                return '';
+            }
+
+            return `${fourteen.slice(0, 3)} ${fourteen.slice(3, 6)} ${fourteen.slice(6, 14)}`;
+        },
+
+        normalizeIdDigits(value) {
+            const digits = this.digitCorrectedText(value).replace(/\D/g, '');
+            if (digits.length === 13) {
+                return `0${digits}`;
+            }
+            if (digits.length === 14) {
+                return digits;
+            }
+
+            return '';
+        },
+
+        extractStrictQcIdCandidates(text) {
+            const normalized = this.digitCorrectedText(text);
+            const candidates = [];
+
+            const groupedMatches = normalized.match(/\b\d{3}\s*\d{3}\s*\d{8}\b/g) || [];
+            for (const match of groupedMatches) {
+                const digits = this.normalizeIdDigits(match);
+                if (digits) {
+                    candidates.push(digits);
+                }
+            }
+
+            const compactMatches = normalized.match(/\b\d{13,14}\b/g) || [];
+            for (const match of compactMatches) {
+                const digits = this.normalizeIdDigits(match);
+                if (digits) {
+                    candidates.push(digits);
+                }
+            }
+
+            // Additional fallback: detect grouped ID with noisy separators and 7-8 digit tail.
+            const groupedLoose = normalized.match(/\b\d{3}[\s.\-]*\d{3}[\s.\-]*\d{7,8}\b/g) || [];
+            for (const match of groupedLoose) {
+                const digitsOnly = match.replace(/\D/g, '');
+                const normalizedDigits = this.normalizeIdDigits(digitsOnly);
+                if (normalizedDigits) {
+                    candidates.push(normalizedDigits);
+                }
+            }
+
+            if (candidates.length === 0) {
+                return [];
+            }
+
+            return candidates.map((digits) => `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 14)}`);
+        },
+
+        digitsOnly(value) {
+            return String(value || '').replace(/\D/g, '');
+        },
+
+        formatIdFromDigits(digits) {
+            const pure = this.digitsOnly(digits);
+            if (pure.length !== 14) {
+                return '';
+            }
+
+            return `${pure.slice(0, 3)} ${pure.slice(3, 6)} ${pure.slice(6, 14)}`;
+        },
+
+        buildConsensusIdFromCandidates(candidates) {
+            const digitCandidates = (candidates || [])
+                .map((value) => this.normalizeIdDigits(value))
+                .filter((value) => value.length === 14);
+
+            if (digitCandidates.length === 0) {
+                return '';
+            }
+
+            if (digitCandidates.length === 1) {
+                return this.formatIdFromDigits(digitCandidates[0]);
+            }
+
+            const positions = Array.from({ length: 14 }, () => ({}));
+            for (const candidate of digitCandidates) {
+                for (let i = 0; i < 14; i += 1) {
+                    const digit = candidate[i];
+                    positions[i][digit] = (positions[i][digit] || 0) + 1;
+                }
+            }
+
+            const consensus = positions
+                .map((bucket) => Object.entries(bucket).sort((a, b) => b[1] - a[1])[0]?.[0] || '0')
+                .join('');
+
+            return this.formatIdFromDigits(consensus);
+        },
+
+        resolveAmbiguousIdCandidates(candidates) {
+            const normalized = (candidates || [])
+                .map((value) => this.normalizeIdDigits(value))
+                .filter((value) => value.length === 14);
+
+            if (normalized.length < 2) {
+                return this.formatIdFromDigits(normalized[0] || '');
+            }
+
+            for (let i = 0; i < normalized.length; i += 1) {
+                for (let j = i + 1; j < normalized.length; j += 1) {
+                    const a = normalized[i];
+                    const b = normalized[j];
+                    let diffCount = 0;
+                    let diffIndex = -1;
+
+                    for (let k = 0; k < 14; k += 1) {
+                        if (a[k] !== b[k]) {
+                            diffCount += 1;
+                            diffIndex = k;
+                        }
+                    }
+
+                    if (diffCount === 1 && diffIndex === 6) {
+                        if (a[6] === '0' && /[3689]/.test(b[6])) {
+                            return this.formatIdFromDigits(a);
+                        }
+                        if (b[6] === '0' && /[3689]/.test(a[6])) {
+                            return this.formatIdFromDigits(b);
+                        }
+                    }
+                }
+            }
+
+            return '';
+        },
+
+        pickBestIdCandidate(candidates) {
+            if (!candidates || candidates.length === 0) {
+                return '';
+            }
+
+            const counts = new Map();
+            for (const candidate of candidates) {
+                counts.set(candidate, (counts.get(candidate) || 0) + 1);
+            }
+
+            return [...counts.entries()]
+                .sort((a, b) => b[1] - a[1] || b[0].length - a[0].length)[0][0] || '';
+        },
+
+        extractBottomStripIdCandidateFromText(text) {
+            const normalized = this.digitCorrectedText(text);
+            const lines = normalized.split('\n').map((line) => line.trim()).filter(Boolean);
+            const tail = lines.slice(-10).join('\n');
+            const tailCandidates = this.extractStrictQcIdCandidates(tail);
+
+            if (tailCandidates.length > 0) {
+                return tailCandidates[tailCandidates.length - 1];
+            }
+
+            return '';
+        },
+
+        formatQcIdNumber(text) {
+            return this.extractStrictQcId(text);
         },
 
         scoreDateRegion(text) {
@@ -468,7 +743,11 @@ function qcidRegistrationApp() {
             let bestScore = -1;
 
             for (const variant of variants) {
-                const canvas = this.createCropCanvas(sourceCanvas, variant.rect, { threshold: variant.threshold ?? region.threshold });
+                const canvas = this.createCropCanvas(sourceCanvas, variant.rect, {
+                    threshold: variant.threshold ?? region.threshold,
+                    scale: variant.scale ?? region.scale ?? 1,
+                    sharpen: variant.sharpen ?? region.sharpen ?? false,
+                });
                 const text = await this.recognizeCanvas(canvas, variant.config || region.config);
                 const score = (region.score || ((value) => value.length))(text);
                 if (score > bestScore) {
@@ -483,37 +762,222 @@ function qcidRegistrationApp() {
         extractClientDateHints(regionText, fullText) {
             const regionDates = this.extractAllDates(regionText.dates || '');
             const allDates = this.extractAllDates(`${regionText.dates || ''}\n${fullText || ''}`);
-            const dob = this.extractAllDates(regionText.demographics || '')[0] || allDates.find((value) => /^19|20/.test(value));
+            const dob = this.extractAllDates(regionText.demographics || '')[0] || allDates[0] || '';
             const dates = regionDates.length >= 2 ? regionDates : allDates.filter((value) => value !== dob);
             const currentYear = new Date().getFullYear();
+
+            const issuedRegionDates = this.extractAllDates(regionText.date_issued || '');
+            const validityRegionDates = this.extractAllDates(regionText.valid_until || '');
+
+            const issuedByRegion = issuedRegionDates.find((value) => {
+                const year = Number(value.slice(0, 4));
+                return year >= 2015 && year <= currentYear;
+            }) || '';
+
+            const validByRegion = validityRegionDates.find((value) => Number(value.slice(0, 4)) > currentYear) || '';
+
+            if (issuedByRegion || validByRegion) {
+                return {
+                    dateIssued: issuedByRegion,
+                    validUntil: validByRegion,
+                };
+            }
+
+            const pairFromLabelContext = this.extractIssueValidityByLabelContext(`${regionText.dates || ''}\n${fullText || ''}`);
+            if (pairFromLabelContext.dateIssued || pairFromLabelContext.validUntil) {
+                return pairFromLabelContext;
+            }
+
+            const nearestIssued = this.extractNearestDateToLabel(fullText || '', 'DATE\\s*ISSUED');
+            const nearestValid = this.extractNearestDateToLabel(fullText || '', 'VALID\\s*UNTIL');
+            if (nearestIssued || nearestValid) {
+                return {
+                    dateIssued: nearestIssued,
+                    validUntil: nearestValid,
+                };
+            }
 
             let dateIssued = '';
             let validUntil = '';
 
             for (const value of dates) {
-                const year = Number(value.slice(0, 4));
+                const parsed = this.parseDateCandidate(value);
+                if (!parsed) {
+                    continue;
+                }
+
+                const year = Number(parsed.slice(0, 4));
                 if (!dateIssued && year >= 2015 && year <= currentYear) {
-                    dateIssued = value;
+                    dateIssued = parsed;
                     continue;
                 }
                 if (!validUntil && year > currentYear) {
-                    validUntil = value;
+                    validUntil = parsed;
                 }
             }
 
             if (!dateIssued && dates[0]) {
-                dateIssued = dates[0];
+                dateIssued = this.parseDateCandidate(dates[0]) || '';
             }
             if (!validUntil && dates[1]) {
-                validUntil = dates[1];
+                validUntil = this.parseDateCandidate(dates[1]) || '';
+            }
+
+            // If issue date is still missing, recover the latest non-future date
+            // that is not DOB and not equal to validUntil.
+            if (!dateIssued) {
+                const issuedCandidates = allDates.filter((value) => {
+                    if (!value || value === dob || value === validUntil) {
+                        return false;
+                    }
+                    const year = Number(value.slice(0, 4));
+                    return year >= 2010 && year <= currentYear;
+                });
+
+                if (issuedCandidates.length > 0) {
+                    dateIssued = issuedCandidates.sort((a, b) => Number(b.slice(0, 4)) - Number(a.slice(0, 4)))[0];
+                }
             }
 
             return { dateIssued, validUntil };
         },
 
+        extractIssueValidityByLabelContext(text) {
+            const normalized = this.digitCorrectedText(text);
+            const lines = normalized.split('\n').map((line) => line.trim()).filter(Boolean);
+            let dateIssued = '';
+            let validUntil = '';
+            const currentYear = new Date().getFullYear();
+
+            for (let i = 0; i < lines.length; i += 1) {
+                if (!/DATE\s*ISSUED|VALID\s*UNTIL/.test(lines[i])) {
+                    continue;
+                }
+
+                const scope = [lines[i - 1] || '', lines[i], lines[i + 1] || ''].join(' ');
+                const extracted = this.extractAllDates(scope);
+
+                for (const date of extracted) {
+                    const year = Number(date.slice(0, 4));
+                    if (!dateIssued && year >= 2015 && year <= currentYear) {
+                        dateIssued = date;
+                        continue;
+                    }
+                    if (!validUntil && year > currentYear) {
+                        validUntil = date;
+                    }
+                }
+            }
+
+            return { dateIssued, validUntil };
+        },
+
+        extractNearestDateToLabel(text, labelPattern) {
+            const normalized = this.digitCorrectedText(text);
+            const labelRegex = new RegExp(labelPattern, 'i');
+            const labelMatch = normalized.match(labelRegex);
+            if (!labelMatch || typeof labelMatch.index !== 'number') {
+                return '';
+            }
+
+            const labelOffset = labelMatch.index;
+            const dateRegex = /\b\d{4}[/-]\d{2}[/-]\d{2}\b|\b\d{2}[/-]\d{2}[/-]\d{4}\b|\b\d{8}\b/g;
+            const candidates = [];
+            let match = dateRegex.exec(normalized);
+
+            while (match) {
+                const parsed = this.parseDateCandidate(match[0]);
+                if (parsed) {
+                    candidates.push({
+                        value: parsed,
+                        distance: Math.abs((match.index || 0) - labelOffset),
+                    });
+                }
+
+                match = dateRegex.exec(normalized);
+            }
+
+            if (candidates.length === 0) {
+                return '';
+            }
+
+            candidates.sort((a, b) => a.distance - b.distance);
+            return candidates[0].value || '';
+        },
+
         extractClientIdHint(regionText, fullText) {
-            return this.formatQcIdNumber(regionText.id_number || '')
-                || this.formatQcIdNumber(fullText || '')
+            const candidates = [
+                ...this.extractStrictQcIdCandidates(regionText.id_number || ''),
+                ...this.extractStrictQcIdCandidates(fullText || ''),
+                ...this.extractStrictQcIdCandidates((regionText.id_number || '') + '\n' + (fullText || '')),
+            ];
+
+            const ambiguityResolved = this.resolveAmbiguousIdCandidates(candidates);
+            if (ambiguityResolved) {
+                return ambiguityResolved;
+            }
+
+            return this.buildConsensusIdFromCandidates(candidates) || this.pickBestIdCandidate(candidates);
+        },
+
+        chooseBetterDateIssued(rawIssued, hintIssued, validUntil, dateOfBirth, fullText) {
+            const currentYear = new Date().getFullYear();
+            const raw = this.parseDateCandidate(rawIssued || '');
+            const hint = this.parseDateCandidate(hintIssued || '');
+            const valid = this.parseDateCandidate(validUntil || '');
+            const dob = this.parseDateCandidate(dateOfBirth || '');
+            const allDates = this.extractAllDates(fullText || '');
+            const nearestIssued = this.parseDateCandidate(this.extractNearestDateToLabel(fullText || '', 'DATE\\s*ISSUED') || '');
+
+            const isGoodIssued = (value) => {
+                if (!value) return false;
+                const year = Number(value.slice(0, 4));
+                if (year < 2015 || year > currentYear) return false;
+                if (dob && value === dob) return false;
+                if (valid && value >= valid) return false;
+                return true;
+            };
+
+            if (isGoodIssued(raw)) return raw;
+            if (isGoodIssued(hint)) return hint;
+            if (isGoodIssued(nearestIssued)) return nearestIssued;
+
+            const candidates = allDates.filter((value) => isGoodIssued(value));
+            if (candidates.length > 0) {
+                return candidates
+                    .sort((a, b) => Number(b.slice(0, 4)) - Number(a.slice(0, 4)))[0];
+            }
+
+            // Never allow issued date to equal the validity date.
+            if (valid && raw === valid) {
+                return hint && hint !== valid ? hint : '';
+            }
+
+            return raw || hint || nearestIssued || '';
+        },
+
+        chooseBetterId(rawId, hintId, fullText, idRegionText = '') {
+            const bottomStrip = this.extractBottomStripIdCandidateFromText(fullText || '');
+            const looseTail = this.extractLooseIdFromTail(`${idRegionText || ''}\n${fullText || ''}`);
+            const candidates = [
+                rawId || '',
+                hintId || '',
+                ...this.extractStrictQcIdCandidates(idRegionText || ''),
+                bottomStrip,
+                bottomStrip,
+                bottomStrip,
+                looseTail,
+                ...this.extractStrictQcIdCandidates(fullText || ''),
+            ].filter(Boolean);
+
+            const ambiguityResolved = this.resolveAmbiguousIdCandidates(candidates);
+            if (ambiguityResolved) {
+                return ambiguityResolved;
+            }
+
+            return this.buildConsensusIdFromCandidates(candidates)
+                || this.pickBestIdCandidate(candidates)
+                || looseTail
                 || '';
         },
 
@@ -534,34 +998,26 @@ function qcidRegistrationApp() {
 
         cleanClientAddress(text) {
             let value = this.normalizeOcrText(text)
-                .replace(/\b(?:ADDRESS|CARDHOLDER|SIGNATURE|EMERGENCY|CONTACT|RELAY|RE TRAY|GNATURE)\b/g, ' ')
-                .replace(/\bAKING\b/g, 'A KING')
-                .replace(/\bKINGSPOIN[T]?\b/g, 'KINGSPOINT')
-                .replace(/\bOE\s+NE\s+GEOME\b/g, ' ')
-                .replace(/\bOE\b|\bNE\b|\bGEOME\b/g, ' ')
-                .replace(/\bA\s*KING\b/g, 'A KING')
+                .replace(/\b(?:ADDRESS|CARDHOLDER|SIGNATURE|EMERGENCY|CONTACT|RELAY|GNATURE|REPUBLIC OF THE PHILIPPINES|Q CITIZENCARD)\b/g, ' ')
                 .replace(/\s+/g, ' ')
                 .trim();
 
-            const streetMatch = value.match(/\b\d+\s*(?:A\s+)?KING\s+CONSTANTINE\s+EXT\b/);
-            const localityMatch = value.match(/\bKINGSPOINT\s+BAGBAG,?\s+QUEZON\s+CITY\b/)
-                || value.match(/\bBAGBAG,?\s+QUEZON\s+CITY\b/)
-                || value.match(/\bQUEZON\s+CITY\b/);
-
-            if (streetMatch && localityMatch) {
-                return `${streetMatch[0]}, ${localityMatch[0].replace(/\s+,/g, ',').replace(/\s+/g, ' ')}`;
+            // Keep the strongest chunk ending in QUEZON CITY when available.
+            const qcChunk = value.match(/([A-Z0-9\s,.'\-]{10,}?QUEZON\s+CITY)/);
+            if (qcChunk) {
+                value = qcChunk[1];
             }
 
-            const capped = value.match(/(\d+[A-Z\s,.-]+?QUEZON\s+CITY)/);
-            if (capped) {
-                return capped[1].replace(/\s+,/g, ',').replace(/\s+/g, ' ').trim();
-            }
-
-            return value;
+            return value
+                .replace(/\s+,/g, ',')
+                .replace(/,{2,}/g, ',')
+                .replace(/\s{2,}/g, ' ')
+                .trim();
         },
 
         buildClientHints(regionText, fullText) {
             const { dateIssued, validUntil } = this.extractClientDateHints(regionText, fullText);
+            const anchoredAddress = this.extractAddressByCityAnchor(`${regionText.address || ''}\n${fullText || ''}`);
 
             return {
                 cardholder_name: this.cleanClientName(regionText.name || ''),
@@ -569,26 +1025,41 @@ function qcidRegistrationApp() {
                 date_of_birth: this.extractAllDates(regionText.demographics || '')[0] || '',
                 date_issued: dateIssued,
                 valid_until: validUntil,
-                address: this.cleanClientAddress(regionText.address || fullText || ''),
+                address: this.cleanClientAddress(anchoredAddress || regionText.address || fullText || ''),
             };
         },
 
         createCropCanvas(sourceCanvas, rect, options = {}) {
             const threshold = options.threshold ?? false;
+            const scale = Math.max(1, Number(options.scale || 1));
             const crop = document.createElement('canvas');
             const sx = Math.max(0, Math.round(sourceCanvas.width * rect.x));
             const sy = Math.max(0, Math.round(sourceCanvas.height * rect.y));
             const sw = Math.max(1, Math.round(sourceCanvas.width * rect.w));
             const sh = Math.max(1, Math.round(sourceCanvas.height * rect.h));
 
-            crop.width = sw;
-            crop.height = sh;
+            crop.width = Math.max(1, Math.round(sw * scale));
+            crop.height = Math.max(1, Math.round(sh * scale));
 
             const ctx = crop.getContext('2d');
-            ctx.drawImage(sourceCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(sourceCanvas, sx, sy, sw, sh, 0, 0, crop.width, crop.height);
+
+            if (options.sharpen) {
+                const imageData = ctx.getImageData(0, 0, crop.width, crop.height);
+                const data = imageData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    const boosted = Math.min(255, Math.max(0, ((data[i] - 128) * 1.35) + 128));
+                    data[i] = boosted;
+                    data[i + 1] = boosted;
+                    data[i + 2] = boosted;
+                }
+                ctx.putImageData(imageData, 0, 0);
+            }
 
             if (threshold) {
-                const imageData = ctx.getImageData(0, 0, sw, sh);
+                const imageData = ctx.getImageData(0, 0, crop.width, crop.height);
                 const data = imageData.data;
                 for (let i = 0; i < data.length; i += 4) {
                     const value = data[i] > 145 ? 255 : 0;
@@ -600,6 +1071,45 @@ function qcidRegistrationApp() {
             }
 
             return crop;
+        },
+
+        extractLooseIdFromTail(text) {
+            const normalized = this.digitCorrectedText(text);
+            const lines = normalized.split('\n').map((line) => line.trim()).filter(Boolean);
+            const tailLines = lines.slice(-12);
+
+            for (const line of tailLines.reverse()) {
+                const digits = line.replace(/\D/g, '');
+                if (digits.length >= 13 && digits.length <= 16) {
+                    const fourteen = digits.length === 13
+                        ? `0${digits}`
+                        : digits.slice(-14);
+                    if (fourteen.length === 14) {
+                        return this.formatIdFromDigits(fourteen);
+                    }
+                }
+            }
+
+            return '';
+        },
+
+        extractAddressByCityAnchor(text) {
+            const normalized = this.normalizeOcrText(text);
+            const lines = normalized.split('\n').map((line) => line.trim()).filter(Boolean);
+            if (!lines.length) {
+                return '';
+            }
+
+            const cityIndex = lines.findIndex((line) => /QUEZON\s+CITY/.test(line));
+            if (cityIndex < 0) {
+                return '';
+            }
+
+            const start = Math.max(0, cityIndex - 2);
+            const selected = lines.slice(start, cityIndex + 1)
+                .filter((line) => !/REPUBLIC OF THE PHILIPPINES|Q CITIZENCARD|DATE ISSUED|VALID UNTIL|SEX|CIVIL STATUS|CARDHOLDER|SIGNATURE/.test(line));
+
+            return selected.join(', ');
         },
 
         async recognizeCanvas(canvas, config = {}, withProgress = false) {
@@ -635,6 +1145,12 @@ function qcidRegistrationApp() {
             const fullText = await this.recognizeCanvas(enhancedCanvas, {
                 tessedit_pageseg_mode: 6,
             }, true);
+
+            // Sparse-text pass catches tiny date/value text blocks that line OCR can miss.
+            const sparseText = await this.recognizeCanvas(enhancedCanvas, {
+                tessedit_pageseg_mode: 11,
+            });
+            const combinedFullText = this.normalizeOcrText([fullText, sparseText].filter(Boolean).join('\n'));
 
             const regions = [
                 {
@@ -682,24 +1198,85 @@ function qcidRegistrationApp() {
                     ],
                 },
                 {
+                    key: 'date_issued',
+                    label: 'date issued value',
+                    rect: { x: 0.30, y: 0.42, w: 0.18, h: 0.08 },
+                    score: (text) => this.scoreDateRegion(text),
+                    config: {
+                        tessedit_pageseg_mode: 7,
+                        tessedit_char_whitelist: '0123456789/ -',
+                    },
+                    threshold: true,
+                    variants: [
+                        {
+                            rect: { x: 0.20, y: 0.36, w: 0.34, h: 0.14 },
+                            threshold: true,
+                            config: {
+                                tessedit_pageseg_mode: 6,
+                                tessedit_char_whitelist: '0123456789/ -',
+                            },
+                        },
+                        {
+                            rect: { x: 0.22, y: 0.38, w: 0.30, h: 0.12 },
+                            threshold: true,
+                            config: {
+                                tessedit_pageseg_mode: 6,
+                                tessedit_char_whitelist: '0123456789/ -',
+                            },
+                        },
+                        {
+                            rect: { x: 0.24, y: 0.39, w: 0.28, h: 0.11 },
+                            threshold: true,
+                            config: {
+                                tessedit_pageseg_mode: 6,
+                                tessedit_char_whitelist: '0123456789/ -',
+                            },
+                        },
+                        { rect: { x: 0.28, y: 0.40, w: 0.20, h: 0.09 }, threshold: true },
+                        { rect: { x: 0.30, y: 0.42, w: 0.18, h: 0.08 }, threshold: true },
+                        { rect: { x: 0.32, y: 0.43, w: 0.17, h: 0.08 }, threshold: true },
+                    ],
+                },
+                {
+                    key: 'valid_until',
+                    label: 'valid until value',
+                    rect: { x: 0.50, y: 0.42, w: 0.20, h: 0.08 },
+                    score: (text) => this.scoreDateRegion(text),
+                    config: {
+                        tessedit_pageseg_mode: 7,
+                        tessedit_char_whitelist: '0123456789/ -',
+                    },
+                    threshold: true,
+                    variants: [
+                        { rect: { x: 0.48, y: 0.40, w: 0.22, h: 0.09 }, threshold: true },
+                        { rect: { x: 0.50, y: 0.42, w: 0.20, h: 0.08 }, threshold: true },
+                        { rect: { x: 0.52, y: 0.43, w: 0.18, h: 0.08 }, threshold: true },
+                    ],
+                },
+                {
                     key: 'address',
                     label: 'address block',
                     rect: { x: 0.20, y: 0.58, w: 0.58, h: 0.14 },
+                    scale: 2.6,
+                    sharpen: true,
                     score: (text) => this.scoreAddressRegion(text),
                     config: {
                         tessedit_pageseg_mode: 6,
                         tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.- ',
                     },
                     variants: [
-                        { rect: { x: 0.18, y: 0.57, w: 0.44, h: 0.13 } },
-                        { rect: { x: 0.18, y: 0.56, w: 0.46, h: 0.15 } },
-                        { rect: { x: 0.20, y: 0.58, w: 0.58, h: 0.14 } },
+                        { rect: { x: 0.16, y: 0.54, w: 0.48, h: 0.18 }, scale: 2.8, sharpen: true },
+                        { rect: { x: 0.18, y: 0.57, w: 0.44, h: 0.13 }, scale: 3, sharpen: true },
+                        { rect: { x: 0.18, y: 0.56, w: 0.46, h: 0.15 }, scale: 2.8, sharpen: true },
+                        { rect: { x: 0.20, y: 0.58, w: 0.58, h: 0.14 }, scale: 2.4, sharpen: true },
                     ],
                 },
                 {
                     key: 'id_number',
                     label: 'ID number strip',
                     rect: { x: 0.67, y: 0.80, w: 0.28, h: 0.11 },
+                    scale: 3.6,
+                    sharpen: true,
                     score: (text) => this.scoreIdRegion(text),
                     config: {
                         tessedit_pageseg_mode: 7,
@@ -707,9 +1284,39 @@ function qcidRegistrationApp() {
                     },
                     threshold: true,
                     variants: [
-                        { rect: { x: 0.64, y: 0.77, w: 0.31, h: 0.12 }, threshold: true },
-                        { rect: { x: 0.66, y: 0.79, w: 0.29, h: 0.11 }, threshold: true },
-                        { rect: { x: 0.67, y: 0.80, w: 0.28, h: 0.11 }, threshold: true },
+                        {
+                            rect: { x: 0.56, y: 0.72, w: 0.40, h: 0.20 },
+                            threshold: true,
+                            scale: 4,
+                            sharpen: true,
+                            config: {
+                                tessedit_pageseg_mode: 6,
+                                tessedit_char_whitelist: '0123456789 ',
+                            },
+                        },
+                        {
+                            rect: { x: 0.58, y: 0.74, w: 0.38, h: 0.18 },
+                            threshold: true,
+                            scale: 3.8,
+                            sharpen: true,
+                            config: {
+                                tessedit_pageseg_mode: 6,
+                                tessedit_char_whitelist: '0123456789 ',
+                            },
+                        },
+                        {
+                            rect: { x: 0.60, y: 0.76, w: 0.35, h: 0.15 },
+                            threshold: true,
+                            scale: 3.6,
+                            sharpen: true,
+                            config: {
+                                tessedit_pageseg_mode: 6,
+                                tessedit_char_whitelist: '0123456789 ',
+                            },
+                        },
+                        { rect: { x: 0.64, y: 0.77, w: 0.31, h: 0.12 }, threshold: true, scale: 3.4, sharpen: true },
+                        { rect: { x: 0.66, y: 0.79, w: 0.29, h: 0.11 }, threshold: true, scale: 3.2, sharpen: true },
+                        { rect: { x: 0.67, y: 0.80, w: 0.28, h: 0.11 }, threshold: true, scale: 3.2, sharpen: true },
                     ],
                 },
             ];
@@ -720,9 +1327,9 @@ function qcidRegistrationApp() {
                 regionText[region.key] = await this.recognizeBestRegion(enhancedCanvas, region);
             }
 
-            const clientHints = this.buildClientHints(regionText, fullText);
+            const clientHints = this.buildClientHints(regionText, combinedFullText);
 
-            const structuredLines = [fullText];
+            const structuredLines = [combinedFullText];
 
             if (clientHints.cardholder_name) {
                 structuredLines.push('LAST NAME, FIRST NAME, MIDDLE NAME');
@@ -751,7 +1358,7 @@ function qcidRegistrationApp() {
             }
 
             return {
-                fullText,
+                fullText: combinedFullText,
                 structuredText: this.normalizeOcrText(structuredLines.filter(Boolean).join('\n')),
                 regionText,
                 clientHints,
@@ -801,9 +1408,15 @@ function qcidRegistrationApp() {
                 const mergedVerification = rawVerification ? {
                     ...rawVerification,
                     cardholder_name: rawVerification.cardholder_name || clientHints.cardholder_name || null,
-                    id_number: rawVerification.id_number || clientHints.id_number || null,
+                    id_number: this.chooseBetterId(rawVerification.id_number, clientHints.id_number, extractedText, regionText.id_number || '') || null,
                     date_of_birth: rawVerification.date_of_birth || clientHints.date_of_birth || null,
-                    date_issued: rawVerification.date_issued || clientHints.date_issued || null,
+                    date_issued: this.chooseBetterDateIssued(
+                        rawVerification.date_issued,
+                        clientHints.date_issued,
+                        rawVerification.valid_until || clientHints.valid_until,
+                        rawVerification.date_of_birth || clientHints.date_of_birth,
+                        extractedText,
+                    ) || null,
                     valid_until: rawVerification.valid_until || clientHints.valid_until || null,
                     address: rawVerification.address || clientHints.address || null,
                 } : {
@@ -860,7 +1473,15 @@ function qcidRegistrationApp() {
                 str = str.slice(0, 4) + '-' + str.slice(4, 6) + '-' + str.slice(6, 8);
             }
 
-            // Validate it looks like a date
+            if (/^\d{2}-\d{2}-\d{4}$/.test(str)) {
+                const [a, b, c] = str.split('-').map((part) => Number(part));
+                const month = a > 12 ? b : a;
+                const day = a > 12 ? a : b;
+                if (c >= 1900 && c <= 2099 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                    str = `${String(c).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                }
+            }
+
             if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
                 return str;
             }

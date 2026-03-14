@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Rooms;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\QcIdRegistration;
 use App\Models\Room;
 use App\Models\User;
+use App\Notifications\BookingApprovedNotification;
 use App\Services\QcIdOcrVerifier;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Notification;
 
 class BookingController extends Controller
 {
@@ -49,6 +51,20 @@ class BookingController extends Controller
 
     public function store(Request $request, QcIdOcrVerifier $qcIdOcrVerifier)
     {
+        $request->merge([
+            'title' => $request->input('purpose', $request->input('title')),
+        ]);
+
+        $actingUser = $request->user();
+        $verifiedRegistration = $actingUser
+            ? QcIdRegistration::query()
+                ->where('user_id', $actingUser->id)
+                ->where('verification_status', 'verified')
+                ->first()
+            : null;
+
+        $requiresBookingOcr = ! $verifiedRegistration;
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'room_id' => 'required|exists:rooms,id',
@@ -60,38 +76,80 @@ class BookingController extends Controller
             'user_name' => 'nullable|string|max:255',
             'user_email' => 'nullable|email|max:255',
             'description' => 'nullable|string',
-            'qc_id_ocr_text' => 'required|string|min:20|max:12000',
+            'qc_id_ocr_text' => ($requiresBookingOcr ? 'required' : 'nullable') . '|string|min:20|max:12000',
             'qc_id_cardholder_name' => 'nullable|string|max:255',
         ]);
 
         $room = Room::findOrFail($validated['room_id']);
+        $requestedAttendees = (int) $validated['attendees'];
 
-        $qcIdVerification = $qcIdOcrVerifier->verify(
-            $validated['qc_id_ocr_text'],
-            $validated['user_name'] ?? null,
-        );
+        if ($room->exceedsBookingLimitFor($requestedAttendees, $actingUser)) {
+            $limit = $actingUser?->isStaff()
+                ? ($room->isCollaborative() ? $room->absoluteBookingCapacityLimit() : (int) $room->capacity)
+                : $room->maxStudentBookingCapacity();
 
-        if (! $qcIdVerification['is_valid']) {
+            $message = $room->isCollaborative()
+                ? 'Collaborative rooms are fixed at 10 attendees, and can only be extended up to 12 with librarian permission.'
+                : 'The requested attendee count exceeds this room\'s capacity.';
+
             return response()->json([
                 'success' => false,
-                'message' => 'Please upload a valid Quezon City Citizen ID (QC ID) before creating a booking.',
-                'verification' => $qcIdVerification,
+                'message' => $message,
+                'limit' => $limit,
             ], 422);
         }
 
-        if (($qcIdVerification['name_matches'] ?? null) === false) {
-            return response()->json([
-                'success' => false,
-                'message' => 'The booking name must match the cardholder name on the uploaded QC ID.',
-                'verification' => $qcIdVerification,
-            ], 422);
-        }
+        $requiresCapacityPermission = $room->requiresCapacityPermissionFor($requestedAttendees, $actingUser);
 
-        if (! empty($qcIdVerification['cardholder_name'])) {
-            $validated['user_name'] = $qcIdVerification['cardholder_name'];
+        if ($verifiedRegistration) {
+            $qcIdVerification = [
+                'is_valid' => true,
+                'name_matches' => true,
+                'source' => 'registration',
+                'cardholder_name' => $verifiedRegistration->full_name,
+            ];
+
+            $validated['user_name'] = $validated['user_name'] ?: $verifiedRegistration->full_name;
+            $validated['user_email'] = $validated['user_email'] ?: $verifiedRegistration->email;
+        } else {
+            $qcIdVerification = $qcIdOcrVerifier->verify(
+                $validated['qc_id_ocr_text'],
+                $validated['user_name'] ?? null,
+            );
+
+            if (! $qcIdVerification['is_valid']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please upload a valid Quezon City Citizen ID (QC ID) before creating a booking.',
+                    'verification' => $qcIdVerification,
+                ], 422);
+            }
+
+            if (($qcIdVerification['name_matches'] ?? null) === false) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The booking name must match the cardholder name on the uploaded QC ID.',
+                    'verification' => $qcIdVerification,
+                ], 422);
+            }
+
+            if (! empty($qcIdVerification['cardholder_name'])) {
+                $validated['user_name'] = $qcIdVerification['cardholder_name'];
+            }
         }
 
         unset($validated['qc_id_ocr_text'], $validated['qc_id_cardholder_name']);
+
+        if ($actingUser) {
+            $validated['user_id'] = $validated['user_id'] ?? $actingUser->id;
+            $validated['user_email'] = $validated['user_email'] ?: $actingUser->email;
+            $validated['user_name'] = $validated['user_name'] ?: $actingUser->name;
+        }
+
+        if (! filled($validated['user_email']) && $actingUser) {
+            $validated['user_email'] = $actingUser->email;
+            $validated['user_id'] = $actingUser->id;
+        }
 
         // Check for time conflicts
         $hasConflict = Booking::where('room_id', $validated['room_id'])
@@ -115,7 +173,7 @@ class BookingController extends Controller
         }
 
         // Set initial status based on room settings
-        $validated['status'] = $room->requires_approval ? 'pending' : 'approved';
+        $validated['status'] = ($room->requires_approval || $requiresCapacityPermission) ? 'pending' : 'approved';
         $validated['time'] = Carbon::parse($validated['start_time'])->format('g:i A');
         
         // Calculate duration
@@ -130,11 +188,14 @@ class BookingController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $room->requires_approval 
-                ? 'Booking submitted for approval' 
-                : 'Booking confirmed successfully',
+            'message' => $requiresCapacityPermission
+                ? 'Booking submitted for librarian approval because collaborative room bookings above 10 attendees require permission.'
+                : ($room->requires_approval
+                    ? 'Booking submitted for approval'
+                    : 'Booking confirmed successfully'),
             'booking' => $booking->load('room'),
             'verification' => $qcIdVerification,
+            'qcid_registration_verified' => (bool) $verifiedRegistration,
         ]);
     }
 
@@ -145,6 +206,10 @@ class BookingController extends Controller
 
     public function update(Request $request, Booking $booking)
     {
+        $request->merge([
+            'title' => $request->input('purpose', $request->input('title')),
+        ]);
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'room_id' => 'required|exists:rooms,id',
@@ -182,6 +247,15 @@ class BookingController extends Controller
 
     public function approve(Booking $booking, Request $request)
     {
+        $booking->loadMissing('room', 'user');
+
+        if ($booking->requiresCapacityPermission() && blank(trim((string) $request->get('reason')))) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Add a short approval note before granting a collaborative room booking above 10 attendees.',
+            ], 422);
+        }
+
         $booking->update([
             'status' => 'approved',
             'reason' => $request->get('reason'),
@@ -239,6 +313,12 @@ class BookingController extends Controller
         // Prefer inline PNG data (Endroid) when available, otherwise use stored/public URL
         $payload['qr_code_data'] = $qrDataUri;
         $payload['qr_code_url'] = $qrDataUri ?? $fresh->getAttribute('qr_code_url') ?? null;
+
+        if ($fresh->user) {
+            $fresh->user->notify(new BookingApprovedNotification($fresh));
+        } elseif (! empty($fresh->user_email)) {
+            Notification::route('mail', $fresh->user_email)->notify(new BookingApprovedNotification($fresh));
+        }
 
         return response()->json([
             'success' => true,

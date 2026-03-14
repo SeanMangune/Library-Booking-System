@@ -82,7 +82,7 @@
                 <thead class="bg-gray-50 border-b border-gray-200">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Room / Location</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Title</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Purpose</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date & Time</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Attendees</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
@@ -251,9 +251,9 @@
                         </div>
                     </div>
 
-                    <template x-if="viewBooking?.title">
+                            <template x-if="viewBooking?.title">
                         <div class="mb-4 p-4 bg-gray-50 rounded-xl">
-                            <p class="text-xs font-medium text-gray-500 mb-1">Title</p>
+                            <p class="text-xs font-medium text-gray-500 mb-1">Purpose</p>
                             <p class="text-gray-900" x-text="viewBooking?.title"></p>
                         </div>
                     </template>

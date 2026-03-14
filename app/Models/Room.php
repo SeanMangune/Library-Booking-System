@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Room extends Model
 {
@@ -54,6 +55,60 @@ class Room extends Model
     public function isOperational(): bool
     {
         return $this->status === 'operational';
+    }
+
+    public function isCollaborative(): bool
+    {
+        $value = Str::lower(trim(($this->name ?? '') . ' ' . ($this->slug ?? '')));
+
+        return Str::contains($value, ['collaborative', 'collab']);
+    }
+
+    public function standardBookingCapacityLimit(): int
+    {
+        if (! $this->isCollaborative()) {
+            return max(1, (int) $this->capacity);
+        }
+
+        // Collaborative rooms default to a fixed base capacity of 10.
+        return 10;
+    }
+
+    public function maxStudentBookingCapacity(): int
+    {
+        if (! $this->isCollaborative()) {
+            return max(1, (int) $this->capacity);
+        }
+
+        // Collaborative-room requests may be extended up to 12 by librarian approval.
+        return 12;
+    }
+
+    public function absoluteBookingCapacityLimit(): int
+    {
+        if ($this->isCollaborative()) {
+            return 12;
+        }
+
+        return max(1, (int) $this->capacity);
+    }
+
+    public function requiresCapacityPermissionFor(int $attendees, ?User $user = null): bool
+    {
+        if ($user?->isStaff()) {
+            return false;
+        }
+
+        return $this->isCollaborative() && $attendees > $this->standardBookingCapacityLimit();
+    }
+
+    public function exceedsBookingLimitFor(int $attendees, ?User $user = null): bool
+    {
+        $limit = $this->isCollaborative()
+            ? $this->absoluteBookingCapacityLimit()
+            : ($user?->isStaff() ? max(1, (int) $this->capacity) : $this->maxStudentBookingCapacity());
+
+        return $attendees > $limit;
     }
 
     public function scopeOperational($query)

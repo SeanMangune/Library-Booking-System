@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class RoomController extends Controller
 {
@@ -50,6 +51,8 @@ class RoomController extends Controller
             'description' => 'nullable|string',
         ]);
 
+        $this->ensureCollaborativeCapacityFloor($validated['name'], (int) $validated['capacity']);
+
         $validated['slug'] = Str::slug($validated['name']) . '-' . Str::random(5);
         $validated['requires_approval'] = $request->boolean('requires_approval');
 
@@ -76,6 +79,8 @@ class RoomController extends Controller
             'description' => 'nullable|string',
         ]);
 
+        $this->ensureCollaborativeCapacityFloor($validated['name'], (int) $validated['capacity']);
+
         $validated['requires_approval'] = $request->boolean('requires_approval');
 
         $room->update($validated);
@@ -96,5 +101,14 @@ class RoomController extends Controller
         $room->delete();
 
         return response()->json(['success' => true, 'message' => 'Room deleted successfully']);
+    }
+
+    private function ensureCollaborativeCapacityFloor(string $name, int $capacity): void
+    {
+        if (Str::contains(Str::lower($name), ['collaborative', 'collab']) && $capacity !== 10) {
+            throw ValidationException::withMessages([
+                'capacity' => 'Collaborative rooms must use a fixed base capacity of 10. Capacity 12 is only an approval extension, not the room base capacity.',
+            ]);
+        }
     }
 }

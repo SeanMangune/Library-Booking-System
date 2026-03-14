@@ -24,8 +24,15 @@ class SettingsController extends Controller
     {
         $user = $this->actingUser($request);
         $settings = is_array($user->settings) ? $user->settings : [];
+        $staffUsers = $user->isAdmin()
+            ? User::query()
+                ->whereIn('role', [User::ROLE_ADMIN, User::ROLE_LIBRARIAN])
+                ->orderByRaw("case when role = 'admin' then 0 else 1 end")
+                ->orderBy('name')
+                ->get()
+            : collect();
 
-        return view('settings.index', compact('user', 'settings'));
+        return view('settings.index', compact('user', 'settings', 'staffUsers'));
     }
 
     public function updatePreferences(Request $request)
@@ -70,5 +77,30 @@ class SettingsController extends Controller
         $user->save();
 
         return back()->with('status', 'Password updated successfully.');
+    }
+
+    public function storeStaff(Request $request)
+    {
+        $actingUser = $this->actingUser($request);
+
+        abort_unless($actingUser->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'username' => ['required', 'string', 'max:255', 'alpha_dash', 'unique:users,username'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'role' => ['required', 'in:' . User::ROLE_ADMIN . ',' . User::ROLE_LIBRARIAN],
+            'password' => ['required', 'confirmed', Password::min(8)],
+        ]);
+
+        User::create([
+            'name' => $validated['name'],
+            'username' => $validated['username'],
+            'email' => $validated['email'],
+            'role' => $validated['role'],
+            'password' => $validated['password'],
+        ]);
+
+        return back()->with('status', ucfirst($validated['role']) . ' account created successfully.');
     }
 }

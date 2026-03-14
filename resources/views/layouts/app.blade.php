@@ -82,7 +82,18 @@
 <body class="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100 text-gray-900 antialiased">
     @php
         $currentUser = auth()->user();
+        $isStaff = $currentUser?->isStaff() ?? false;
         $isAdmin = $currentUser?->isAdmin() ?? false;
+        $hasNotificationsTable = \Illuminate\Support\Facades\Schema::hasTable('notifications');
+        $pendingApprovalCount = $isStaff ? \App\Models\Booking::where('status', 'pending')->count() : 0;
+        $recentPendingApprovals = $isStaff
+            ? \App\Models\Booking::where('status', 'pending')->with('room')->latest()->take(5)->get()
+            : collect();
+        $userUnreadNotifications = ($currentUser && $hasNotificationsTable)
+            ? $currentUser->unreadNotifications()->latest()->take(8)->get()
+            : collect();
+        $userUnreadCount = $userUnreadNotifications->count();
+        $headerNotificationCount = $pendingApprovalCount + $userUnreadCount;
         $initials = $currentUser
             ? collect(preg_split('/\s+/', trim($currentUser->name)))->filter()->take(2)->map(fn ($p) => mb_strtoupper(mb_substr($p, 0, 1)))->implode('')
             : 'U';
@@ -122,7 +133,7 @@
                     <span>Dashboard</span>
                 </a>
 
-                @if($isAdmin)
+                @if($isStaff)
                     <a href="{{ route('rooms.index') }}" 
                        class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-indigo-200 hover:text-white transition-all duration-200 mb-1 {{ request()->routeIs('rooms.*') ? 'active' : '' }}">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -149,6 +160,14 @@
                         @if($pendingCount > 0)
                         <span class="ml-auto bg-gradient-to-r from-red-500 to-rose-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg shadow-red-500/30 animate-pulse">{{ $pendingCount }}</span>
                         @endif
+                    </a>
+
+                    <a href="{{ route('reports.index') }}"
+                       class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-indigo-200 hover:text-white transition-all duration-200 mb-1 {{ request()->routeIs('reports.*') ? 'active' : '' }}">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6m4 6V7m4 10V4M5 20h14"/>
+                        </svg>
+                        <span>Reports</span>
                     </a>
                 @endif
 
@@ -193,37 +212,37 @@
                     </div>
                     
                     <div class="flex items-center gap-4">
-                        @if($isAdmin)
-                            <!-- Notifications Dropdown -->
-                            <div x-data="{ notifOpen: false }" class="relative">
-                                <button @click="notifOpen = !notifOpen" class="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                                    </svg>
-                                    @php $pendingNotifCount = \App\Models\Booking::where('status', 'pending')->count(); @endphp
-                                    @if($pendingNotifCount > 0)
-                                    <span class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs min-w-[18px] h-[18px] flex items-center justify-center rounded-full font-bold animate-pulse">{{ $pendingNotifCount }}</span>
-                                    @endif
-                                </button>
-                                <div x-show="notifOpen" @click.away="notifOpen = false" x-cloak
-                                     x-transition:enter="transition ease-out duration-200"
-                                     x-transition:enter-start="opacity-0 scale-95"
-                                     x-transition:enter-end="opacity-100 scale-100"
-                                     x-transition:leave="transition ease-in duration-75"
-                                     x-transition:leave-start="opacity-100 scale-100"
-                                     x-transition:leave-end="opacity-0 scale-95"
-                                     class="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50">
-                                    <div class="bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-3">
-                                        <div class="flex items-center justify-between">
-                                            <h3 class="text-white font-semibold">Notifications</h3>
-                                            @if($pendingNotifCount > 0)
-                                            <span class="bg-white/20 text-white text-xs px-2 py-1 rounded-full">{{ $pendingNotifCount }} pending</span>
-                                            @endif
-                                        </div>
+                        <!-- Notifications Dropdown -->
+                        <div x-data="{ notifOpen: false }" class="relative">
+                            <button @click="notifOpen = !notifOpen" class="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                                </svg>
+                                @if($headerNotificationCount > 0)
+                                <span class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs min-w-[18px] h-[18px] flex items-center justify-center rounded-full font-bold animate-pulse">{{ $headerNotificationCount }}</span>
+                                @endif
+                            </button>
+                            <div x-show="notifOpen" @click.away="notifOpen = false" x-cloak
+                                 x-transition:enter="transition ease-out duration-200"
+                                 x-transition:enter-start="opacity-0 scale-95"
+                                 x-transition:enter-end="opacity-100 scale-100"
+                                 x-transition:leave="transition ease-in duration-75"
+                                 x-transition:leave-start="opacity-100 scale-100"
+                                 x-transition:leave-end="opacity-0 scale-95"
+                                 class="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50">
+                                <div class="bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-3">
+                                    <div class="flex items-center justify-between">
+                                        <h3 class="text-white font-semibold">Notifications</h3>
+                                        @if($headerNotificationCount > 0)
+                                        <span class="bg-white/20 text-white text-xs px-2 py-1 rounded-full">{{ $headerNotificationCount }} unread</span>
+                                        @endif
                                     </div>
-                                    <div class="max-h-80 overflow-y-auto">
-                                        @php $recentPending = \App\Models\Booking::where('status', 'pending')->with('room')->latest()->take(5)->get(); @endphp
-                                        @forelse($recentPending as $notif)
+                                </div>
+
+                                <div class="max-h-80 overflow-y-auto">
+                                    @if($isStaff)
+                                        <div class="px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50 border-b border-gray-100">Pending Approvals</div>
+                                        @forelse($recentPendingApprovals as $notif)
                                         <a href="{{ route('approvals.index') }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
                                             <div class="flex items-start gap-3">
                                                 <div class="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
@@ -239,22 +258,45 @@
                                             </div>
                                         </a>
                                         @empty
-                                        <div class="px-4 py-8 text-center">
-                                            <svg class="w-12 h-12 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
-                                            </svg>
-                                            <p class="text-sm text-gray-500">No pending notifications</p>
+                                        <div class="px-4 py-3 border-b border-gray-100">
+                                            <p class="text-sm text-gray-500">No pending approvals right now.</p>
                                         </div>
                                         @endforelse
-                                    </div>
-                                    @if($pendingNotifCount > 0)
-                                    <a href="{{ route('approvals.index') }}" class="block bg-gray-50 px-4 py-3 text-center text-sm font-medium text-indigo-600 hover:text-indigo-700 hover:bg-gray-100 transition-colors">
-                                        View all pending approvals
+                                    @endif
+
+                                    <div class="px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50 border-b border-gray-100">Your Unread</div>
+                                    @forelse($userUnreadNotifications as $notification)
+                                    <a href="{{ $notification->data['url'] ?? '#' }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
+                                        <p class="text-sm font-medium text-gray-900">{{ $notification->data['title'] ?? 'Notification' }}</p>
+                                        <p class="text-xs text-gray-600 mt-1">{{ $notification->data['message'] ?? '' }}</p>
+                                        <p class="text-xs text-gray-400 mt-1">{{ $notification->created_at->diffForHumans() }}</p>
                                     </a>
+                                    @empty
+                                    <div class="px-4 py-8 text-center">
+                                        <svg class="w-12 h-12 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                                        </svg>
+                                        <p class="text-sm text-gray-500">No unread notifications</p>
+                                    </div>
+                                    @endforelse
+                                </div>
+
+                                <div class="bg-gray-50 px-4 py-3 flex items-center justify-between gap-2">
+                                    @if($isStaff)
+                                    <a href="{{ route('approvals.index') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-700">Pending approvals</a>
+                                    @else
+                                    <span class="text-sm text-gray-500">Up to date</span>
+                                    @endif
+
+                                    @if($userUnreadCount > 0)
+                                    <form method="POST" action="{{ route('notifications.mark-all-read') }}">
+                                        @csrf
+                                        <button type="submit" class="text-sm font-medium text-indigo-600 hover:text-indigo-700">Mark all as read</button>
+                                    </form>
                                     @endif
                                 </div>
                             </div>
-                        @endif
+                        </div>
 
                         <!-- User Menu -->
                         <div x-data="{ open: false, logoutOpen: false }" class="relative">
@@ -264,7 +306,7 @@
                                 </div>
                                 <div class="hidden sm:block text-left">
                                     <p class="font-semibold text-gray-800">{{ $currentUser?->name }}</p>
-                                    <p class="text-xs text-gray-500">{{ $isAdmin ? 'Administrator' : 'User' }}</p>
+                                    <p class="text-xs text-gray-500">{{ $currentUser?->roleLabel() ?? 'User' }}</p>
                                 </div>
                                 <svg class="w-4 h-4 text-gray-400 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
@@ -288,7 +330,7 @@
                                     </svg>
                                     My Profile
                                 </a>
-                                @if($isAdmin)
+                                @if($isStaff)
                                     <a href="{{ route('settings.edit') }}" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                                         <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>

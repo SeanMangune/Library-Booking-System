@@ -122,7 +122,7 @@
                     @foreach($rooms as $room)
                     <div class="room-item p-3 rounded-lg cursor-pointer transition-colors"
                          :class="selectedRoom?.id == {{ $room->id }} ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50 border border-transparent'"
-                         @click.stop.prevent="selectRoom({ id: {{ $room->id }}, name: '{{ addslashes($room->name) }}', capacity: {{ $room->capacity }} })"
+                        @click.stop.prevent="selectRoom({ id: {{ $room->id }}, name: '{{ addslashes($room->name) }}', capacity: {{ $room->standardBookingCapacityLimit() }} })"
                          data-name="{{ strtolower($room->name) }}"
                          style="position: relative; z-index: 10;">
                         <div class="flex items-center gap-3">
@@ -133,7 +133,11 @@
                             </div>
                             <div class="flex-1 min-w-0">
                                 <p class="font-medium text-gray-900 truncate">{{ $room->name }}</p>
-                                <p class="text-xs text-gray-500">Capacity: {{ $room->capacity }}</p>
+                                @if($room->isCollaborative())
+                                    <p class="text-xs text-gray-500">Base Capacity: 10 (up to 12 with librarian approval)</p>
+                                @else
+                                    <p class="text-xs text-gray-500">Capacity: {{ $room->capacity }}</p>
+                                @endif
                             </div>
                             <template x-if="selectedRoom?.id == {{ $room->id }}">
                                 <svg class="w-5 h-5 text-blue-600 shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -188,10 +192,10 @@
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Reservation Title <span class="text-red-500">*</span>
+                                        Purpose <span class="text-red-500">*</span>
                                     </label>
-                                    <input type="text" x-model="bookingForm.title" required
-                                           placeholder="e.g., Team Meeting"
+                                    <input type="text" x-model="bookingForm.purpose" required
+                                           placeholder="e.g., Group study, Thesis consultation"
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                 </div>
 
@@ -209,13 +213,19 @@
                                         <label class="block text-sm font-medium text-gray-700 mb-1">
                                             QC ID Verification <span class="text-red-500">*</span>
                                         </label>
-                                        <p class="text-xs text-gray-500">Upload a clear photo of a Quezon City Citizen ID. The system will read the card using OCR and reject non-QC IDs.</p>
+                                        <p x-show="!hasVerifiedRegistration" class="text-xs text-gray-500">Upload a clear photo of a Quezon City Citizen ID. The system will read the card using OCR and reject non-QC IDs.</p>
+                                        <p x-show="hasVerifiedRegistration" x-cloak class="text-xs text-emerald-700">QC ID already verified from your QC ID Registration.</p>
                                     </div>
 
-                                    <input type="file"
+                                    <input x-show="!hasVerifiedRegistration" x-cloak type="file"
                                            accept="image/png,image/jpeg,image/jpg,image/webp"
                                            @change="handleQcIdUpload($event)"
                                            class="block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-teal-700">
+
+                                    <div x-show="hasVerifiedRegistration" x-cloak class="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                                        <p class="text-sm font-semibold text-emerald-800">QC ID Verified</p>
+                                        <p class="text-xs text-emerald-700 mt-1">Bookings will use your approved QC ID registration status.</p>
+                                    </div>
 
                                     <div x-show="qcIdPreviewUrl" x-cloak class="rounded-lg overflow-hidden border border-gray-200 bg-white">
                                         <img :src="qcIdPreviewUrl" alt="QC ID preview" class="w-full h-44 object-cover">
@@ -302,7 +312,7 @@
                                             class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                         <option value="">Select a room</option>
                                         @foreach($rooms as $room)
-                                        <option value="{{ $room->id }}">{{ $room->name }} (Capacity: {{ $room->capacity }})</option>
+                                        <option value="{{ $room->id }}">{{ $room->name }} (Capacity: {{ $room->standardBookingCapacityLimit() }})</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -336,8 +346,9 @@
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
                                         Number of Attendees <span class="text-red-500">*</span>
                                     </label>
-                                    <input type="number" x-model="bookingForm.attendees" min="1" required
+                                     <input type="number" x-model="bookingForm.attendees" min="1" :max="attendeeInputMax || null" required
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                     <p x-show="attendeeGuidance" x-cloak class="mt-1 text-xs text-gray-500" x-text="attendeeGuidance"></p>
                                 </div>
                             </div>
                         </div>
@@ -345,14 +356,14 @@
 
                     <!-- Footer -->
                     <div class="flex items-center justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
-                        <p x-show="!qcIdVerification?.is_valid" x-cloak class="mr-auto text-sm text-amber-600">
+                        <p x-show="!hasVerifiedRegistration && !qcIdVerification?.is_valid" x-cloak class="mr-auto text-sm text-amber-600">
                             Upload and verify a QC ID before creating the booking.
                         </p>
                         <button type="button" @click="closeBookingModal()"
                                 class="px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
                             Cancel
                         </button>
-                        <button type="submit" :disabled="isSubmitting || !qcIdVerification?.is_valid"
+                        <button type="submit" :disabled="isSubmitting || (!hasVerifiedRegistration && !qcIdVerification?.is_valid)"
                                 class="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             <span class="flex items-center gap-2">
                                 <svg x-show="isSubmitting" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -515,8 +526,8 @@
                 <div class="p-6">
                     <div class="space-y-4">
                         <div class="p-4 bg-gray-50 rounded-xl">
-                            <p class="text-xs font-medium text-gray-500 mb-1">Title</p>
-                            <p class="font-semibold text-gray-900" x-text="selectedEvent?.title || 'No title'"></p>
+                            <p class="text-xs font-medium text-gray-500 mb-1">Purpose</p>
+                            <p class="font-semibold text-gray-900" x-text="selectedEvent?.purpose || selectedEvent?.title || 'No purpose provided'"></p>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div class="p-4 bg-gray-50 rounded-xl">
@@ -587,6 +598,20 @@
 @endpush
 
 @push('scripts')
+@php
+    $verifiedRegistration = auth()->user()?->qcidRegistration;
+    $hasVerifiedRegistration = $verifiedRegistration && $verifiedRegistration->verification_status === 'verified';
+
+    $roomOptions = $rooms->map(function ($room) {
+        return [
+            'id' => $room->id,
+            'capacity' => $room->standardBookingCapacityLimit(),
+            'is_collaborative' => $room->isCollaborative(),
+            'standard_limit' => $room->standardBookingCapacityLimit(),
+            'student_limit' => $room->maxStudentBookingCapacity(),
+        ];
+    })->values();
+@endphp
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
 function calendarApp() {
@@ -603,6 +628,10 @@ function calendarApp() {
         successBooking: null,
         selectedEvent: null,
         isSubmitting: false,
+        hasVerifiedRegistration: @json($hasVerifiedRegistration),
+        verifiedRegistrationName: @json($verifiedRegistration?->full_name),
+        isStaffUser: @json(auth()->user()?->isStaff() ?? false),
+        rooms: @json($roomOptions),
         qcIdFile: null,
         qcIdPreviewUrl: '',
         qcIdIsProcessing: false,
@@ -612,7 +641,7 @@ function calendarApp() {
         qcIdVerification: null,
         
         bookingForm: {
-            title: '',
+            purpose: '',
             room_id: '{{ $selectedRoom?->id ?? "" }}',
             date: '{{ now()->format("Y-m-d") }}',
             start_time: '09:00',
@@ -640,6 +669,10 @@ function calendarApp() {
             });
 
             this.$watch('bookingForm.user_name', (value) => {
+                if (this.hasVerifiedRegistration) {
+                    return;
+                }
+
                 if (!this.qcIdVerification?.cardholder_name) {
                     return;
                 }
@@ -651,6 +684,58 @@ function calendarApp() {
                     this.qcIdError = 'The booking name changed after verification. Please upload the QC ID again.';
                 }
             });
+
+            this.$watch('bookingForm.room_id', () => {
+                const max = this.attendeeInputMax;
+                if (max && Number(this.bookingForm.attendees) > Number(max)) {
+                    this.bookingForm.attendees = max;
+                }
+            });
+
+            if (this.hasVerifiedRegistration) {
+                this.qcIdVerification = {
+                    is_valid: true,
+                    cardholder_name: this.verifiedRegistrationName || '',
+                    confidence_score: 100,
+                    source: 'registration',
+                };
+            }
+        },
+
+        get selectedRoomMeta() {
+            return this.rooms.find(room => String(room.id) === String(this.bookingForm.room_id)) || null;
+        },
+
+        get attendeeInputMax() {
+            const room = this.selectedRoomMeta;
+
+            if (!room) {
+                return null;
+            }
+
+            return this.isStaffUser ? room.capacity : room.student_limit;
+        },
+
+        get attendeeGuidance() {
+            const room = this.selectedRoomMeta;
+
+            if (!room) {
+                return '';
+            }
+
+            if (!room.is_collaborative) {
+                return `Room capacity: ${room.capacity} attendees.`;
+            }
+
+            if (this.isStaffUser) {
+                return `Collaborative room capacity: ${room.capacity} attendees.`;
+            }
+
+            if (room.student_limit > room.standard_limit) {
+                return `Collaborative rooms allow up to ${room.standard_limit} attendees by default. Requests up to ${room.student_limit} attendees need librarian approval.`;
+            }
+
+            return `This collaborative room allows up to ${room.standard_limit} attendees.`;
         },
 
         normalizeName(value) {
@@ -659,6 +744,127 @@ function calendarApp() {
                 .replace(/[^A-Z\s]/g, ' ')
                 .replace(/\s+/g, ' ')
                 .trim();
+        },
+
+        normalizeOcrText(value) {
+            return String(value || '')
+                .toUpperCase()
+                .replace(/\r/g, '')
+                .replace(/[^A-Z0-9,./\-\n\s]/g, ' ')
+                .replace(/[ \t]+/g, ' ')
+                .replace(/\n{2,}/g, '\n')
+                .trim();
+        },
+
+        async buildQcCanvas(file) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const scale = Math.max(1, 2800 / Math.max(img.width, img.height));
+                    canvas.width = Math.round(img.width * scale);
+                    canvas.height = Math.round(img.height * scale);
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+                    for (let i = 0; i < data.length; i += 4) {
+                        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+                        const contrast = Math.min(255, Math.max(0, ((gray - 128) * 1.7) + 128));
+                        data[i] = contrast;
+                        data[i + 1] = contrast;
+                        data[i + 2] = contrast;
+                    }
+                    ctx.putImageData(imageData, 0, 0);
+
+                    resolve(canvas);
+                };
+                img.onerror = () => resolve(null);
+                img.src = URL.createObjectURL(file);
+            });
+        },
+
+        createQcCropCanvas(sourceCanvas, rect, threshold = false) {
+            const crop = document.createElement('canvas');
+            const sx = Math.max(0, Math.round(sourceCanvas.width * rect.x));
+            const sy = Math.max(0, Math.round(sourceCanvas.height * rect.y));
+            const sw = Math.max(1, Math.round(sourceCanvas.width * rect.w));
+            const sh = Math.max(1, Math.round(sourceCanvas.height * rect.h));
+
+            crop.width = sw;
+            crop.height = sh;
+
+            const ctx = crop.getContext('2d');
+            ctx.drawImage(sourceCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+            if (threshold) {
+                const imageData = ctx.getImageData(0, 0, sw, sh);
+                const data = imageData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    const value = data[i] > 145 ? 255 : 0;
+                    data[i] = value;
+                    data[i + 1] = value;
+                    data[i + 2] = value;
+                }
+                ctx.putImageData(imageData, 0, 0);
+            }
+
+            return crop;
+        },
+
+        async recognizeQcCanvas(canvas, config = {}, withProgress = false) {
+            const options = {
+                preserve_interword_spaces: '1',
+                ...config,
+            };
+
+            if (withProgress) {
+                options.logger = (message) => {
+                    if (message.status) {
+                        this.qcIdStatusMessage = message.status;
+                    }
+
+                    if (typeof message.progress === 'number') {
+                        this.qcIdProgress = message.progress * 100;
+                    }
+                };
+            }
+
+            const result = await window.Tesseract.recognize(canvas, 'eng', options);
+
+            return this.normalizeOcrText(result?.data?.text || '');
+        },
+
+        async collectQcOcrText(file) {
+            const enhancedCanvas = await this.buildQcCanvas(file);
+            if (!enhancedCanvas) {
+                throw new Error('Unable to prepare the QC ID image for OCR.');
+            }
+
+            const fullText = await this.recognizeQcCanvas(enhancedCanvas, {
+                tessedit_pageseg_mode: 6,
+            }, true);
+
+            const sparseText = await this.recognizeQcCanvas(enhancedCanvas, {
+                tessedit_pageseg_mode: 11,
+            });
+
+            // Focused crops boost key fields that generic OCR may blur.
+            const bottomStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.62, y: 0.76, w: 0.34, h: 0.14 }, true);
+            const dateStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.25, y: 0.39, w: 0.48, h: 0.15 }, true);
+
+            const bottomText = await this.recognizeQcCanvas(bottomStrip, {
+                tessedit_pageseg_mode: 7,
+                tessedit_char_whitelist: '0123456789 ',
+            });
+
+            const dateText = await this.recognizeQcCanvas(dateStrip, {
+                tessedit_pageseg_mode: 7,
+                tessedit_char_whitelist: '0123456789/ -',
+            });
+
+            return this.normalizeOcrText([fullText, sparseText, dateText, bottomText].filter(Boolean).join('\n'));
         },
 
         namesMatch(first, second) {
@@ -734,19 +940,8 @@ function calendarApp() {
             this.qcIdProgress = 0;
 
             try {
-                const result = await window.Tesseract.recognize(file, 'eng', {
-                    logger: (message) => {
-                        if (message.status) {
-                            this.qcIdStatusMessage = message.status;
-                        }
-
-                        if (typeof message.progress === 'number') {
-                            this.qcIdProgress = message.progress * 100;
-                        }
-                    },
-                });
-
-                const extractedText = result?.data?.text?.trim() || '';
+                this.qcIdStatusMessage = 'Enhancing image for OCR…';
+                const extractedText = await this.collectQcOcrText(file);
                 if (!extractedText) {
                     throw new Error('No readable text was found in the uploaded QC ID image.');
                 }
@@ -823,6 +1018,7 @@ function calendarApp() {
                     self.selectedEvent = {
                         id: info.event.id,
                         title: info.event.title,
+                        purpose: props.purpose || info.event.title,
                         room_name: props.room_name || props.room,
                         date: derivedDate,
                         formatted_date: props.formatted_date || derivedDate,
@@ -927,6 +1123,16 @@ function calendarApp() {
                 this.bookingForm.room_id = this.selectedRoom.id;
             }
             this.qcIdError = '';
+
+            if (this.hasVerifiedRegistration) {
+                this.qcIdVerification = {
+                    is_valid: true,
+                    cardholder_name: this.verifiedRegistrationName || '',
+                    confidence_score: 100,
+                    source: 'registration',
+                };
+            }
+
             this.showBookingModal = true;
         },
 
@@ -976,6 +1182,7 @@ function calendarApp() {
             this.hideEventTooltip();
 
             const title = info?.event?.title || '';
+            const purpose = props.purpose || title;
             const roomName = props.room_name || props.room || '';
             const time = props.formatted_time || '';
             const userName = props.user_name || props.userName || '';
@@ -986,7 +1193,7 @@ function calendarApp() {
             el.style.pointerEvents = 'none';
 
             el.innerHTML = `
-                <div class="font-semibold text-sm mb-2">${this.escapeHtml(title || roomName)}</div>
+                <div class="font-semibold text-sm mb-2">${this.escapeHtml(purpose || roomName)}</div>
                 <div class="space-y-1.5 text-gray-300">
                     <div class="flex items-center gap-2">
                         <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1099,7 +1306,7 @@ function calendarApp() {
         },
 
         async submitBooking() {
-            if (!this.qcIdVerification?.is_valid || !this.bookingForm.qc_id_ocr_text) {
+            if (!this.hasVerifiedRegistration && (!this.qcIdVerification?.is_valid || !this.bookingForm.qc_id_ocr_text)) {
                 this.qcIdError = 'Upload and verify a valid QC ID before creating the booking.';
                 return;
             }

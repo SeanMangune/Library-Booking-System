@@ -404,6 +404,12 @@ class QcIdOcrVerifier
             'id_number' => $this->extractIdNumber($normalized, $lines),
         ];
 
+        foreach (['date_of_birth', 'date_issued', 'valid_until'] as $dateKey) {
+            if (! empty($fields[$dateKey])) {
+                $fields[$dateKey] = $this->normalizeDateToYmd((string) $fields[$dateKey]);
+            }
+        }
+
         // Positional fallback: if dates are still missing, collect all
         // date-like strings in the text and assign using year heuristics.
         // DOB year: 1940-2015, date_issued year: recent past, valid_until: future.
@@ -446,6 +452,31 @@ class QcIdOcrVerifier
             if (empty($fields['valid_until']) && isset($allDates[2])) {
                 $fields['valid_until'] = $allDates[2];
             }
+
+            // Label-context fallback: search around DATE ISSUED / VALID UNTIL lines.
+            if (empty($fields['date_issued']) || empty($fields['valid_until'])) {
+                $labelContextDates = $this->extractIssuedValidityByLabelContext($lines);
+                if (empty($fields['date_issued']) && ! empty($labelContextDates['date_issued'])) {
+                    $fields['date_issued'] = $labelContextDates['date_issued'];
+                }
+                if (empty($fields['valid_until']) && ! empty($labelContextDates['valid_until'])) {
+                    $fields['valid_until'] = $labelContextDates['valid_until'];
+                }
+            }
+
+            if (empty($fields['date_issued'])) {
+                $fields['date_issued'] = $this->extractNearestDateToLabel($normalized, 'DATE\s*ISSUED');
+            }
+            if (empty($fields['valid_until'])) {
+                $fields['valid_until'] = $this->extractNearestDateToLabel($normalized, 'VALID\s*UNTIL');
+            }
+
+            if (empty($fields['date_issued']) && ! empty($fields['valid_until'])) {
+                $issuedCandidate = $this->bestIssueDateCandidate($allDates, $fields['date_of_birth'] ?? null, $fields['valid_until']);
+                if ($issuedCandidate !== null) {
+                    $fields['date_issued'] = $issuedCandidate;
+                }
+            }
         }
 
         // ── Date sanity ─────────────────────────────────────────────
@@ -461,9 +492,34 @@ class QcIdOcrVerifier
             $fields['date_issued'] = null;
         }
 
+        $currentYear = (int) date('Y');
+
+        // If validity is parsed as a past/current date and date_issued is empty,
+        // it is usually the issue date mis-assigned into valid_until.
+        if (! empty($fields['valid_until']) && empty($fields['date_issued'])) {
+            $validYear = (int) substr((string) $fields['valid_until'], 0, 4);
+            if ($validYear <= $currentYear) {
+                $fields['date_issued'] = $fields['valid_until'];
+                $fields['valid_until'] = null;
+            }
+        }
+
+        // If both are present but only one is in the future, keep future as valid_until.
+        if (! empty($fields['date_issued']) && ! empty($fields['valid_until'])) {
+            $issuedYear = (int) substr((string) $fields['date_issued'], 0, 4);
+            $validYear = (int) substr((string) $fields['valid_until'], 0, 4);
+
+            if ($issuedYear > $currentYear && $validYear <= $currentYear) {
+                [$fields['date_issued'], $fields['valid_until']] = [$fields['valid_until'], $fields['date_issued']];
+            }
+
+            if (strcmp((string) $fields['date_issued'], (string) $fields['valid_until']) > 0) {
+                [$fields['date_issued'], $fields['valid_until']] = [$fields['valid_until'], $fields['date_issued']];
+            }
+        }
+
         // Year-range heuristic: swap mis-assigned dates.
         // DOB year is typically 1940-2015; valid_until year > current year.
-        $currentYear = (int) date('Y');
         foreach (['date_issued', 'valid_until'] as $key) {
             if (! empty($fields[$key]) && ! empty($fields['date_of_birth'])) {
                 $otherYear = (int) substr($fields[$key], 0, 4);
@@ -520,8 +576,18 @@ class QcIdOcrVerifier
             return $m[1];
         }
 
+        // Try: LABEL  YYYY/M/D or YYYY/MM/D etc.
+        if (preg_match('/' . $labelPattern . '(\d{4}[\/-]\d{1,2}[\/-]\d{1,2})/', $normalized, $m)) {
+            return $m[1];
+        }
+
         // Try: LABEL  MM/DD/YYYY  or  DD/MM/YYYY
         if (preg_match('/' . $labelPattern . '(\d{2}[\/-]\d{2}[\/-]\d{4})/', $normalized, $m)) {
+            return $m[1];
+        }
+
+        // Try: LABEL  M/D/YYYY or MM/D/YYYY
+        if (preg_match('/' . $labelPattern . '(\d{1,2}[\/-]\d{1,2}[\/-]\d{4})/', $normalized, $m)) {
             return $m[1];
         }
 
@@ -558,13 +624,27 @@ class QcIdOcrVerifier
         // Match dates with separators: YYYY/MM/DD
         if (preg_match_all('/\b(\d{4}[\/-]\d{2}[\/-]\d{2})\b/', $normalized, $m)) {
             foreach ($m[1] as $d) {
-                $dates[] = $d;
+                $normalizedDate = $this->normalizeDateToYmd($d);
+                if ($normalizedDate !== null) {
+                    $dates[] = $normalizedDate;
+                }
             }
         }
         if ($digitCorrected !== $normalized && preg_match_all('/\b(\d{4}[\/-]\d{2}[\/-]\d{2})\b/', $digitCorrected, $m)) {
             foreach ($m[1] as $d) {
-                if (! in_array($d, $dates)) {
-                    $dates[] = $d;
+                $normalizedDate = $this->normalizeDateToYmd($d);
+                if ($normalizedDate !== null && ! in_array($normalizedDate, $dates, true)) {
+                    $dates[] = $normalizedDate;
+                }
+            }
+        }
+
+        // Match dates that may be in MM/DD/YYYY or DD/MM/YYYY.
+        if (preg_match_all('/\b(\d{2}[\/-]\d{2}[\/-]\d{4})\b/', $digitCorrected, $m)) {
+            foreach ($m[1] as $d) {
+                $normalizedDate = $this->normalizeDateToYmd($d);
+                if ($normalizedDate !== null && ! in_array($normalizedDate, $dates, true)) {
+                    $dates[] = $normalizedDate;
                 }
             }
         }
@@ -682,15 +762,211 @@ class QcIdOcrVerifier
             return null;
         }
 
-        if (strlen($digits) >= 13 && strlen($digits) <= 14) {
-            return substr($digits, 0, 3) . ' ' . substr($digits, 3, 3) . ' ' . substr($digits, 6);
+        // QC ID format target: 3-3-8 digits. If OCR dropped one leading zero,
+        // recover to 14 digits before formatting.
+        if (strlen($digits) === 13) {
+            $digits = '0' . $digits;
         }
 
-        if (strlen($digits) >= 7 && strlen($digits) <= 9) {
-            return $digits;
+        // Some OCR runs drop one digit in the last block. Recover by
+        // inserting a leading zero in the final segment: 3+3+7 -> 3+3+8.
+        if (strlen($digits) === 13 && preg_match('/^\d{6}\d{7}$/', $digits) === 1) {
+            $digits = substr($digits, 0, 6) . '0' . substr($digits, 6);
+        }
+
+        if (strlen($digits) !== 14) {
+            return null;
+        }
+
+        return substr($digits, 0, 3) . ' ' . substr($digits, 3, 3) . ' ' . substr($digits, 6, 8);
+
+    }
+
+    private function normalizeDateToYmd(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim(str_replace('-', '/', $this->ocrToDigits($value)));
+
+        if (preg_match('/^(\d{4})\/(\d{2})\/(\d{2})$/', $value, $m)) {
+            $year = (int) $m[1];
+            $month = (int) $m[2];
+            $day = (int) $m[3];
+            if ($year >= 1900 && $year <= 2099 && $month >= 1 && $month <= 12 && $day >= 1 && $day <= 31) {
+                return sprintf('%04d/%02d/%02d', $year, $month, $day);
+            }
+        }
+
+        if (preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', $value, $m)) {
+            $a = (int) $m[1];
+            $b = (int) $m[2];
+            $year = (int) $m[3];
+            if ($year < 1900 || $year > 2099) {
+                return null;
+            }
+
+            // If first token exceeds 12, interpret as DD/MM/YYYY; otherwise MM/DD/YYYY.
+            $month = $a > 12 ? $b : $a;
+            $day = $a > 12 ? $a : $b;
+
+            if ($month >= 1 && $month <= 12 && $day >= 1 && $day <= 31) {
+                return sprintf('%04d/%02d/%02d', $year, $month, $day);
+            }
         }
 
         return null;
+    }
+
+    /**
+     * @param list<string> $lines
+     * @return array{date_issued: string|null, valid_until: string|null}
+     */
+    private function extractIssuedValidityByLabelContext(array $lines): array
+    {
+        $dateIssued = null;
+        $validUntil = null;
+        $currentYear = (int) date('Y');
+
+        foreach ($lines as $index => $line) {
+            if (! preg_match('/DATE\s*ISSUED|VALID\s*UNTIL/', $line)) {
+                continue;
+            }
+
+            $scope = implode(' ', array_filter([
+                $lines[$index - 1] ?? null,
+                $line,
+                $lines[$index + 1] ?? null,
+            ]));
+
+            $dates = $this->collectAllDates($scope);
+            foreach ($dates as $date) {
+                $normalizedDate = $this->normalizeDateToYmd($date);
+                if ($normalizedDate === null) {
+                    continue;
+                }
+
+                $year = (int) substr($normalizedDate, 0, 4);
+                if ($dateIssued === null && $year >= 2015 && $year <= $currentYear) {
+                    $dateIssued = $normalizedDate;
+                    continue;
+                }
+                if ($validUntil === null && $year > $currentYear) {
+                    $validUntil = $normalizedDate;
+                }
+            }
+        }
+
+        return [
+            'date_issued' => $dateIssued,
+            'valid_until' => $validUntil,
+        ];
+    }
+
+    private function extractNearestDateToLabel(string $normalized, string $labelPattern): ?string
+    {
+        if (preg_match('/' . $labelPattern . '/i', $normalized, $m, PREG_OFFSET_CAPTURE) !== 1) {
+            return null;
+        }
+
+        $labelOffset = (int) $m[0][1];
+        $candidates = $this->collectDateCandidatesWithOffsets($normalized);
+        if ($candidates === []) {
+            return null;
+        }
+
+        $nearestDate = null;
+        $nearestDistance = PHP_INT_MAX;
+
+        foreach ($candidates as $candidate) {
+            $distance = abs($candidate['offset'] - $labelOffset);
+            if ($distance < $nearestDistance) {
+                $nearestDistance = $distance;
+                $nearestDate = $candidate['date'];
+            }
+        }
+
+        return $nearestDate;
+    }
+
+    /**
+     * @return list<array{date: string, offset: int}>
+     */
+    private function collectDateCandidatesWithOffsets(string $normalized): array
+    {
+        $candidates = [];
+        $patterns = [
+            '/\b\d{4}[\/-]\d{2}[\/-]\d{2}\b/',
+            '/\b\d{2}[\/-]\d{2}[\/-]\d{4}\b/',
+            '/\b\d{8}\b/',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match_all($pattern, $normalized, $matches, PREG_OFFSET_CAPTURE) !== 1) {
+                continue;
+            }
+
+            foreach ($matches[0] as $match) {
+                $raw = (string) $match[0];
+                $normalizedDate = $this->normalizeDateToYmd($raw);
+                if ($normalizedDate === null && strlen($raw) === 8) {
+                    $normalizedDate = $this->parseGarbledDate($raw);
+                }
+
+                if ($normalizedDate === null) {
+                    continue;
+                }
+
+                $candidates[] = [
+                    'date' => $normalizedDate,
+                    'offset' => (int) $match[1],
+                ];
+            }
+        }
+
+        usort($candidates, fn (array $a, array $b) => $a['offset'] <=> $b['offset']);
+
+        return $candidates;
+    }
+
+    /**
+     * @param list<string> $allDates
+     */
+    private function bestIssueDateCandidate(array $allDates, ?string $dateOfBirth, string $validUntil): ?string
+    {
+        $currentYear = (int) date('Y');
+        $validDate = strtotime(str_replace('/', '-', $validUntil));
+        if ($validDate === false) {
+            return null;
+        }
+
+        $candidates = [];
+        foreach ($allDates as $date) {
+            if ($date === $dateOfBirth || $date === $validUntil) {
+                continue;
+            }
+
+            $year = (int) substr($date, 0, 4);
+            if ($year < 2010 || $year > $currentYear) {
+                continue;
+            }
+
+            $candidateTs = strtotime(str_replace('/', '-', $date));
+            if ($candidateTs === false || $candidateTs > $validDate) {
+                continue;
+            }
+
+            $candidates[] = $date;
+        }
+
+        if ($candidates === []) {
+            return null;
+        }
+
+        usort($candidates, fn (string $a, string $b) => strcmp($b, $a));
+
+        return $candidates[0] ?? null;
     }
 
     /**
@@ -699,6 +975,11 @@ class QcIdOcrVerifier
      */
     private function extractIdNumber(string $normalized, array $lines = []): ?string
     {
+        $resolved = $this->resolveIdByAmbiguousDigitHeuristic($normalized, $lines);
+        if ($resolved !== null) {
+            return $resolved;
+        }
+
         // Standard: 005 000 01257419  (3-3-7/8 or continuous 13-14)
         if (preg_match('/\b(\d{3}\s*\d{3}\s*\d{5,8})\b/', $normalized, $m)) {
             return $this->formatIdNumber($m[1]);
@@ -791,6 +1072,72 @@ class QcIdOcrVerifier
             $formatted = $this->formatIdNumber((string) end($m[0]));
             if ($formatted !== null) {
                 return $formatted;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveIdByAmbiguousDigitHeuristic(string $normalized, array $lines = []): ?string
+    {
+        $candidates = [];
+
+        if (preg_match_all('/\b(\d{3}\s*\d{3}\s*\d{8}|\d{13,14})\b/', $this->ocrToDigits($normalized), $matches)) {
+            foreach ($matches[1] as $match) {
+                $formatted = $this->formatIdNumber((string) $match);
+                if ($formatted !== null) {
+                    $candidates[] = $formatted;
+                }
+            }
+        }
+
+        $tail = implode(' ', array_slice(array_reverse($lines), 0, 10));
+        if ($tail !== '' && preg_match_all('/\b(\d{3}\s*\d{3}\s*\d{8}|\d{13,14})\b/', $this->ocrToDigits($tail), $tailMatches)) {
+            foreach ($tailMatches[1] as $match) {
+                $formatted = $this->formatIdNumber((string) $match);
+                if ($formatted !== null) {
+                    $candidates[] = $formatted;
+                    $candidates[] = $formatted; // weight bottom-strip matches more heavily
+                }
+            }
+        }
+
+        if (count($candidates) < 2) {
+            return null;
+        }
+
+        $digitCandidates = array_values(array_filter(array_map(
+            fn (string $candidate): string => preg_replace('/\D/', '', $candidate) ?? '',
+            $candidates
+        ), fn (string $digits): bool => strlen($digits) === 14));
+
+        if (count($digitCandidates) < 2) {
+            return null;
+        }
+
+        foreach ($digitCandidates as $a) {
+            foreach ($digitCandidates as $b) {
+                if ($a === $b) {
+                    continue;
+                }
+
+                $diffCount = 0;
+                $diffIndex = -1;
+                for ($i = 0; $i < 14; $i++) {
+                    if ($a[$i] !== $b[$i]) {
+                        $diffCount++;
+                        $diffIndex = $i;
+                    }
+                }
+
+                if ($diffCount === 1 && $diffIndex === 6) {
+                    if ($a[6] === '0' && preg_match('/[3689]/', $b[6])) {
+                        return $this->formatIdNumber($a);
+                    }
+                    if ($b[6] === '0' && preg_match('/[3689]/', $a[6])) {
+                        return $this->formatIdNumber($b);
+                    }
+                }
             }
         }
 

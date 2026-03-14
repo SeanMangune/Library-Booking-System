@@ -140,6 +140,105 @@
                 </div>
             </div>
 
+            @if($user->isAdmin())
+                <div class="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+                    <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <h2 class="text-base font-bold text-gray-900">Staff Accounts</h2>
+                            <p class="text-sm text-gray-600 mt-1">Create librarian and administrator accounts directly from the admin side.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 grid grid-cols-1 xl:grid-cols-2 gap-6">
+                        <form method="POST" action="{{ route('settings.staff.store') }}" class="space-y-4 rounded-2xl border border-gray-200 bg-gray-50 p-5">
+                            @csrf
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Full name</label>
+                                <input name="name" type="text" value="{{ old('name') }}" required
+                                       class="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                                @error('name')
+                                    <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                                <input name="username" type="text" value="{{ old('username') }}" required
+                                       class="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                                <p class="text-xs text-gray-500 mt-1">Letters, numbers, dashes, and underscores only.</p>
+                                @error('username')
+                                    <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                <input name="email" type="email" value="{{ old('email') }}" required
+                                       class="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                                @error('email')
+                                    <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                                @php $newStaffRole = old('role', \App\Models\User::ROLE_LIBRARIAN); @endphp
+                                <select name="role" class="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                    <option value="{{ \App\Models\User::ROLE_LIBRARIAN }}" @selected($newStaffRole === \App\Models\User::ROLE_LIBRARIAN)>Librarian</option>
+                                    <option value="{{ \App\Models\User::ROLE_ADMIN }}" @selected($newStaffRole === \App\Models\User::ROLE_ADMIN)>Administrator</option>
+                                </select>
+                                @error('role')
+                                    <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                                <input name="password" type="password" required
+                                       class="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                                @error('password')
+                                    <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Confirm password</label>
+                                <input name="password_confirmation" type="password" required
+                                       class="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                            </div>
+
+                            <button type="submit"
+                                    class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-semibold shadow-lg shadow-indigo-600/20 transition-colors">
+                                Create staff account
+                            </button>
+                        </form>
+
+                        <div class="rounded-2xl border border-gray-200 overflow-hidden">
+                            <div class="px-5 py-4 border-b border-gray-200 bg-gray-50">
+                                <h3 class="text-sm font-semibold text-gray-900">Existing staff</h3>
+                            </div>
+                            <div class="divide-y divide-gray-200">
+                                @forelse($staffUsers as $staffUser)
+                                    <div class="px-5 py-4 flex items-center justify-between gap-4">
+                                        <div>
+                                            <p class="text-sm font-semibold text-gray-900">{{ $staffUser->name }}</p>
+                                            <p class="text-xs text-gray-500">Username: {{ $staffUser->username ?? 'N/A' }}</p>
+                                            <p class="text-xs text-gray-500">{{ $staffUser->email }}</p>
+                                        </div>
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold {{ $staffUser->isAdmin() ? 'bg-indigo-100 text-indigo-700' : 'bg-teal-100 text-teal-700' }}">
+                                            {{ $staffUser->roleLabel() }}
+                                        </span>
+                                    </div>
+                                @empty
+                                    <div class="px-5 py-8 text-sm text-gray-500">No staff accounts found yet.</div>
+                                @endforelse
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             <div class="text-sm">
                 <a href="{{ route('profile.edit') }}" class="text-indigo-600 hover:text-indigo-700 font-semibold">← Back to Profile</a>
             </div>

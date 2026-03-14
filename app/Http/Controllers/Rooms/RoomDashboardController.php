@@ -70,6 +70,7 @@ class RoomDashboardController extends Controller
                 return [
                     'id' => $booking->id,
                     'title' => $booking->title ?: $booking->user_name,
+                    'purpose' => $booking->title,
                     'room_name' => $booking->room->name,
                     'start_time' => $booking->start_time,
                     'end_time' => $booking->end_time,

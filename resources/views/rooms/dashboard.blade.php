@@ -277,8 +277,8 @@
                                     </svg>
                                 </div>
                                 <div>
-                                    <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Title</p>
-                                    <p class="text-gray-900 font-semibold" x-text="selectedBooking.title || 'No title'"></p>
+                                    <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Purpose</p>
+                                    <p class="text-gray-900 font-semibold" x-text="selectedBooking.title || 'No purpose provided'"></p>
                                 </div>
                             </div>
 
@@ -504,7 +504,7 @@
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Reservation Title <span class="text-red-500">*</span>
+                                        Purpose <span class="text-red-500">*</span>
                                     </label>
                                     <div class="relative">
                                         <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
@@ -512,8 +512,8 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
                                             </svg>
                                         </span>
-                                        <input type="text" x-model="bookingForm.title" required
-                                               placeholder="e.g., Team Meeting, Client Presentation"
+                                             <input type="text" x-model="bookingForm.purpose" required
+                                                 placeholder="e.g., Group study, Thesis consultation"
                                                class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                     </div>
                                 </div>
@@ -572,7 +572,7 @@
                                                 class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 appearance-none bg-white">
                                             <option value="">Select a room</option>
                                             @foreach($rooms as $room)
-                                            <option value="{{ $room->id }}">{{ $room->name }} (Capacity: {{ $room->capacity }})</option>
+                                            <option value="{{ $room->id }}">{{ $room->name }} (Capacity: {{ $room->standardBookingCapacityLimit() }})</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -635,9 +635,10 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                                             </svg>
                                         </span>
-                                        <input type="number" x-model="bookingForm.attendees" min="1" required
+                                        <input type="number" x-model="bookingForm.attendees" min="1" :max="attendeeInputMax || null" required
                                                class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                     </div>
+                                    <p x-show="attendeeGuidance" x-cloak class="mt-1 text-xs text-gray-500" x-text="attendeeGuidance"></p>
                                 </div>
                             </div>
                         </div>
@@ -695,6 +696,17 @@
 @endpush
 
 @push('scripts')
+@php
+    $roomOptions = $rooms->map(function ($room) {
+        return [
+            'id' => $room->id,
+            'capacity' => $room->standardBookingCapacityLimit(),
+            'is_collaborative' => $room->isCollaborative(),
+            'standard_limit' => $room->standardBookingCapacityLimit(),
+            'student_limit' => $room->maxStudentBookingCapacity(),
+        ];
+    })->values();
+@endphp
 <script>
 function dashboardApp() {
     return {
@@ -710,11 +722,13 @@ function dashboardApp() {
         currentMonth: new Date().getMonth(),
         currentYear: new Date().getFullYear(),
         calendarData: @json($calendarData),
+        isStaffUser: @json(auth()->user()?->isStaff() ?? false),
+        rooms: @json($roomOptions),
         monthNames: ['January', 'February', 'March', 'April', 'May', 'June', 
                      'July', 'August', 'September', 'October', 'November', 'December'],
         
         bookingForm: {
-            title: '',
+            purpose: '',
             room_id: '',
             date: '{{ now()->format("Y-m-d") }}',
             start_time: '09:00',
@@ -797,7 +811,50 @@ function dashboardApp() {
         },
 
         init() {
+            this.$watch('bookingForm.room_id', () => {
+                const max = this.attendeeInputMax;
+                if (max && Number(this.bookingForm.attendees) > Number(max)) {
+                    this.bookingForm.attendees = max;
+                }
+            });
+
             this.fetchCalendarData();
+        },
+
+        get selectedRoomMeta() {
+            return this.rooms.find(room => String(room.id) === String(this.bookingForm.room_id)) || null;
+        },
+
+        get attendeeInputMax() {
+            const room = this.selectedRoomMeta;
+
+            if (!room) {
+                return null;
+            }
+
+            return this.isStaffUser ? room.capacity : room.student_limit;
+        },
+
+        get attendeeGuidance() {
+            const room = this.selectedRoomMeta;
+
+            if (!room) {
+                return '';
+            }
+
+            if (!room.is_collaborative) {
+                return `Room capacity: ${room.capacity} attendees.`;
+            }
+
+            if (this.isStaffUser) {
+                return `Collaborative room capacity: ${room.capacity} attendees.`;
+            }
+
+            if (room.student_limit > room.standard_limit) {
+                return `Collaborative rooms allow up to ${room.standard_limit} attendees by default. Requests up to ${room.student_limit} attendees need librarian approval.`;
+            }
+
+            return `This collaborative room allows up to ${room.standard_limit} attendees.`;
         },
 
         formatDateKey(date) {
@@ -844,7 +901,7 @@ function dashboardApp() {
 
         openBookingModal() {
             this.bookingForm = {
-                title: '',
+                purpose: '',
                 room_id: '',
                 date: '{{ now()->format("Y-m-d") }}',
                 start_time: '09:00',

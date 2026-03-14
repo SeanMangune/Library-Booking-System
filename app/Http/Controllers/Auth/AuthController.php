@@ -12,67 +12,52 @@ use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
-    public function showLogin()
+    public function showLogin(Request $request)
     {
+        // Refresh the token whenever the login screen is opened to reduce stale-form 419 errors.
+        $request->session()->regenerateToken();
+
         return view('auth.login');
     }
 
     public function login(Request $request)
     {
         $validated = $request->validate([
-            'email' => ['required', 'email'],
+            'login' => ['required', 'string', 'max:255'],
             'password' => ['required'],
         ]);
 
         $remember = $request->boolean('remember');
+        $identifier = trim((string) $validated['login']);
+        $password = (string) $validated['password'];
 
-        if (! Auth::attempt($validated, $remember)) {
+        $candidate = User::query()
+            ->where(function ($query) use ($identifier) {
+                $query->where('email', $identifier)
+                    ->orWhere('username', $identifier);
+            })
+            ->first();
+
+        if (! $candidate || ! Hash::check($password, $candidate->password)) {
             return back()
-                ->withErrors(['email' => 'Invalid email or password.'])
-                ->onlyInput('email');
+                ->withErrors(['login' => 'Invalid username/email or password.'])
+                ->onlyInput('login');
         }
 
+        Auth::login($candidate, $remember);
         $request->session()->regenerate();
 
-        return $this->redirectFor(Auth::user());
+        return $this->redirectFor($candidate);
     }
 
     public function adminLogin(Request $request)
     {
-        $validated = $request->validate([
-            'admin_username' => ['required', 'string'],
-            'admin_password' => ['required'],
+        $request->merge([
+            'login' => (string) $request->input('staff_username', $request->input('staff_email', '')),
+            'password' => (string) $request->input('staff_password', ''),
         ]);
 
-        $remember = $request->boolean('remember');
-
-        $username = trim((string) $validated['admin_username']);
-        $password = (string) $validated['admin_password'];
-
-        if ($username !== 'admin' || $password !== 'admin123') {
-            return back()
-                ->withErrors(['admin_username' => 'Invalid admin credentials.'])
-                ->onlyInput('admin_username');
-        }
-
-        $adminUser = User::query()->where('email', 'admin@local.test')->first();
-        if (! $adminUser) {
-            $adminUser = User::create([
-                'name' => 'Admin',
-                'email' => 'admin@local.test',
-                'password' => Hash::make('admin123'),
-                'role' => 'admin',
-            ]);
-        } else {
-            if ($adminUser->role !== 'admin') {
-                $adminUser->forceFill(['role' => 'admin'])->save();
-            }
-        }
-
-        Auth::login($adminUser, $remember);
-        $request->session()->regenerate();
-
-        return $this->redirectFor($adminUser);
+        return $this->login($request);
     }
 
     public function register(Request $request)
@@ -87,7 +72,7 @@ class AuthController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'role' => 'user',
+            'role' => User::ROLE_USER,
         ]);
 
         Auth::login($user);
@@ -145,12 +130,19 @@ class AuthController extends Controller
                 $user = User::create([
                     'name' => $googleUser->getName() ?: ($email ?: 'User'),
                     'email' => $email ?: (Str::uuid()->toString() . '@example.invalid'),
+                    'username' => null,
                     'password' => Hash::make(Str::random(32)),
-                    'role' => 'user',
+                    'role' => User::ROLE_USER,
                     'provider' => 'google',
                     'provider_id' => $providerId,
                 ]);
             } else {
+                if ($user->isStaff()) {
+                    return redirect()->route('login')->withErrors([
+                        'email' => 'Google login is only available for student accounts. Staff must use username and password in Staff Login.',
+                    ]);
+                }
+
                 $user->forceFill([
                     'provider' => 'google',
                     'provider_id' => $providerId,
