@@ -1,5 +1,5 @@
 <div x-show="showSuccessModal" x-cloak class="modal p-4 z-[60]" :class="{ 'modal-open': showSuccessModal }" @keydown.escape.window="closeSuccessModal()">
-    <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-2xl shadow-2xl transform transition-all"
+    <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col transform transition-all"
          x-show="showSuccessModal"
          x-transition:enter="ease-out duration-300"
          x-transition:enter-start="opacity-0 scale-95"
@@ -58,7 +58,7 @@
         }
         </style>
 
-        <div class="p-6">
+        <div class="p-6 flex-1 min-h-0 overflow-y-auto">
             <div class="bg-gray-50 rounded-xl p-4 mb-6">
                 <div class="grid grid-cols-2 gap-4 text-sm">
                     <div>

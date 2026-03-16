@@ -9,6 +9,7 @@ use App\Http\Controllers\Rooms\RoomDashboardController;
 use App\Http\Controllers\Rooms\RoomController;
 use App\Http\Controllers\Rooms\BookingController;
 use App\Http\Controllers\Rooms\CalendarController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
@@ -35,6 +36,9 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 // Dashboard (user + admin)
 Route::middleware('auth')->group(function () {
     Route::get('/rooms', [RoomDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/notifications/unread', [NotificationController::class, 'unread'])->name('notifications.unread');
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
+
     Route::get('/qcid-registration', [QcIdRegistrationController::class, 'show'])->name('qcid.registration.show');
     Route::post('/qcid-registration', [QcIdRegistrationController::class, 'store'])->name('qcid.registration.store');
 

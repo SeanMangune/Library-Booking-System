@@ -8,7 +8,7 @@
 @endsection
 
 @section('content')
-<div x-data="dashboardApp()" x-init="init()">
+<div x-data="dashboardApp()" x-init="init()" class="flex flex-col xl:h-[calc(100dvh-9rem)] xl:overflow-hidden">
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
@@ -22,11 +22,11 @@
         </button>
     </div>
 
-    <div class="grid grid-cols-1 gap-6 transition-all duration-300"
+    <div class="grid grid-cols-1 gap-6 transition-all duration-300 xl:flex-1 xl:min-h-0"
          :class="bookingsPanelOpen ? 'xl:grid-cols-[minmax(0,1fr)_23rem]' : 'xl:grid-cols-1'">
         <!-- Left Column: Calendar -->
-        <div class="min-w-0">
-            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div class="min-w-0 xl:min-h-0">
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 xl:h-full xl:flex xl:flex-col xl:min-h-0">
                 <!-- Calendar Navigation -->
                 <div class="flex flex-col gap-4 mb-6 xl:flex-row xl:items-center xl:justify-between">
                     <div class="flex items-center gap-2">
@@ -73,7 +73,7 @@
                     </div>
                 </div>
 
-                <div class="border border-gray-200 rounded-lg overflow-hidden" x-show="calendarView === 'dayGridMonth'">
+                <div class="border border-gray-200 rounded-lg overflow-auto xl:flex-1 xl:min-h-0" x-show="calendarView === 'dayGridMonth'">
                     <div class="grid grid-cols-7 bg-gray-50 border-b border-gray-200">
                         <template x-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="day">
                             <div class="py-3 text-center text-sm font-semibold text-gray-600" x-text="day"></div>
@@ -137,8 +137,8 @@
                     </div>
                 </div>
 
-                <div class="border border-gray-200 rounded-lg overflow-hidden p-3" x-show="calendarView !== 'dayGridMonth'" x-cloak>
-                    <div id="dashboard-calendar" class="fc-custom-dashboard"></div>
+                <div class="h-[68vh] xl:h-auto border border-gray-200 rounded-lg p-3 overflow-auto xl:flex-1 xl:min-h-0" x-show="calendarView !== 'dayGridMonth'" x-cloak>
+                    <div id="dashboard-calendar" class="fc-custom-dashboard h-full"></div>
                 </div>
             </div>
         </div>
@@ -147,8 +147,8 @@
         <aside x-show="bookingsPanelOpen"
                x-cloak
                x-transition
-               class="min-w-0">
-            <div class="bg-white rounded-xl border border-gray-200 shadow-sm h-full">
+                    class="min-w-0 xl:min-h-0">
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm h-full xl:flex xl:flex-col xl:min-h-0">
                 <div class="px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3">
                     <div>
                         <h2 class="text-lg font-semibold text-gray-900">Collab Room Bookings</h2>
@@ -161,7 +161,7 @@
                         <i class="w-4 h-4 fa-icon fa-solid fa-xmark text-base leading-none"></i>
                     </button>
                 </div>
-                <div class="p-4 max-h-[34rem] xl:max-h-[calc(100vh-18rem)] overflow-y-auto">
+                <div class="p-4 max-h-[34rem] xl:max-h-none xl:flex-1 xl:min-h-0 overflow-y-auto">
                     @forelse($collabRoomBookings as $booking)
                     <div class="py-3 px-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer {{ $loop->last ? '' : 'border-b border-gray-200' }}"
                          @click="viewBooking({{ json_encode([
@@ -205,7 +205,7 @@
 
     <!-- View Booking Details Modal -->
     <div x-show="showViewModal" x-cloak class="modal p-4" :class="{ 'modal-open': showViewModal }" @keydown.escape.window="showViewModal = false">
-            <div class="modal-box w-11/12 max-w-lg p-0 bg-white rounded-2xl shadow-2xl transform transition-all" 
+            <div class="modal-box w-11/12 max-w-lg p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col transform transition-all" 
                  @click.stop
                  x-show="showViewModal"
                  x-transition:enter="ease-out duration-300"
@@ -233,7 +233,7 @@
                 </div>
 
                 <!-- Modal Body -->
-                <div class="p-6 space-y-4">
+                <div class="p-6 space-y-4 flex-1 min-h-0 overflow-y-auto">
                     <template x-if="selectedBooking">
                         <div class="space-y-4">
                             <!-- Title -->
@@ -329,7 +329,7 @@
 
     <!-- Day Events Modal (for +X more) -->
     <div x-show="showDayEventsModal" x-cloak class="modal p-4" :class="{ 'modal-open': showDayEventsModal }" @keydown.escape.window="showDayEventsModal = false">
-            <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-2xl shadow-2xl transform transition-all" 
+            <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col transform transition-all" 
                  @click.stop
                  x-show="showDayEventsModal"
                  x-transition:enter="ease-out duration-300"
@@ -357,7 +357,7 @@
                 </div>
 
                 <!-- Modal Body -->
-                <div class="p-4 max-h-96 overflow-y-auto">
+                <div class="p-4 flex-1 min-h-0 overflow-y-auto">
                     <div class="space-y-3">
                         <template x-for="event in selectedDay?.events || []" :key="event.id">
                             <div class="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 cursor-pointer transition-colors border border-gray-100"

@@ -82,7 +82,7 @@
 
             <!-- Sign Up Modal -->
             <div x-show="signupOpen" x-cloak class="modal p-4" :class="{ 'modal-open': signupOpen }" @keydown.escape.window="signupOpen = false">
-                <div class="modal-box w-11/12 max-w-xl p-0 bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden" @click.stop>
+                <div class="modal-box w-11/12 max-w-xl p-0 bg-white rounded-2xl border border-gray-200 shadow-xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
                     <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
                         <div>
                             <h3 class="text-lg font-bold text-gray-900">Create Account</h3>
@@ -92,7 +92,7 @@
                             Close
                         </button>
                     </div>
-                    <div class="p-6">
+                    <div class="p-6 flex-1 min-h-0 overflow-y-auto">
                         <form method="POST" action="{{ route('register.post') }}" class="space-y-3">
                             @csrf
                             <div>
@@ -129,7 +129,7 @@
                 <div class="modal-box w-11/12 max-w-xl p-0 bg-transparent border-0 shadow-none overflow-visible" @click.stop>
                     <div class="relative group">
                         <div aria-hidden="true" class="pointer-events-none absolute -inset-x-10 -bottom-10 h-16 bg-gradient-to-r from-indigo-500 via-purple-500 to-teal-500 blur-3xl opacity-40"></div>
-                        <div class="bg-gradient-to-b from-white to-slate-50 rounded-3xl border border-gray-200 shadow-2xl overflow-hidden">
+                        <div class="bg-gradient-to-b from-white to-slate-50 rounded-3xl border border-gray-200 shadow-2xl max-h-[88vh] overflow-hidden flex flex-col">
                             <div class="px-6 py-5 border-b border-gray-100 bg-white/60 flex items-center justify-between">
                                 <div>
                                     <h2 class="text-lg font-bold text-gray-900">Admin Login</h2>
@@ -140,7 +140,7 @@
                                 </button>
                             </div>
 
-                            <div class="p-6 space-y-4">
+                            <div class="p-6 space-y-4 flex-1 min-h-0 overflow-y-auto">
                                 <form method="POST" action="{{ route('admin.login') }}" class="space-y-3">
                                     @csrf
                                     <div>

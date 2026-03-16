@@ -173,7 +173,7 @@
 
     <!-- View Booking Modal -->
     <div x-show="showViewModal" x-cloak class="modal p-4" :class="{ 'modal-open': showViewModal }" @keydown.escape.window="closeViewModal()">
-            <div class="modal-box w-11/12 max-w-lg p-0 bg-white rounded-2xl shadow-2xl" @click.stop>
+            <div class="modal-box w-11/12 max-w-lg p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
                 <!-- Modal Header -->
                 <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 rounded-t-2xl">
                     <div class="flex items-center justify-between">
@@ -193,7 +193,7 @@
                 </div>
 
                 <!-- Modal Body -->
-                <div class="p-6">
+                <div class="p-6 flex-1 min-h-0 overflow-y-auto">
                     <!-- Status Badge -->
                     <div class="mb-4">
                         <span class="px-3 py-1 rounded-full text-xs font-semibold"

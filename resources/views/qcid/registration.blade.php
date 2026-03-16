@@ -300,7 +300,7 @@
          :class="{ 'modal-open': showConfidenceModal }"
          @keydown.escape.window="closeConfidenceModal()">
         <div class="modal-box w-11/12 max-w-md p-0 bg-transparent border-0 shadow-none overflow-visible" @click.stop>
-            <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
+            <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 max-h-[88vh] overflow-y-auto">
                 <div class="relative overflow-hidden rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 p-4">
                 <div class="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-indigo-200/50 blur-2xl"></div>
                 <div class="pointer-events-none absolute -left-10 -bottom-10 h-24 w-24 rounded-full bg-fuchsia-200/40 blur-2xl"></div>

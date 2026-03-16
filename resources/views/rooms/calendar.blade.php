@@ -10,10 +10,10 @@
 @endsection
 
 @section('content')
-<div x-data="calendarApp()" x-init="init()">
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+<div x-data="calendarApp()" x-init="init()" class="lg:h-[calc(100dvh-9rem)] lg:overflow-hidden">
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:h-full lg:min-h-0">
         <!-- Main Calendar -->
-        <div class="lg:col-span-3">
+        <div class="lg:col-span-3 lg:min-h-0 lg:flex lg:flex-col">
             <!-- Room Header -->
             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -32,7 +32,7 @@
             </div>
 
             <!-- Calendar -->
-            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
                 <!-- Calendar Header -->
                 <div class="flex items-center justify-between mb-6">
                     <div class="flex items-center gap-2">
@@ -67,13 +67,15 @@
                 </div>
 
                 <!-- FullCalendar Container -->
-                <div id="calendar" class="fc-custom"></div>
+                <div class="h-[68vh] lg:h-auto lg:flex-1 lg:min-h-0 overflow-auto">
+                    <div id="calendar" class="fc-custom h-full"></div>
+                </div>
             </div>
         </div>
 
         <!-- Rooms Sidebar -->
-        <div class="lg:col-span-1">
-            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 sticky top-24">
+        <div class="lg:col-span-1 lg:min-h-0">
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 lg:h-full lg:flex lg:flex-col lg:min-h-0">
                 <h2 class="text-lg font-semibold text-gray-900 mb-1">Rooms</h2>
                 <p class="text-sm text-gray-500 mb-4">Select a room</p>
                 
@@ -85,7 +87,7 @@
                 </div>
 
                 <!-- Room List -->
-                <div class="space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto">
+                <div class="space-y-2 max-h-[calc(100vh-300px)] lg:max-h-none lg:flex-1 lg:min-h-0 overflow-y-auto">
                     @foreach($rooms as $room)
                     <div class="room-item p-3 rounded-lg cursor-pointer transition-colors"
                          :class="selectedRoom?.id == {{ $room->id }} ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50 border border-transparent'"
@@ -354,7 +356,7 @@
 
     <!-- Booking Success Modal -->
     <div x-show="showSuccessModal" x-cloak class="modal p-4" :class="{ 'modal-open': showSuccessModal }" @keydown.escape.window="closeSuccessModal()">
-        <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-2xl shadow-2xl" @click.stop>
+        <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
                 <!-- <div class="bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-7 rounded-t-2xl text-center">
                     <div class="w-14 h-14 mx-auto bg-white/20 rounded-full flex items-center justify-center mb-3">
                         <i class="w-8 h-8 text-white fa-icon fa-solid fa-circle-check text-3xl leading-none"></i>
@@ -421,7 +423,7 @@
 </style>
 
 
-                <div class="p-6">
+                <div class="p-6 flex-1 min-h-0 overflow-y-auto">
                     <div class="bg-gray-50 rounded-xl p-4 mb-5">
                         <div class="grid grid-cols-2 gap-4 text-sm">
                             <div>
@@ -471,7 +473,7 @@
 
     <!-- Event Detail Modal -->
     <div x-show="showEventModal" x-cloak class="modal p-4" :class="{ 'modal-open': showEventModal }" @keydown.escape.window="closeEventModal()">
-        <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-2xl shadow-2xl" @click.stop>
+        <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
                 <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 rounded-t-2xl">
                     <div class="flex items-center justify-between">
                         <h2 class="text-lg font-bold text-white">Booking Details</h2>
@@ -480,7 +482,7 @@
                         </button>
                     </div>
                 </div>
-                <div class="p-6">
+                <div class="p-6 flex-1 min-h-0 overflow-y-auto">
                     <div class="space-y-4">
                         <div class="p-4 bg-gray-50 rounded-xl">
                             <p class="text-xs font-medium text-gray-500 mb-1">Purpose</p>

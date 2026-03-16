@@ -6,11 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\QcIdRegistration;
 use App\Models\Room;
-use App\Models\User;
 use App\Notifications\BookingApprovedNotification;
 use App\Services\QcIdOcrVerifier;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
 class BookingController extends Controller
@@ -314,10 +314,19 @@ class BookingController extends Controller
         $payload['qr_code_data'] = $qrDataUri;
         $payload['qr_code_url'] = $qrDataUri ?? $fresh->getAttribute('qr_code_url') ?? null;
 
-        if ($fresh->user) {
-            $fresh->user->notify(new BookingApprovedNotification($fresh));
-        } elseif (! empty($fresh->user_email)) {
-            Notification::route('mail', $fresh->user_email)->notify(new BookingApprovedNotification($fresh));
+        try {
+            if ($fresh->user) {
+                $fresh->user->notify(new BookingApprovedNotification($fresh));
+            } elseif (! empty($fresh->user_email)) {
+                Notification::route('mail', $fresh->user_email)->notify(new BookingApprovedNotification($fresh));
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Booking approval notification failed.', [
+                'booking_id' => $fresh->id,
+                'user_id' => $fresh->user?->id,
+                'user_email' => $fresh->user_email,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         return response()->json([

@@ -132,14 +132,23 @@
             aside.sidebar-collapsed .sidebar-link {
                 justify-content: center;
                 gap: 0;
-                padding-left: 0.75rem;
-                padding-right: 0.75rem;
+                padding-left: 0;
+                padding-right: 0;
             }
             aside.sidebar-collapsed .sidebar-link .fa-icon {
                 transform: scale(1.08);
+                margin-left: auto;
+                margin-right: auto;
             }
             aside.sidebar-collapsed .sidebar-header {
                 justify-content: center;
+                padding-left: 0;
+                padding-right: 0;
+            }
+            aside.sidebar-collapsed .sidebar-header > .flex {
+                width: 100%;
+                justify-content: center;
+                gap: 0;
             }
             aside:not(.sidebar-collapsed) .sidebar-link:hover .fa-icon {
                 transform: translateX(1px);
@@ -324,12 +333,16 @@
                     
                     <div class="flex items-center gap-4">
                         <!-- Notifications Dropdown -->
-                        <div x-data="{ notifOpen: false }" class="relative">
+                        <div x-data="{ notifOpen: false }"
+                             id="header-notification-root"
+                             data-user-id="{{ $currentUser?->id }}"
+                             data-unread-url="{{ route('notifications.unread') }}"
+                             data-approvals-url="{{ route('approvals.index') }}"
+                             class="relative">
                             <button @click="notifOpen = !notifOpen" class="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
                                 <i class="w-6 h-6 fa-icon fa-solid fa-bell text-2xl leading-none"></i>
-                                @if($headerNotificationCount > 0)
-                                <span class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs min-w-[18px] h-[18px] flex items-center justify-center rounded-full font-bold animate-pulse">{{ $headerNotificationCount }}</span>
-                                @endif
+                                <span data-role="header-notification-badge"
+                                      class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs min-w-[18px] h-[18px] flex items-center justify-center rounded-full font-bold animate-pulse {{ $headerNotificationCount > 0 ? '' : 'hidden' }}">{{ $headerNotificationCount }}</span>
                             </button>
                             <div x-show="notifOpen" @click.away="notifOpen = false" x-cloak
                                  x-transition:enter="transition ease-out duration-200"
@@ -342,48 +355,53 @@
                                 <div class="bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-3">
                                     <div class="flex items-center justify-between">
                                         <h3 class="text-white font-semibold">Notifications</h3>
-                                        @if($headerNotificationCount > 0)
-                                        <span class="bg-white/20 text-white text-xs px-2 py-1 rounded-full">{{ $headerNotificationCount }} unread</span>
-                                        @endif
+                                        <span data-role="header-unread-chip"
+                                              class="bg-white/20 text-white text-xs px-2 py-1 rounded-full {{ $headerNotificationCount > 0 ? '' : 'hidden' }}">{{ $headerNotificationCount }} unread</span>
                                     </div>
                                 </div>
 
                                 <div class="max-h-80 overflow-y-auto">
                                     @if($isStaff)
-                                        <div class="px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50 border-b border-gray-100">Pending Approvals</div>
-                                        @forelse($recentPendingApprovals as $notif)
-                                        <a href="{{ route('approvals.index') }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
-                                            <div class="flex items-start gap-3">
-                                                <div class="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
-                                                    <i class="w-5 h-5 text-amber-600 fa-icon fa-solid fa-clock text-xl leading-none"></i>
+                                        <div data-role="pending-approvals-section">
+                                            <div class="px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50 border-b border-gray-100">Pending Approvals</div>
+                                            <div data-role="pending-approvals-list">
+                                                @forelse($recentPendingApprovals as $notif)
+                                                <a href="{{ route('approvals.index') }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
+                                                    <div class="flex items-start gap-3">
+                                                        <div class="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
+                                                            <i class="w-5 h-5 text-amber-600 fa-icon fa-solid fa-clock text-xl leading-none"></i>
+                                                        </div>
+                                                        <div class="flex-1 min-w-0">
+                                                            <p class="text-sm font-medium text-gray-900 truncate">{{ $notif->room->name ?? 'Room' }}</p>
+                                                            <p class="text-xs text-gray-500">{{ $notif->user_name }} requested booking</p>
+                                                            <p class="text-xs text-gray-400 mt-1">{{ $notif->created_at->diffForHumans() }}</p>
+                                                        </div>
+                                                    </div>
+                                                </a>
+                                                @empty
+                                                <div class="px-4 py-3 border-b border-gray-100">
+                                                    <p class="text-sm text-gray-500">No pending approvals right now.</p>
                                                 </div>
-                                                <div class="flex-1 min-w-0">
-                                                    <p class="text-sm font-medium text-gray-900 truncate">{{ $notif->room->name ?? 'Room' }}</p>
-                                                    <p class="text-xs text-gray-500">{{ $notif->user_name }} requested booking</p>
-                                                    <p class="text-xs text-gray-400 mt-1">{{ $notif->created_at->diffForHumans() }}</p>
-                                                </div>
+                                                @endforelse
                                             </div>
-                                        </a>
-                                        @empty
-                                        <div class="px-4 py-3 border-b border-gray-100">
-                                            <p class="text-sm text-gray-500">No pending approvals right now.</p>
                                         </div>
-                                        @endforelse
                                     @endif
 
                                     <div class="px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50 border-b border-gray-100">Your Unread</div>
-                                    @forelse($userUnreadNotifications as $notification)
-                                    <a href="{{ $notification->data['url'] ?? '#' }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
-                                        <p class="text-sm font-medium text-gray-900">{{ $notification->data['title'] ?? 'Notification' }}</p>
-                                        <p class="text-xs text-gray-600 mt-1">{{ $notification->data['message'] ?? '' }}</p>
-                                        <p class="text-xs text-gray-400 mt-1">{{ $notification->created_at->diffForHumans() }}</p>
-                                    </a>
-                                    @empty
-                                    <div class="px-4 py-8 text-center">
-                                        <i class="w-12 h-12 text-gray-300 mx-auto mb-2 fa-icon fa-solid fa-inbox text-5xl leading-none"></i>
-                                        <p class="text-sm text-gray-500">No unread notifications</p>
+                                    <div data-role="user-unread-list">
+                                        @forelse($userUnreadNotifications as $notification)
+                                        <a href="{{ $notification->data['url'] ?? '#' }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
+                                            <p class="text-sm font-medium text-gray-900">{{ $notification->data['title'] ?? 'Notification' }}</p>
+                                            <p class="text-xs text-gray-600 mt-1">{{ $notification->data['message'] ?? '' }}</p>
+                                            <p class="text-xs text-gray-400 mt-1">{{ $notification->created_at->diffForHumans() }}</p>
+                                        </a>
+                                        @empty
+                                        <div class="px-4 py-8 text-center">
+                                            <i class="w-12 h-12 text-gray-300 mx-auto mb-2 fa-icon fa-solid fa-inbox text-5xl leading-none"></i>
+                                            <p class="text-sm text-gray-500">No unread notifications</p>
+                                        </div>
+                                        @endforelse
                                     </div>
-                                    @endforelse
                                 </div>
 
                                 <div class="bg-gray-50 px-4 py-3 flex items-center justify-between gap-2">
@@ -393,12 +411,12 @@
                                     <span class="text-sm text-gray-500">Up to date</span>
                                     @endif
 
-                                    @if($userUnreadCount > 0)
-                                    <form method="POST" action="{{ route('notifications.mark-all-read') }}">
-                                        @csrf
-                                        <button type="submit" class="text-sm font-medium text-indigo-600 hover:text-indigo-700">Mark all as read</button>
-                                    </form>
-                                    @endif
+                                    <div data-role="mark-all-read-container" class="{{ $userUnreadCount > 0 ? '' : 'hidden' }}">
+                                        <form method="POST" action="{{ route('notifications.mark-all-read') }}" data-role="mark-all-read-form">
+                                            @csrf
+                                            <button type="submit" class="text-sm font-medium text-indigo-600 hover:text-indigo-700">Mark all as read</button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -452,14 +470,14 @@
                                 <div class="modal-box w-11/12 max-w-md p-0 bg-transparent border-0 shadow-none overflow-visible" @click.stop>
                                     <div class="relative group">
                                         <div aria-hidden="true" class="pointer-events-none absolute -inset-x-10 -bottom-10 h-16 bg-gradient-to-r from-indigo-500 via-purple-500 to-teal-500 blur-3xl opacity-30"></div>
-                                        <div class="bg-gradient-to-b from-white to-slate-50 rounded-3xl border border-gray-200 shadow-2xl overflow-hidden">
+                                        <div class="bg-gradient-to-b from-white to-slate-50 rounded-3xl border border-gray-200 shadow-2xl max-h-[88vh] overflow-hidden flex flex-col">
                                     <div class="px-6 py-5 border-b border-gray-100 bg-white/60 flex items-center justify-between">
                                         <div>
                                             <h3 class="text-lg font-bold text-gray-900">Logout</h3>
                                             <p class="text-sm text-gray-500 mt-1">Are you sure you want to logout?</p>
                                         </div>
                                     </div>
-                                    <div class="p-6 flex items-center justify-end gap-3">
+                                    <div class="p-6 flex items-center justify-end gap-3 flex-1 min-h-0 overflow-y-auto">
                                         <button type="button" @click="logoutOpen = false" class="px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-sm font-semibold text-gray-800 transition-colors">
                                             Cancel
                                         </button>
