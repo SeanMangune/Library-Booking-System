@@ -3,13 +3,9 @@
 @section('title', 'QC ID Registration')
 
 @section('breadcrumb')
-    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-    </svg>
+    <i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
     <a href="{{ route('dashboard') }}" class="text-gray-500 hover:text-gray-700">Dashboard</a>
-    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-    </svg>
+    <i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
     <span class="text-gray-700 font-medium">QC ID Registration</span>
 @endsection
 
@@ -84,9 +80,7 @@
                                 <div class="rounded-2xl border-2 border-dashed border-indigo-200 bg-white p-5">
                                     <label for="qcid_image" class="flex cursor-pointer flex-col items-center justify-center text-center">
                                         <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600">
-                                            <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                                            </svg>
+                                            <i class="h-8 w-8 fa-icon fa-solid fa-cloud-arrow-up text-3xl leading-none"></i>
                                         </div>
                                         <p class="mt-4 text-sm font-semibold text-gray-900">Drop your QC ID image here or click to browse</p>
                                         <p class="mt-1 text-xs text-gray-500">Accepted: JPG, PNG, WEBP up to 25 MB</p>
@@ -159,9 +153,7 @@
                                     <p class="text-sm text-gray-600">Confirm the captured details and add any missing information before submission.</p>
                                 </div>
                                 <div class="hidden sm:flex items-center gap-2 rounded-xl bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                    </svg>
+                                    <i class="w-4 h-4 fa-icon fa-solid fa-circle-check text-base leading-none"></i>
                                     Review before submit
                                 </div>
                             </div>
@@ -226,9 +218,7 @@
                             <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-gray-100 pt-5">
                                 <p class="text-sm text-gray-500">Submitting will set your QC ID registration status to pending review.</p>
                                 <button type="submit" :disabled="!verification?.is_valid || isProcessing" class="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/25 transition-all hover:from-indigo-700 hover:to-violet-700 disabled:cursor-not-allowed disabled:opacity-60">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                    </svg>
+                                    <i class="w-4 h-4 fa-icon fa-solid fa-check text-base leading-none"></i>
                                     Submit QC ID registration
                                 </button>
                             </div>
@@ -306,11 +296,12 @@
 
     <div x-show="showConfidenceModal"
          x-cloak
-         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4"
-         @keydown.escape.window="closeConfidenceModal()"
-         @click.self="closeConfidenceModal()">
-        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
-            <div class="relative overflow-hidden rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 p-4">
+         class="modal p-4"
+         :class="{ 'modal-open': showConfidenceModal }"
+         @keydown.escape.window="closeConfidenceModal()">
+        <div class="modal-box w-11/12 max-w-md p-0 bg-transparent border-0 shadow-none overflow-visible" @click.stop>
+            <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
+                <div class="relative overflow-hidden rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 p-4">
                 <div class="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-indigo-200/50 blur-2xl"></div>
                 <div class="pointer-events-none absolute -left-10 -bottom-10 h-24 w-24 rounded-full bg-fuchsia-200/40 blur-2xl"></div>
                 <div class="relative flex items-start justify-between gap-4">
@@ -336,6 +327,8 @@
                 <button type="button" @click="closeConfidenceModal()" class="inline-flex items-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Got it</button>
             </div>
         </div>
+        </div>
+        <button type="button" class="modal-backdrop fixed inset-0 bg-black/40" @click="closeConfidenceModal()">close</button>
     </div>
 </div>
 

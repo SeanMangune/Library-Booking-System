@@ -94,9 +94,12 @@ return [
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            'schema' => 'laravel',
-            'search_path' => 'public,laravel',
-            'sslmode' => 'prefer',
+            'schema' => env('DB_SCHEMA', 'laravel'),
+            'search_path' => env('DB_SEARCH_PATH', 'public,laravel'),
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+            'options' => extension_loaded('pdo_pgsql') ? array_filter([
+                PDO::ATTR_EMULATE_PREPARES => env('PGSQL_ATTR_EMULATE_PREPARES', true),
+            ]) : [],
         ],
 
         'sqlsrv' => [

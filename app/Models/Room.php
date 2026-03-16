@@ -95,10 +95,7 @@ class Room extends Model
 
     public function requiresCapacityPermissionFor(int $attendees, ?User $user = null): bool
     {
-        if ($user?->isStaff()) {
-            return false;
-        }
-
+        // Collaborative-room requests above the base 10 always require librarian approval.
         return $this->isCollaborative() && $attendees > $this->standardBookingCapacityLimit();
     }
 

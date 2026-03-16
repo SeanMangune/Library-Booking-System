@@ -12,29 +12,27 @@ class RoomDashboardController extends Controller
 {
     public function index(Request $request)
     {
-        // Today's reservations
-        $todayReservations = Booking::with('room')
-            ->whereDate('date', today())
-            ->where('status', 'approved')
-            ->orderBy('start_time')
-            ->get();
+        $today = today();
+        $twoWeeksAhead = today()->copy()->addDays(14);
 
-        // Upcoming reservations (next 7 days)
-        $upcomingReservations = Booking::with('room')
-            ->whereDate('date', '>', today())
-            ->whereDate('date', '<=', now()->addDays(7))
+        // Collaborative-room bookings from today to the next two weeks.
+        $collabRoomBookings = Booking::with('room')
             ->where('status', 'approved')
+            ->whereBetween('date', [$today, $twoWeeksAhead])
             ->orderBy('date')
             ->orderBy('start_time')
-            ->limit(10)
-            ->get();
+            ->get()
+            ->filter(function ($booking) {
+                return $booking->room?->isCollaborative();
+            })
+            ->values();
 
         // Stats
         $stats = [
             'pending' => Booking::where('status', 'pending')->count(),
             'approved' => Booking::where('status', 'approved')->count(),
             'rejected' => Booking::where('status', 'rejected')->count(),
-            'today' => $todayReservations->count(),
+            'today' => Booking::whereDate('date', $today)->where('status', 'approved')->count(),
         ];
 
         $rooms = Room::operational()->orderBy('name')->get();
@@ -45,8 +43,7 @@ class RoomDashboardController extends Controller
         $calendarData = $this->getCalendarData($month, $year);
 
         return view('rooms.dashboard', compact(
-            'todayReservations',
-            'upcomingReservations',
+            'collabRoomBookings',
             'stats',
             'rooms',
             'calendarData',

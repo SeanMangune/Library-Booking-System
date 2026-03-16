@@ -9,10 +9,7 @@
         <div class="verify-header">
     <div class="verify-left">
         <div class="verify-icon-box">
-            <svg class="verify-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
+            <i class="verify-icon fa-icon fa-solid fa-circle-check text-[1.25rem] leading-none"></i>
         </div>
 
         <div>
@@ -183,7 +180,7 @@
     @else
     <div class="max-w-xl mx-auto text-center py-20">
         <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-50 mb-6">
-            <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            <i class="w-8 h-8 text-red-600 fa-icon fa-solid fa-xmark text-3xl leading-none"></i>
         </div>
         <h2 class="text-2xl font-semibold">Invalid or expired token</h2>
         <p class="text-gray-500 mt-2">We couldn't find a booking for token <code>{{ $token }}</code>. The link may be incorrect or expired.</p>
