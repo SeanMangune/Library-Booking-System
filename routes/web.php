@@ -9,7 +9,6 @@ use App\Http\Controllers\Rooms\RoomDashboardController;
 use App\Http\Controllers\Rooms\RoomController;
 use App\Http\Controllers\Rooms\BookingController;
 use App\Http\Controllers\Rooms\CalendarController;
-use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
@@ -57,14 +56,12 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/calendar-data', [CalendarController::class, 'monthData'])->name('calendar.data');
 
-    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
-
     // QR image endpoint (used by frontend)
     Route::get('/bookings/qr/{token}', [BookingController::class, 'qrImage'])->name('bookings.qr');
 });
 
 // Admin-only access (keeps the existing system behavior)
-Route::middleware(['auth', 'role:admin,librarian'])->group(function () {
+Route::middleware(['auth', 'role:admin'])->group(function () {
     // Settings
     Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::put('/settings/preferences', [SettingsController::class, 'updatePreferences'])->name('settings.preferences.update');
@@ -105,10 +102,6 @@ Route::middleware(['auth', 'role:admin,librarian'])->group(function () {
     // Legacy routes for backward compatibility
     Route::post('/bookings/{booking}/approve', [BookingController::class, 'approve'])->name('bookings.approve');
     Route::post('/bookings/{booking}/reject', [BookingController::class, 'reject'])->name('bookings.reject');
-
-    Route::middleware('role:admin')->group(function () {
-        Route::post('/settings/staff', [SettingsController::class, 'storeStaff'])->name('settings.staff.store');
-    });
 });
 
 Route::get('/dashboard', function () {

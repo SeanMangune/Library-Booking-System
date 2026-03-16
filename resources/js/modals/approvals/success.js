@@ -57,7 +57,7 @@ export function createApprovalSuccessModalState() {
                 }
             } catch (error) {
                 console.error('Download failed', error);
-                alert('Failed to save QR image');
+                window.notifyApp?.('error', 'Failed to save QR image');
             } finally {
                 this.isDownloading = false;
             }

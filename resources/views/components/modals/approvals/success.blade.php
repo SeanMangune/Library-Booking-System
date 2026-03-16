@@ -11,9 +11,7 @@
 
         <div class="success-header">
             <div class="icon-circle">
-                <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
+                <i class="check-icon fa-icon fa-solid fa-circle-check text-[2.5rem] leading-none"></i>
             </div>
 
             <h2 class="success-title">Booking Approved!</h2>
@@ -91,9 +89,7 @@
                     <template x-if="!approvedBooking?.qr_code_url || qrImageFailed">
                         <div class="w-48 h-48 flex items-center justify-center bg-gray-100 rounded-lg">
                             <div class="text-center">
-                                <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
-                                </svg>
+                                <i class="w-12 h-12 text-gray-400 mx-auto mb-2 fa-icon fa-solid fa-qrcode text-5xl leading-none"></i>
                                 <p class="text-sm text-gray-500">QR Code</p>
                                 <p class="text-xs text-gray-400">Not available</p>
                             </div>
@@ -112,18 +108,13 @@
                     <button @click="downloadQr(approvedBooking.qr_code_url, `booking-${approvedBooking.qr_token}.png`)"
                             :disabled="isDownloading"
                             class="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all flex items-center gap-2 disabled:opacity-50">
-                        <svg x-show="!isDownloading" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                        </svg>
-                        <svg x-show="isDownloading" class="animate-spin w-5 h-5" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                        </svg>
+                        <i x-show="!isDownloading" class="w-5 h-5 fa-icon fa-solid fa-arrow-up-from-bracket text-xl leading-none"></i>
+                        <i x-show="isDownloading" class="animate-spin w-5 h-5 fa-icon fa-solid fa-spinner text-xl leading-none"></i>
                         <span x-text="isDownloading ? 'Saving...' : 'Download'"></span>
                     </button>
                 </template>
             </div>
         </div>
     </div>
-    <div class="modal-backdrop bg-black/30 backdrop-blur-sm transition-opacity"></div>
+    <div class="modal-backdrop fixed inset-0 bg-black/40 transition-opacity"></div>
 </div>

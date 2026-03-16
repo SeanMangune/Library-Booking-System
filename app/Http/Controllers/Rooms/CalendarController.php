@@ -23,7 +23,7 @@ class CalendarController extends Controller
     {
         try {
             $query = Booking::with('room')
-                ->whereIn('status', ['approved', 'pending']);
+                ->where('status', 'approved');
 
             if ($request->filled('room_id')) {
                 $query->where('room_id', $request->room_id);
@@ -70,7 +70,7 @@ class CalendarController extends Controller
                         'date' => $date->format('M d, Y'),
 
                         'booking_code' => $booking->booking_code ?? null,
-                        'qr_code_url' => $booking->getAttribute('qr_code_url') ?? null,
+                        'qr_code_url' => $booking->qr_code_url ?? null,
                     ],
                 ];
             }));
@@ -93,6 +93,7 @@ class CalendarController extends Controller
             $date = $request->get('date', today()->format('Y-m-d'));
 
             $query = Booking::with('room')
+                ->where('status', 'approved')
                 ->whereDate('date', $date);
 
             if ($request->filled('room_id')) {
@@ -119,7 +120,7 @@ class CalendarController extends Controller
                         'status' => $booking->status,
 
                         'booking_code' => $booking->booking_code ?? null,
-                        'qr_code_url' => $booking->getAttribute('qr_code_url') ?? null,
+                        'qr_code_url' => $booking->qr_code_url ?? null,
                     ];
                 }),
             ]);
@@ -145,6 +146,7 @@ class CalendarController extends Controller
             $endOfMonth = Carbon::createFromDate($year, $month, 1)->endOfMonth();
 
             $query = Booking::with('room')
+                ->where('status', 'approved')
                 ->whereBetween('date', [$startOfMonth, $endOfMonth]);
 
             if ($request->filled('room_id')) {
@@ -172,7 +174,7 @@ class CalendarController extends Controller
                         'attendees' => $booking->attendees,
 
                         'booking_code' => $booking->booking_code ?? null,
-                        'qr_code_url' => $booking->getAttribute('qr_code_url') ?? null,
+                        'qr_code_url' => $booking->qr_code_url ?? null,
                     ];
                 })->values();
             });

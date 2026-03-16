@@ -57,11 +57,11 @@ export function createApprovalDetailsModalState() {
                     this.showModal = false;
                     this.showSuccessModal = true;
                 } else {
-                    alert(data.message || 'Failed to approve booking');
+                    window.notifyApp?.('error', data.message || 'Failed to approve booking');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('An error occurred');
+                window.notifyApp?.('error', 'An error occurred');
             } finally {
                 this.isLoading = false;
                 this.actionType = null;
@@ -91,11 +91,11 @@ export function createApprovalDetailsModalState() {
                     this.showModal = false;
                     this.showRejectModal = true;
                 } else {
-                    alert(data.message || 'Failed to reject booking');
+                    window.notifyApp?.('error', data.message || 'Failed to reject booking');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('An error occurred');
+                window.notifyApp?.('error', 'An error occurred');
             } finally {
                 this.isLoading = false;
                 this.actionType = null;
