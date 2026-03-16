@@ -77,8 +77,8 @@ Route::middleware(['auth', 'verified.user'])->group(function () {
     Route::get('/bookings/qr/{token}', [BookingController::class, 'qrImage'])->name('bookings.qr');
 });
 
-// Admin-only access (keeps the existing system behavior)
-Route::middleware(['auth', 'role:admin'])->group(function () {
+// Admin and librarian access (keeps the existing system behavior)
+Route::middleware(['auth', 'role:admin,librarian'])->group(function () {
     // Settings
     Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::put('/settings/preferences', [SettingsController::class, 'updatePreferences'])->name('settings.preferences.update');
@@ -119,6 +119,10 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     // Legacy routes for backward compatibility
     Route::post('/bookings/{booking}/approve', [BookingController::class, 'approve'])->name('bookings.approve');
     Route::post('/bookings/{booking}/reject', [BookingController::class, 'reject'])->name('bookings.reject');
+
+    Route::middleware('role:admin')->group(function () {
+        Route::post('/settings/staff', [SettingsController::class, 'storeStaff'])->name('settings.staff.store');
+    });
 });
 
 Route::get('/dashboard', function () {
