@@ -32,6 +32,18 @@ class DatabaseSeeder extends Seeder
             );
         }
 
+        // Temporary bootstrap staff account for creating librarian/admin users in Settings.
+        User::updateOrCreate(
+            ['username' => 'superadmin'],
+            [
+                'name' => 'Super Admin',
+                'email' => 'superadmin@smartspace.local',
+                'password' => Hash::make('admin123'),
+                'role' => User::ROLE_ADMIN,
+                'email_verified_at' => now(),
+            ]
+        );
+
         User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',

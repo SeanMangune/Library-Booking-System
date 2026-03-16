@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\QcIdRegistrationController;
 use App\Http\Controllers\QcIdVerificationController;
@@ -24,17 +25,33 @@ Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.post');
     Route::post('/register', [AuthController::class, 'register'])->name('register.post');
-
-    Route::get('/auth/google/redirect', [AuthController::class, 'googleRedirect'])->name('google.redirect');
-    Route::get('/auth/google/callback', [AuthController::class, 'googleCallback'])->name('google.callback');
+    Route::post('/signup/qc-id/verify', QcIdVerificationController::class)->name('signup.qcid.verify');
 
     Route::post('/admin/login', [AuthController::class, 'adminLogin'])->name('admin.login');
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
-// Dashboard (user + admin)
 Route::middleware('auth')->group(function () {
+    Route::get('/email/verify', function () {
+        return view('auth.verify-email');
+    })->name('verification.notice');
+
+    Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
+        $request->fulfill();
+
+        return redirect()->route('dashboard')->with('status', 'Email address verified successfully.');
+    })->middleware('signed')->name('verification.verify');
+
+    Route::post('/email/verification-notification', function () {
+        request()->user()->sendEmailVerificationNotification();
+
+        return back()->with('status', 'A fresh verification link has been sent to your email address.');
+    })->middleware('throttle:6,1')->name('verification.send');
+});
+
+// Dashboard (user + admin)
+Route::middleware(['auth', 'verified.user'])->group(function () {
     Route::get('/rooms', [RoomDashboardController::class, 'index'])->name('dashboard');
     Route::get('/notifications/unread', [NotificationController::class, 'unread'])->name('notifications.unread');
     Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
@@ -64,8 +81,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/bookings/qr/{token}', [BookingController::class, 'qrImage'])->name('bookings.qr');
 });
 
-// Admin-only access (keeps the existing system behavior)
-Route::middleware(['auth', 'role:admin'])->group(function () {
+// Admin and librarian access (keeps the existing system behavior)
+Route::middleware(['auth', 'role:admin,librarian'])->group(function () {
     // Settings
     Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::put('/settings/preferences', [SettingsController::class, 'updatePreferences'])->name('settings.preferences.update');
@@ -106,6 +123,10 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     // Legacy routes for backward compatibility
     Route::post('/bookings/{booking}/approve', [BookingController::class, 'approve'])->name('bookings.approve');
     Route::post('/bookings/{booking}/reject', [BookingController::class, 'reject'])->name('bookings.reject');
+
+    Route::middleware('role:admin')->group(function () {
+        Route::post('/settings/staff', [SettingsController::class, 'storeStaff'])->name('settings.staff.store');
+    });
 });
 
 Route::get('/dashboard', function () {

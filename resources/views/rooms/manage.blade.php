@@ -1,11 +1,15 @@
 @extends('layouts.app')
 
-@section('title', 'Manage Rooms | SmartSpace')
+@section('title', 'Manage Rooms - SmartSpace')
 
 @section('breadcrumb')
-<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
+<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+</svg>
 <span class="text-gray-500">Rooms</span>
-<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
+<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+</svg>
 <span class="text-gray-700 font-medium">Manage</span>
 @endsection
 
@@ -55,11 +59,15 @@
                 <div class="relative">
                     <input type="text" x-model="searchQuery" @input="searchRooms()" placeholder="Search..."
                            class="w-48 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
-                    <i class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 fa-icon fa-solid fa-magnifying-glass text-base leading-none"></i>
+                    <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
                 </div>
                 <button @click="openAddModal()"
                         class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors">
-                    <i class="w-4 h-4 fa-icon fa-solid fa-plus text-base leading-none"></i>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
                     Add New Room
                 </button>
             </div>
@@ -104,11 +112,15 @@
                             <div class="flex items-center gap-2">
                                 <button @click='openEditModal(@json($room))'
                                         class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                                    <i class="w-4 h-4 fa-icon fa-solid fa-pen-to-square text-base leading-none"></i>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                    </svg>
                                 </button>
                                 <button @click='openDeleteModal(@json($room))'
                                         class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                                    <i class="w-4 h-4 fa-icon fa-solid fa-trash-can text-base leading-none"></i>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
                                 </button>
                             </div>
                         </td>
@@ -116,7 +128,9 @@
                     @empty
                     <tr>
                         <td colspan="5" class="px-6 py-12 text-center">
-                            <i class="w-12 h-12 text-gray-300 mx-auto mb-3 fa-icon fa-solid fa-building text-5xl leading-none"></i>
+                            <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                            </svg>
                             <p class="text-sm text-gray-500">No rooms found</p>
                         </td>
                     </tr>
@@ -134,7 +148,9 @@
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                <i class="w-5 h-5 text-white fa-icon fa-solid fa-building text-xl leading-none"></i>
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                </svg>
                             </div>
                             <div>
                                 <h2 class="text-lg font-bold text-white" x-text="isEditing ? 'Edit Room' : 'Add New Room'"></h2>
@@ -142,7 +158,9 @@
                             </div>
                         </div>
                         <button @click="closeModal()" class="text-white/80 hover:text-white">
-                            <i class="w-6 h-6 fa-icon fa-solid fa-xmark text-2xl leading-none"></i>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
                         </button>
                     </div>
                 </div>
@@ -162,7 +180,9 @@
                             </label>
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                    <i class="w-4 h-4 fa-icon fa-solid fa-tag text-base leading-none"></i>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                                    </svg>
                                 </span>
                                 <input type="text" x-model="roomForm.name" required
                                        placeholder="e.g., Conference Room A"
@@ -175,7 +195,9 @@
                             </label>
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                    <i class="w-4 h-4 fa-icon fa-solid fa-users text-base leading-none"></i>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                    </svg>
                                 </span>
                                 <input type="number" x-model="roomForm.capacity" min="1" required
                                        class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm">
@@ -187,7 +209,10 @@
                             </label>
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                    <i class="w-4 h-4 fa-icon fa-solid fa-location-dot text-base leading-none"></i>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    </svg>
                                 </span>
                                 <input type="text" x-model="roomForm.location"
                                        placeholder="e.g., 2nd Floor, Building A"
@@ -217,7 +242,9 @@
                             </label>
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                    <i class="w-4 h-4 fa-icon fa-solid fa-circle-check text-base leading-none"></i>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
                                 </span>
                                 <select x-model="roomForm.status" required
                                         class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm appearance-none bg-white">
@@ -232,7 +259,9 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Start Date/Time</label>
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                    <i class="w-4 h-4 fa-icon fa-solid fa-calendar-days text-base leading-none"></i>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                    </svg>
                                 </span>
                                 <input type="datetime-local" x-model="roomForm.status_start_at"
                                        class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm bg-gray-50">
@@ -242,7 +271,9 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">End Date/Time</label>
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                    <i class="w-4 h-4 fa-icon fa-solid fa-calendar-days text-base leading-none"></i>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                    </svg>
                                 </span>
                                 <input type="datetime-local" x-model="roomForm.status_end_at"
                                        class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm bg-gray-50">
@@ -255,22 +286,29 @@
                         <button type="button" @click="closeModal()"
                                 class="px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
                             <span class="flex items-center gap-2">
-                                <i class="w-4 h-4 fa-icon fa-solid fa-xmark text-base leading-none"></i>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
                                 Cancel
                             </span>
                         </button>
                         <button type="submit" :disabled="isSubmitting"
                                 class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50">
                             <span class="flex items-center gap-2">
-                                <i x-show="!isSubmitting" class="w-4 h-4 fa-icon fa-solid fa-floppy-disk text-base leading-none"></i>
-                                <i x-show="isSubmitting" class="animate-spin w-4 h-4 fa-icon fa-solid fa-spinner text-base leading-none"></i>
+                                <svg x-show="!isSubmitting" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                                </svg>
+                                <svg x-show="isSubmitting" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
                                 <span x-text="isSubmitting ? 'Saving...' : (isEditing ? 'Update Room' : 'Add Room')"></span>
                             </span>
                         </button>
                     </div>
                 </form>
             </div>
-            <button type="button" class="modal-backdrop fixed inset-0 bg-black/40" @click="closeModal()">close</button>
+        </div>
     </div>
 
     <!-- Delete Confirmation Modal -->
@@ -281,7 +319,9 @@
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                <i class="w-5 h-5 text-white fa-icon fa-solid fa-trash-can text-xl leading-none"></i>
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
                             </div>
                             <div>
                                 <h2 class="text-lg font-bold text-white">Delete Room</h2>
@@ -289,7 +329,9 @@
                             </div>
                         </div>
                         <button @click="closeDeleteModal()" class="text-white/80 hover:text-white">
-                            <i class="w-6 h-6 fa-icon fa-solid fa-xmark text-2xl leading-none"></i>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
                         </button>
                     </div>
                 </div>
@@ -299,28 +341,36 @@
                     <div class="grid grid-cols-2 gap-4 mb-6">
                         <div class="p-4 bg-green-50 rounded-xl">
                             <div class="flex items-center gap-2 text-green-600 text-xs font-medium mb-1">
-                                <i class="w-4 h-4 fa-icon fa-solid fa-circle-check text-base leading-none"></i>
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                </svg>
                                 STATUS
                             </div>
                             <p class="text-gray-900 font-semibold" x-text="deleteRoom?.status ? deleteRoom.status.charAt(0).toUpperCase() + deleteRoom.status.slice(1) : ''"></p>
                         </div>
                         <div class="p-4 bg-blue-50 rounded-xl">
                             <div class="flex items-center gap-2 text-blue-600 text-xs font-medium mb-1">
-                                <i class="w-4 h-4 fa-icon fa-solid fa-building text-base leading-none"></i>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                </svg>
                                 ROOM NAME
                             </div>
                             <p class="text-gray-900 font-semibold" x-text="deleteRoom?.name"></p>
                         </div>
                         <div class="p-4 bg-gray-50 rounded-xl">
                             <div class="flex items-center gap-2 text-gray-600 text-xs font-medium mb-1">
-                                <i class="w-4 h-4 fa-icon fa-solid fa-location-dot text-base leading-none"></i>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                </svg>
                                 LOCATION
                             </div>
                             <p class="text-gray-900 font-semibold" x-text="deleteRoom?.location || '-'"></p>
                         </div>
                         <div class="p-4 bg-gray-50 rounded-xl">
                             <div class="flex items-center gap-2 text-gray-600 text-xs font-medium mb-1">
-                                <i class="w-4 h-4 fa-icon fa-solid fa-users text-base leading-none"></i>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                </svg>
                                 CAPACITY
                             </div>
                             <p class="text-gray-900 font-semibold" x-text="deleteRoom?.capacity"></p>
@@ -331,22 +381,29 @@
                         <button @click="closeDeleteModal()"
                                 class="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors">
                             <span class="flex items-center justify-center gap-2">
-                                <i class="w-4 h-4 fa-icon fa-solid fa-xmark text-base leading-none"></i>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
                                 No, Keep Room
                             </span>
                         </button>
                         <button @click="confirmDelete()" :disabled="isDeleting"
                                 class="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50">
                             <span class="flex items-center justify-center gap-2">
-                                <i x-show="!isDeleting" class="w-4 h-4 fa-icon fa-solid fa-trash-can text-base leading-none"></i>
-                                <i x-show="isDeleting" class="animate-spin w-4 h-4 fa-icon fa-solid fa-spinner text-base leading-none"></i>
+                                <svg x-show="!isDeleting" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                                <svg x-show="isDeleting" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
                                 <span x-text="isDeleting ? 'Deleting...' : 'Yes, Delete Room'"></span>
                             </span>
                         </button>
                     </div>
                 </div>
             </div>
-            <button type="button" class="modal-backdrop fixed inset-0 bg-black/40" @click="closeDeleteModal()">close</button>
+        </div>
     </div>
 </div>
 
@@ -445,17 +502,15 @@ function roomManagement() {
                 const data = await response.json();
                 
                 if (data.success) {
-                    window.notifyApp?.('success', data.message || 'Room saved successfully.');
+                    alert(data.message);
                     this.closeModal();
-                    window.setTimeout(() => {
-                        window.location.reload();
-                    }, 850);
+                    window.location.reload();
                 } else {
-                    window.notifyApp?.('error', data.message || 'An error occurred');
+                    alert(data.message || 'An error occurred');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                window.notifyApp?.('error', 'An error occurred while saving the room');
+                alert('An error occurred while saving the room');
             } finally {
                 this.isSubmitting = false;
             }
@@ -477,17 +532,15 @@ function roomManagement() {
                 const data = await response.json();
                 
                 if (data.success) {
-                    window.notifyApp?.('success', data.message || 'Room deleted successfully.');
+                    alert(data.message);
                     this.closeDeleteModal();
-                    window.setTimeout(() => {
-                        window.location.reload();
-                    }, 850);
+                    window.location.reload();
                 } else {
-                    window.notifyApp?.('error', data.message || 'Cannot delete room');
+                    alert(data.message || 'Cannot delete room');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                window.notifyApp?.('error', 'An error occurred while deleting the room');
+                alert('An error occurred while deleting the room');
             } finally {
                 this.isDeleting = false;
             }

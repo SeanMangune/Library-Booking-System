@@ -15,6 +15,20 @@ class RoomDashboardController extends Controller
         $today = today();
         $twoWeeksAhead = today()->copy()->addDays(14);
 
+        $todayReservations = Booking::with('room')
+            ->where('status', 'approved')
+            ->whereDate('date', $today)
+            ->orderBy('start_time')
+            ->get();
+
+        $upcomingReservations = Booking::with('room')
+            ->where('status', 'approved')
+            ->whereDate('date', '>', $today)
+            ->orderBy('date')
+            ->orderBy('start_time')
+            ->limit(30)
+            ->get();
+
         // Collaborative-room bookings from today to the next two weeks.
         $collabRoomBookings = Booking::with('room')
             ->where('status', 'approved')
@@ -43,6 +57,8 @@ class RoomDashboardController extends Controller
         $calendarData = $this->getCalendarData($month, $year);
 
         return view('rooms.dashboard', compact(
+            'todayReservations',
+            'upcomingReservations',
             'collabRoomBookings',
             'stats',
             'rooms',

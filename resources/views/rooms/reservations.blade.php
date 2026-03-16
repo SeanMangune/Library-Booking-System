@@ -1,11 +1,15 @@
 @extends('layouts.app')
 
-@section('title', 'Reservations | SmartSpace')
+@section('title', 'Reservations - SmartSpace')
 
 @section('breadcrumb')
-<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
+<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+</svg>
 <span class="text-gray-500">Rooms</span>
-<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
+<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+</svg>
 <span class="text-gray-700 font-medium">Room Reservations</span>
 @endsection
 
@@ -59,7 +63,9 @@
                 <div class="relative">
                     <input type="text" name="search" value="{{ request('search') }}" placeholder="Search reservations..."
                            class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <i class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 fa-icon fa-solid fa-magnifying-glass text-base leading-none"></i>
+                    <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
                 </div>
             </div>
         </form>
@@ -89,7 +95,9 @@
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-lg {{ $booking->status === 'cancelled' ? 'bg-gray-100' : 'bg-indigo-100' }} flex items-center justify-center">
-                                    <i class="w-5 h-5 {{ $booking->status === 'cancelled' ? 'text-gray-500' : 'text-indigo-600' }} fa-icon fa-solid fa-building text-xl leading-none"></i>
+                                    <svg class="w-5 h-5 {{ $booking->status === 'cancelled' ? 'text-gray-500' : 'text-indigo-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                    </svg>
                                 </div>
                                 <div>
                                     <p class="font-medium text-gray-900">{{ $booking->room->name }}</p>
@@ -107,7 +115,9 @@
                         </td>
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-1">
-                                <i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-users text-base leading-none"></i>
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                </svg>
                                 <span class="text-sm text-gray-900">{{ $booking->attendees }}</span>
                             </div>
                         </td>
@@ -140,12 +150,17 @@
                             <div class="flex items-center gap-1">
                                 <button x-on:click="viewBooking({{ Js::from($viewData) }})"
                                         class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="View">
-                                    <i class="w-4 h-4 fa-icon fa-solid fa-eye text-base leading-none"></i>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
                                 </button>
                                 @if($booking->status === 'approved' && $booking->date >= today())
                                 <button @click="cancelBooking({{ $booking->id }})"
                                         class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Cancel">
-                                    <i class="w-4 h-4 fa-icon fa-solid fa-xmark text-base leading-none"></i>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
                                 </button>
                                 @endif
                             </div>
@@ -154,7 +169,9 @@
                     @empty
                     <tr>
                         <td colspan="6" class="px-6 py-12 text-center">
-                            <i class="w-12 h-12 text-gray-300 mx-auto mb-3 fa-icon fa-solid fa-calendar-days text-5xl leading-none"></i>
+                            <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
                             <p class="text-sm text-gray-500">No reservations found</p>
                         </td>
                     </tr>
@@ -179,7 +196,9 @@
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                <i class="w-5 h-5 text-white fa-icon fa-solid fa-calendar-days text-xl leading-none"></i>
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
                             </div>
                             <div>
                                 <h2 class="text-lg font-bold text-white">Reservation Details</h2>
@@ -187,7 +206,9 @@
                             </div>
                         </div>
                         <button @click="closeViewModal()" class="text-white/80 hover:text-white">
-                            <i class="w-6 h-6 fa-icon fa-solid fa-xmark text-2xl leading-none"></i>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
                         </button>
                     </div>
                 </div>
@@ -250,7 +271,7 @@
                     </div>
                 </div>
             </div>
-            <button type="button" class="modal-backdrop fixed inset-0 bg-black/40" @click="closeViewModal()">close</button>
+        </div>
     </div>
 </div>
 
@@ -272,15 +293,7 @@ function reservationsApp() {
         },
 
         async cancelBooking(id) {
-            const isConfirmed = typeof window.confirmApp === 'function'
-                ? await window.confirmApp('Are you sure you want to cancel this booking?', {
-                    title: 'Cancel booking?',
-                    confirmText: 'Yes, cancel',
-                    cancelText: 'Keep booking',
-                })
-                : false;
-
-            if (!isConfirmed) return;
+            if (!confirm('Are you sure you want to cancel this booking?')) return;
             
             try {
                 const response = await fetch(`/rooms/room-reservations/${id}/cancel`, {
@@ -294,16 +307,14 @@ function reservationsApp() {
                 const data = await response.json();
                 
                 if (data.success) {
-                    window.notifyApp?.('success', data.message || 'Booking cancelled successfully.');
-                    window.setTimeout(() => {
-                        window.location.reload();
-                    }, 850);
+                    alert(data.message);
+                    window.location.reload();
                 } else {
-                    window.notifyApp?.('error', data.message || 'Failed to cancel booking');
+                    alert(data.message || 'Failed to cancel booking');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                window.notifyApp?.('error', 'An error occurred while cancelling the booking');
+                alert('An error occurred while cancelling the booking');
             }
         }
     }
