@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Dashboard - Library Booking System')
+@section('title', 'Dashboard - SmartSpace')
 
 @section('breadcrumb')
 <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -8,7 +8,6 @@
 </svg>
 <span class="text-gray-700 font-medium">Rooms</span>
 @endsection
-
 @section('content')
 <div x-data="dashboardApp()" x-init="init()">
     <!-- Header -->
@@ -964,3 +963,4 @@ function dashboardApp() {
 </script>
 @endpush
 @endsection
+

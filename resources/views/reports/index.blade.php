@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Reports - Library Booking System')
+@section('title', 'Reports - SmartSpace')
 
 @section('breadcrumb')
 <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

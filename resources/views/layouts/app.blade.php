@@ -4,7 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'QCU Library Booking System')</title>
+    <link rel="icon" type="image/png" href="{{ asset('images/smartspace-logo.png') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('images/smartspace-logo.svg') }}">
+    <title>@yield('title', 'SmartSpace')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css' rel='stylesheet' />
@@ -20,6 +22,9 @@
         .sidebar-link {
             position: relative;
             overflow: hidden;
+            border: 1px solid transparent;
+            backdrop-filter: blur(0px);
+            transition: transform 0.25s ease, background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
         }
         .sidebar-link::before {
             content: '';
@@ -35,15 +40,23 @@
             background: linear-gradient(180deg, #60A5FA 0%, #3B82F6 100%);
         }
         .sidebar-link.active {
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(29, 78, 216, 0.1) 100%);
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(37, 99, 235, 0.12) 100%);
             color: white;
             border-radius: 0.5rem;
+            border-color: rgba(99, 102, 241, 0.32);
+            box-shadow: 0 12px 28px -18px rgba(99, 102, 241, 0.9);
         }
         .sidebar-link.active svg {
             color: #60A5FA;
         }
         .sidebar-link:hover:not(.active) {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(129, 140, 248, 0.24);
+            transform: translateX(4px);
+        }
+        .sidebar-link:hover svg {
+            transform: scale(1.08);
+            transition: transform 0.22s ease;
         }
         .fc-event {
             cursor: pointer;
@@ -100,19 +113,20 @@
     @endphp
     <div x-data="{ sidebarOpen: false }" class="min-h-screen flex">
         <!-- Sidebar -->
-        <aside class="fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 transform transition-transform duration-300 lg:translate-x-0 shadow-2xl"
+        <aside class="fixed inset-y-0 left-0 z-50 w-64 overflow-hidden bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 transform transition-transform duration-300 lg:translate-x-0 shadow-2xl"
                :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'">
+            <div class="pointer-events-none absolute -top-12 -left-14 h-40 w-40 rounded-full bg-indigo-500/20 blur-3xl"></div>
+            <div class="pointer-events-none absolute top-52 -right-16 h-44 w-44 rounded-full bg-fuchsia-500/15 blur-3xl"></div>
             <!-- Logo -->
             <div class="flex items-center justify-between h-20 px-4 border-b border-white/10 bg-gradient-to-r from-indigo-900/50 to-transparent">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-                        </svg>
+                    <div class="relative h-12 w-12 flex items-center justify-center">
+                        <span class="absolute inset-0 rounded-full bg-indigo-400/25 blur-md"></span>
+                        <img src="{{ asset('images/smartspace-logo.png') }}" alt="SmartSpace" class="relative h-12 w-12 object-contain drop-shadow-[0_0_20px_rgba(129,140,248,0.55)]" onerror="this.onerror=null;this.src='{{ asset('images/smartspace-mark.svg') }}';">
                     </div>
                     <div>
-                        <span class="text-white font-bold text-lg tracking-tight">QCU Library</span>
-                        <p class="text-indigo-300 text-xs">Booking System</p>
+                        <span class="text-white font-bold text-lg tracking-tight">SmartSpace</span>
+                        <p class="text-indigo-300 text-xs">Reservation System</p>
                     </div>
                 </div>
                 <button @click="sidebarOpen = false" class="lg:hidden text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors">
@@ -179,13 +193,6 @@
                     <span>Calendar</span>
                 </a>
 
-                <a href="{{ route('qcid.registration.show') }}"
-                   class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-indigo-200 hover:text-white transition-all duration-200 mb-1 {{ request()->routeIs('qcid.registration.*') ? 'active' : '' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    <span>QC ID Registration</span>
-                </a>
             </nav>
         </aside>
 
@@ -398,3 +405,4 @@
     @stack('scripts')
 </body>
 </html>
+

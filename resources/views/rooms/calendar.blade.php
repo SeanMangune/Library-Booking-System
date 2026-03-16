@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Calendar - Library Booking System')
+@section('title', 'Calendar - SmartSpace')
 
 @section('breadcrumb')
 <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -208,74 +208,13 @@
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                 </div>
 
-                                <div class="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-3">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                                            QC ID Verification <span class="text-red-500">*</span>
-                                        </label>
-                                        <p x-show="!hasVerifiedRegistration" class="text-xs text-gray-500">Upload a clear photo of a Quezon City Citizen ID. The system will read the card using OCR and reject non-QC IDs.</p>
-                                        <p x-show="hasVerifiedRegistration" x-cloak class="text-xs text-emerald-700">QC ID already verified from your QC ID Registration.</p>
-                                    </div>
-
-                                    <input x-show="!hasVerifiedRegistration" x-cloak type="file"
-                                           accept="image/png,image/jpeg,image/jpg,image/webp"
-                                           @change="handleQcIdUpload($event)"
-                                           class="block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-teal-700">
-
-                                    <div x-show="hasVerifiedRegistration" x-cloak class="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                                        <p class="text-sm font-semibold text-emerald-800">QC ID Verified</p>
-                                        <p class="text-xs text-emerald-700 mt-1">Bookings will use your approved QC ID registration status.</p>
-                                    </div>
-
-                                    <div x-show="qcIdPreviewUrl" x-cloak class="rounded-lg overflow-hidden border border-gray-200 bg-white">
-                                        <img :src="qcIdPreviewUrl" alt="QC ID preview" class="w-full h-44 object-cover">
-                                    </div>
-
-                                    <div x-show="qcIdIsProcessing" x-cloak class="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-700">
-                                        <div class="flex items-center justify-between gap-3">
-                                            <span x-text="qcIdStatusMessage || 'Reading QC ID…'"></span>
-                                            <span class="font-semibold" x-text="Math.round(qcIdProgress || 0) + '%' "></span>
-                                        </div>
-                                    </div>
-
-                                    <div x-show="qcIdError" x-cloak class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" x-text="qcIdError"></div>
-
-                                    <div x-show="qcIdVerification?.is_valid" x-cloak class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
-                                        <div class="flex items-center justify-between gap-3">
-                                            <div>
-                                                <p class="text-sm font-semibold text-emerald-800">QC ID verified</p>
-                                                <p class="text-xs text-emerald-700" x-text="'Confidence score: ' + (qcIdVerification?.confidence_score ?? 0) + '%' "></p>
-                                            </div>
-                                            <button type="button"
-                                                    @click="reprocessQcId()"
-                                                    class="inline-flex items-center rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors">
-                                                Re-read ID
-                                            </button>
-                                        </div>
-
-                                        <dl class="grid grid-cols-1 gap-2 text-xs text-emerald-900 sm:grid-cols-2">
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Cardholder</dt>
-                                                <dd x-text="qcIdVerification?.cardholder_name || '—'"></dd>
-                                            </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Birth Date</dt>
-                                                <dd x-text="qcIdVerification?.date_of_birth || '—'"></dd>
-                                            </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Date Issued</dt>
-                                                <dd x-text="qcIdVerification?.date_issued || '—'"></dd>
-                                            </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Valid Until</dt>
-                                                <dd x-text="qcIdVerification?.valid_until || '—'"></dd>
-                                            </div>
-                                            <div class="sm:col-span-2">
-                                                <dt class="font-medium text-emerald-700">Address</dt>
-                                                <dd x-text="qcIdVerification?.address || '—'"></dd>
-                                            </div>
-                                        </dl>
-                                    </div>
+                                <div class="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-2">
+                                    <label class="block text-sm font-medium text-gray-700">
+                                        Identity Verification
+                                    </label>
+                                    <p class="text-xs text-gray-600">
+                                        Booking access is available for students, employees, and alumni. QC ID details are managed through the signup registration flow.
+                                    </p>
                                 </div>
 
                                 <!-- <div>
@@ -356,14 +295,11 @@
 
                     <!-- Footer -->
                     <div class="flex items-center justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
-                        <p x-show="!hasVerifiedRegistration && !qcIdVerification?.is_valid" x-cloak class="mr-auto text-sm text-amber-600">
-                            Upload and verify a QC ID before creating the booking.
-                        </p>
                         <button type="button" @click="closeBookingModal()"
                                 class="px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
                             Cancel
                         </button>
-                        <button type="submit" :disabled="isSubmitting || (!hasVerifiedRegistration && !qcIdVerification?.is_valid)"
+                        <button type="submit" :disabled="isSubmitting"
                                 class="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             <span class="flex items-center gap-2">
                                 <svg x-show="isSubmitting" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -415,7 +351,7 @@
 <style>
 /* Header container */
 .success-header{
-    background: linear-gradient(to right, #0d9488, #059669); /* teal-600 → emerald-600 */
+    background: linear-gradient(to right, #0d9488, #059669); /* teal-600 -> emerald-600 */
     padding: 1.75rem 1.5rem; /* px-6 py-7 */
     border-top-left-radius: 1rem;
     border-top-right-radius: 1rem; /* rounded-t-2xl */
@@ -463,7 +399,7 @@
                         <div class="grid grid-cols-2 gap-4 text-sm">
                             <div>
                                 <p class="text-gray-500">Room</p>
-                                <p class="font-semibold text-gray-900" x-text="successBooking?.room?.name || selectedRoom?.name || '—'"></p>
+                                <p class="font-semibold text-gray-900" x-text="successBooking?.room?.name || selectedRoom?.name || '-'"></p>
                             </div>
                             <div>
                                 <p class="text-gray-500">Date</p>
@@ -936,18 +872,18 @@ function calendarApp() {
             }
 
             this.qcIdIsProcessing = true;
-            this.qcIdStatusMessage = 'Reading QC ID image…';
+            this.qcIdStatusMessage = 'Reading QC ID image...';
             this.qcIdProgress = 0;
 
             try {
-                this.qcIdStatusMessage = 'Enhancing image for OCR…';
+                this.qcIdStatusMessage = 'Enhancing image for OCR...';
                 const extractedText = await this.collectQcOcrText(file);
                 if (!extractedText) {
                     throw new Error('No readable text was found in the uploaded QC ID image.');
                 }
 
                 this.bookingForm.qc_id_ocr_text = extractedText;
-                this.qcIdStatusMessage = 'Validating QC ID format…';
+                this.qcIdStatusMessage = 'Validating QC ID format...';
 
                 const response = await fetch('/rooms/qc-id/verify', {
                     method: 'POST',
@@ -1306,11 +1242,6 @@ function calendarApp() {
         },
 
         async submitBooking() {
-            if (!this.hasVerifiedRegistration && (!this.qcIdVerification?.is_valid || !this.bookingForm.qc_id_ocr_text)) {
-                this.qcIdError = 'Upload and verify a valid QC ID before creating the booking.';
-                return;
-            }
-
             this.isSubmitting = true;
             try {
                 const response = await fetch('/rooms/room-reservations', {
