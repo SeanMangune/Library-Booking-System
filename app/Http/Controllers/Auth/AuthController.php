@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 class AuthController extends Controller
 {
@@ -31,11 +32,15 @@ class AuthController extends Controller
         $remember = $request->boolean('remember');
         $identifier = trim((string) $validated['login']);
         $password = (string) $validated['password'];
+        $hasUsernameColumn = Schema::hasColumn('users', 'username');
 
         $candidate = User::query()
-            ->where(function ($query) use ($identifier) {
-                $query->where('email', $identifier)
-                    ->orWhere('username', $identifier);
+            ->where(function ($query) use ($identifier, $hasUsernameColumn) {
+                $query->where('email', $identifier);
+
+                if ($hasUsernameColumn) {
+                    $query->orWhere('username', $identifier);
+                }
             })
             ->first();
 
