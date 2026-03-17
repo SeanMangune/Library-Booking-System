@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'Reservations | SmartSpace')
+@section('title', 'Reservations - SmartSpace')
 
 @section('breadcrumb')
-<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
+<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-sm leading-none"></i>
 <span class="text-gray-500">Rooms</span>
-<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
+<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-sm leading-none"></i>
 <span class="text-gray-700 font-medium">Room Reservations</span>
 @endsection
 
@@ -59,7 +59,7 @@
                 <div class="relative">
                     <input type="text" name="search" value="{{ request('search') }}" placeholder="Search reservations..."
                            class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <i class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 fa-icon fa-solid fa-magnifying-glass text-base leading-none"></i>
+<i class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 fa-icon fa-solid fa-magnifying-glass text-sm leading-none"></i>
                 </div>
             </div>
         </form>
@@ -89,7 +89,7 @@
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-lg {{ $booking->status === 'cancelled' ? 'bg-gray-100' : 'bg-indigo-100' }} flex items-center justify-center">
-                                    <i class="w-5 h-5 {{ $booking->status === 'cancelled' ? 'text-gray-500' : 'text-indigo-600' }} fa-icon fa-solid fa-building text-xl leading-none"></i>
+<i class="fa-icon fa-solid fa-building text-base leading-none" class="w-5 h-5 {{ $booking-></i>
                                 </div>
                                 <div>
                                     <p class="font-medium text-gray-900">{{ $booking->room->name }}</p>
@@ -107,7 +107,7 @@
                         </td>
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-1">
-                                <i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-users text-base leading-none"></i>
+<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-users text-sm leading-none"></i>
                                 <span class="text-sm text-gray-900">{{ $booking->attendees }}</span>
                             </div>
                         </td>
@@ -140,12 +140,12 @@
                             <div class="flex items-center gap-1">
                                 <button x-on:click="viewBooking({{ Js::from($viewData) }})"
                                         class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="View">
-                                    <i class="w-4 h-4 fa-icon fa-solid fa-eye text-base leading-none"></i>
+<i class="w-4 h-4 fa-icon fa-regular fa-eye text-sm leading-none"></i>
                                 </button>
                                 @if($booking->status === 'approved' && $booking->date >= today())
                                 <button @click="cancelBooking({{ $booking->id }})"
                                         class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Cancel">
-                                    <i class="w-4 h-4 fa-icon fa-solid fa-xmark text-base leading-none"></i>
+<i class="w-4 h-4 fa-icon fa-solid fa-xmark text-sm leading-none"></i>
                                 </button>
                                 @endif
                             </div>
@@ -154,7 +154,7 @@
                     @empty
                     <tr>
                         <td colspan="6" class="px-6 py-12 text-center">
-                            <i class="w-12 h-12 text-gray-300 mx-auto mb-3 fa-icon fa-solid fa-calendar-days text-5xl leading-none"></i>
+<i class="w-12 h-12 text-gray-300 mx-auto mb-3 fa-icon fa-regular fa-calendar text-4xl leading-none"></i>
                             <p class="text-sm text-gray-500">No reservations found</p>
                         </td>
                     </tr>
@@ -179,7 +179,7 @@
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                <i class="w-5 h-5 text-white fa-icon fa-solid fa-calendar-days text-xl leading-none"></i>
+<i class="w-5 h-5 text-white fa-icon fa-regular fa-calendar text-base leading-none"></i>
                             </div>
                             <div>
                                 <h2 class="text-lg font-bold text-white">Reservation Details</h2>
@@ -187,7 +187,7 @@
                             </div>
                         </div>
                         <button @click="closeViewModal()" class="text-white/80 hover:text-white">
-                            <i class="w-6 h-6 fa-icon fa-solid fa-xmark text-2xl leading-none"></i>
+<i class="w-6 h-6 fa-icon fa-solid fa-xmark text-lg leading-none"></i>
                         </button>
                     </div>
                 </div>
@@ -250,7 +250,7 @@
                     </div>
                 </div>
             </div>
-            <button type="button" class="modal-backdrop fixed inset-0 bg-black/40" @click="closeViewModal()">close</button>
+        </div>
     </div>
 </div>
 
@@ -272,15 +272,7 @@ function reservationsApp() {
         },
 
         async cancelBooking(id) {
-            const isConfirmed = typeof window.confirmApp === 'function'
-                ? await window.confirmApp('Are you sure you want to cancel this booking?', {
-                    title: 'Cancel booking?',
-                    confirmText: 'Yes, cancel',
-                    cancelText: 'Keep booking',
-                })
-                : false;
-
-            if (!isConfirmed) return;
+            if (!confirm('Are you sure you want to cancel this booking?')) return;
             
             try {
                 const response = await fetch(`/rooms/room-reservations/${id}/cancel`, {
@@ -294,16 +286,14 @@ function reservationsApp() {
                 const data = await response.json();
                 
                 if (data.success) {
-                    window.notifyApp?.('success', data.message || 'Booking cancelled successfully.');
-                    window.setTimeout(() => {
-                        window.location.reload();
-                    }, 850);
+                    alert(data.message);
+                    window.location.reload();
                 } else {
-                    window.notifyApp?.('error', data.message || 'Failed to cancel booking');
+                    alert(data.message || 'Failed to cancel booking');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                window.notifyApp?.('error', 'An error occurred while cancelling the booking');
+                alert('An error occurred while cancelling the booking');
             }
         }
     }

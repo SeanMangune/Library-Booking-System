@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
@@ -28,8 +28,12 @@ class User extends Authenticatable
         'name',
         'username',
         'email',
+        'phone_number',
+        'course',
         'password',
         'role',
+        'user_type',
+        'employee_category',
         'provider',
         'provider_id',
         'settings',
@@ -79,7 +83,11 @@ class User extends Authenticatable
         return match ($this->role) {
             self::ROLE_ADMIN => 'Administrator',
             self::ROLE_LIBRARIAN => 'Librarian',
-            default => 'User',
+            default => match ($this->user_type) {
+                'employee' => 'Employee',
+                'alumni' => 'Alumni',
+                default => 'Student',
+            },
         };
     }
 

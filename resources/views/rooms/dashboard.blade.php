@@ -1,23 +1,22 @@
 @extends('layouts.app')
 
-@section('title', 'Dashboard | SmartSpace')
+@section('title', 'Dashboard - SmartSpace')
 
 @section('breadcrumb')
-<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
+<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-sm leading-none"></i>
 <span class="text-gray-700 font-medium">Rooms</span>
 @endsection
-
 @section('content')
 <div x-data="dashboardApp()" x-init="init()" class="flex flex-col xl:h-[calc(100dvh-9rem)] xl:overflow-hidden">
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">Rooms Overview</h1>
-            {{-- <p class="text-sm text-gray-500 mt-1">View collab room bookings from today through the next two weeks, plus the calendar overview.</p> --}}
+            <p class="text-sm text-gray-500 mt-1">View Details for Scheduled Rooms Today, Upcoming Reservations, Calendar</p>
         </div>
         <button @click="openBookingModal()" 
                 class="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors">
-            <i class="w-4 h-4 fa-icon fa-solid fa-plus text-base leading-none"></i>
+<i class="w-4 h-4 fa-icon fa-solid fa-plus text-sm leading-none"></i>
             Create Booking
         </button>
     </div>
@@ -175,17 +174,11 @@
                              'attendees' => $booking->attendees,
                              'status' => $booking->status,
                          ]) }})">
-                        <div class="flex items-start justify-between gap-3">
-                            <div class="min-w-0">
+                        <div class="flex items-start justify-between">
+                            <div>
                                 <h3 class="font-semibold text-gray-900">{{ $booking->room->name }}</h3>
                                 <p class="text-sm text-gray-500 mt-0.5">{{ $booking->formatted_time }}</p>
-                                <p class="text-xs text-gray-400 mt-1">
-                                    @if($booking->date->isToday())
-                                        Today
-                                    @else
-                                        {{ $booking->date->format('F d, Y') }}
-                                    @endif
-                                </p>
+                                <p class="text-xs text-gray-400 mt-1">{{ $booking->date->format('F d, Y') }}</p>
                             </div>
                             <span class="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                                 {{ ucfirst($booking->status) }}
@@ -194,13 +187,157 @@
                     </div>
                     @empty
                     <div class="text-center py-8">
-                        <i class="w-12 h-12 text-gray-300 mx-auto mb-3 fa-icon fa-solid fa-calendar-days text-5xl leading-none"></i>
-                        <p class="text-sm text-gray-500">No collaborative-room bookings in the next two weeks</p>
+<i class="w-12 h-12 text-gray-300 mx-auto mb-3 fa-icon fa-regular fa-calendar text-4xl leading-none"></i>
+                        <p class="text-sm text-gray-500">No reservations for today</p>
                     </div>
                     @endforelse
                 </div>
             </div>
-        </aside>
+
+            <!-- Upcoming Reservations -->
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+                <div class="px-5 py-4 border-b border-gray-100">
+                    <h2 class="text-lg font-semibold text-gray-900">Upcoming Reservations</h2>
+                </div>
+                <div class="p-4 max-h-96 overflow-y-auto">
+                    @forelse($upcomingReservations as $booking)
+                    <div class="mb-3 last:mb-0 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                         @click="viewBooking({{ json_encode([
+                             'id' => $booking->id,
+                             'title' => $booking->title,
+                             'room_name' => $booking->room->name,
+                             'date' => $booking->date->format('M d, Y'),
+                             'formatted_date' => $booking->formatted_date,
+                             'formatted_time' => $booking->formatted_time,
+                             'user_name' => $booking->user_name,
+                             'attendees' => $booking->attendees,
+                             'status' => $booking->status,
+                         ]) }})">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <h3 class="font-semibold text-gray-900">{{ $booking->room->name }}</h3>
+                                <p class="text-sm text-gray-500 mt-0.5">{{ $booking->formatted_time }}</p>
+                                <p class="text-xs text-gray-400 mt-1">{{ $booking->date->format('F d, Y') }}</p>
+                            </div>
+                            <span class="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                                {{ ucfirst($booking->status) }}
+                            </span>
+                        </div>
+                    </div>
+                    @empty
+                    <div class="text-center py-8">
+<i class="w-12 h-12 text-gray-300 mx-auto mb-3 fa-icon fa-regular fa-calendar text-4xl leading-none"></i>
+                        <p class="text-sm text-gray-500">No upcoming reservations</p>
+                    </div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Calendar -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                <!-- Calendar Navigation -->
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-2">
+                        <button @click="prevMonth()" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
+<i class="w-4 h-4 text-gray-600 fa-icon fa-solid fa-chevron-left text-sm leading-none"></i>
+                        </button>
+                        <button @click="nextMonth()" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
+<i class="w-4 h-4 text-gray-600 fa-icon fa-solid fa-chevron-right text-sm leading-none"></i>
+                        </button>
+                        <button @click="goToToday()" class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                            today
+                        </button>
+                    </div>
+                    <h2 class="text-xl font-semibold text-gray-900" x-text="monthNames[currentMonth] + ' ' + currentYear"></h2>
+                    <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                        <button @click="calendarView = 'month'" 
+                                class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+                                :class="calendarView === 'month' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'">
+                            month
+                        </button>
+                        <button @click="calendarView = 'week'" 
+                                class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+                                :class="calendarView === 'week' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'">
+                            week
+                        </button>
+                        <button @click="calendarView = 'list'" 
+                                class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+                                :class="calendarView === 'list' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'">
+                            list
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Calendar Grid -->
+                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <!-- Day Headers -->
+                    <div class="grid grid-cols-7 bg-gray-50 border-b border-gray-200">
+                        <template x-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="day">
+                            <div class="py-3 text-center text-sm font-semibold text-gray-600" x-text="day"></div>
+                        </template>
+                    </div>
+
+                    <!-- Calendar Days -->
+                    <div class="grid grid-cols-7">
+                        <template x-for="(week, weekIndex) in calendarWeeks" :key="weekIndex">
+                            <template x-for="(day, dayIndex) in week" :key="weekIndex + '-' + dayIndex">
+                                <div class="min-h-[100px] border-b border-r border-gray-200 p-2"
+                                     :class="{
+                                         'bg-gray-50': !day.isCurrentMonth,
+                                         'bg-yellow-50': day.isToday
+                                     }">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-sm font-medium"
+                                              :class="day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'"
+                                              x-text="day.day"></span>
+                                    </div>
+                                    <div class="space-y-1">
+                                        <template x-for="event in day.events.slice(0, 2)" :key="event.id">
+                                            <div class="relative group">
+                                                <div class="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded truncate cursor-pointer hover:bg-blue-200 transition-colors"
+                                                     @click="openViewBookingModal(event)"
+                                                     x-text="event.formatted_time?.split(' - ')[0] + ' ' + event.title"></div>
+                                                <!-- Hover Tooltip -->
+                                                <div class="absolute left-0 bottom-full mb-2 z-50 hidden group-hover:block w-64 bg-gray-900 text-white text-xs rounded-lg shadow-xl p-3 pointer-events-none">
+                                                    <div class="font-semibold text-sm mb-2" x-text="event.title || event.room_name"></div>
+                                                    <div class="space-y-1.5 text-gray-300">
+                                                        <div class="flex items-center gap-2">
+<i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-building text-xs leading-none"></i>
+                                                            <span x-text="event.room_name"></span>
+                                                        </div>
+                                                        <div class="flex items-center gap-2">
+<i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-regular fa-clock text-xs leading-none"></i>
+                                                            <span x-text="event.formatted_time"></span>
+                                                        </div>
+                                                        <div class="flex items-center gap-2">
+<i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-regular fa-user text-xs leading-none"></i>
+                                                            <span x-text="event.user_name"></span>
+                                                        </div>
+                                                        <div class="flex items-center gap-2">
+<i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-users text-xs leading-none"></i>
+                                                            <span x-text="event.attendees + ' attendees'"></span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="absolute left-4 top-full w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-gray-900"></div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                        <template x-if="day.events.length > 2">
+                                            <button @click="openDayEventsModal(day)" 
+                                                    class="text-xs text-blue-600 hover:text-blue-800 font-medium pl-1 hover:underline" 
+                                                    x-text="'+' + (day.events.length - 2) + ' more'"></button>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+        </div>
     </div>
 
     <!-- View Booking Details Modal -->
@@ -219,7 +356,7 @@
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                <i class="w-5 h-5 text-white fa-icon fa-solid fa-calendar-days text-xl leading-none"></i>
+<i class="w-5 h-5 text-white fa-icon fa-regular fa-calendar text-base leading-none"></i>
                             </div>
                             <div>
                                 <h3 class="text-lg font-semibold text-white">Booking Details</h3>
@@ -227,7 +364,7 @@
                             </div>
                         </div>
                         <button @click="showViewModal = false" class="text-white/80 hover:text-white transition-colors">
-                            <i class="w-6 h-6 fa-icon fa-solid fa-xmark text-2xl leading-none"></i>
+<i class="w-6 h-6 fa-icon fa-solid fa-xmark text-lg leading-none"></i>
                         </button>
                     </div>
                 </div>
@@ -239,7 +376,7 @@
                             <!-- Title -->
                             <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
                                 <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                    <i class="w-5 h-5 text-blue-600 fa-icon fa-solid fa-tag text-xl leading-none"></i>
+<i class="w-5 h-5 text-blue-600 fa-icon fa-solid fa-tag text-base leading-none"></i>
                                 </div>
                                 <div>
                                     <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Purpose</p>
@@ -251,7 +388,7 @@
                                 <!-- Date -->
                                 <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
                                     <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                                        <i class="w-5 h-5 text-green-600 fa-icon fa-solid fa-calendar-days text-xl leading-none"></i>
+<i class="w-5 h-5 text-green-600 fa-icon fa-regular fa-calendar text-base leading-none"></i>
                                     </div>
                                     <div>
                                         <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Date</p>
@@ -262,7 +399,7 @@
                                 <!-- Time -->
                                 <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
                                     <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                                        <i class="w-5 h-5 text-purple-600 fa-icon fa-solid fa-clock text-xl leading-none"></i>
+<i class="w-5 h-5 text-purple-600 fa-icon fa-regular fa-clock text-base leading-none"></i>
                                     </div>
                                     <div>
                                         <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Time</p>
@@ -273,7 +410,7 @@
                                 <!-- Booked By -->
                                 <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
                                     <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                                        <i class="w-5 h-5 text-amber-600 fa-icon fa-solid fa-user text-xl leading-none"></i>
+<i class="w-5 h-5 text-amber-600 fa-icon fa-regular fa-user text-base leading-none"></i>
                                     </div>
                                     <div>
                                         <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Booked By</p>
@@ -284,7 +421,7 @@
                                 <!-- Attendees -->
                                 <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
                                     <div class="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center">
-                                        <i class="w-5 h-5 text-teal-600 fa-icon fa-solid fa-users text-xl leading-none"></i>
+<i class="w-5 h-5 text-teal-600 fa-icon fa-solid fa-users text-base leading-none"></i>
                                     </div>
                                     <div>
                                         <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Attendees</p>
@@ -297,7 +434,7 @@
                             <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                                 <div class="flex items-center gap-3">
                                     <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                                        <i class="w-5 h-5 text-indigo-600 fa-icon fa-solid fa-circle-check text-xl leading-none"></i>
+<i class="w-5 h-5 text-indigo-600 fa-icon fa-solid fa-circle-check text-base leading-none"></i>
                                     </div>
                                     <div>
                                         <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Status</p>
@@ -324,7 +461,7 @@
                     </button>
                 </div>
             </div>
-            <button type="button" class="modal-backdrop fixed inset-0 bg-black/40 transition-opacity" @click="showViewModal = false">close</button>
+        </div>
     </div>
 
     <!-- Day Events Modal (for +X more) -->
@@ -343,7 +480,7 @@
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                <i class="w-5 h-5 text-white fa-icon fa-solid fa-calendar-days text-xl leading-none"></i>
+<i class="w-5 h-5 text-white fa-icon fa-regular fa-calendar text-base leading-none"></i>
                             </div>
                             <div>
                                 <h3 class="text-lg font-semibold text-white">All Bookings</h3>
@@ -351,7 +488,7 @@
                             </div>
                         </div>
                         <button @click="showDayEventsModal = false" class="text-white/80 hover:text-white transition-colors">
-                            <i class="w-6 h-6 fa-icon fa-solid fa-xmark text-2xl leading-none"></i>
+<i class="w-6 h-6 fa-icon fa-solid fa-xmark text-lg leading-none"></i>
                         </button>
                     </div>
                 </div>
@@ -365,18 +502,18 @@
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="flex items-start gap-3">
                                         <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
-                                            <i class="w-5 h-5 text-blue-600 fa-icon fa-solid fa-building text-xl leading-none"></i>
+<i class="w-5 h-5 text-blue-600 fa-icon fa-solid fa-building text-base leading-none"></i>
                                         </div>
                                         <div class="flex-1 min-w-0">
                                             <h4 class="font-semibold text-gray-900" x-text="event.room_name"></h4>
                                             <p class="text-sm text-gray-600 mt-0.5" x-text="event.title || 'No title'"></p>
                                             <div class="flex items-center gap-3 mt-2 text-xs text-gray-500">
                                                 <span class="flex items-center gap-1">
-                                                    <i class="w-3.5 h-3.5 fa-icon fa-solid fa-clock text-sm leading-none"></i>
+<i class="w-3.5 h-3.5 fa-icon fa-regular fa-clock text-xs leading-none"></i>
                                                     <span x-text="event.formatted_time"></span>
                                                 </span>
                                                 <span class="flex items-center gap-1">
-                                                    <i class="w-3.5 h-3.5 fa-icon fa-solid fa-user text-sm leading-none"></i>
+<i class="w-3.5 h-3.5 fa-icon fa-regular fa-user text-xs leading-none"></i>
                                                     <span x-text="event.user_name"></span>
                                                 </span>
                                             </div>
@@ -404,18 +541,20 @@
                     </button>
                 </div>
             </div>
-            <button type="button" class="modal-backdrop fixed inset-0 bg-black/40 transition-opacity" @click="showDayEventsModal = false">close</button>
+        </div>
     </div>
 
     <!-- Create Booking Modal -->
-    <div x-show="showBookingModal" x-cloak class="modal p-4" :class="{ 'modal-open': showBookingModal }" @keydown.escape.window="closeBookingModal()">
-        <div class="modal-box w-11/12 max-w-2xl p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
+    <div x-show="showBookingModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto">
+        <div class="fixed inset-0 bg-black/40 backdrop-blur-sm" @click="closeBookingModal()"></div>
+        <div class="relative min-h-screen flex items-center justify-center p-4">
+            <div class="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl" @click.stop>
                 <!-- Modal Header -->
                 <div class="bg-gradient-to-r from-teal-600 to-teal-700 px-6 py-4 rounded-t-2xl">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                <i class="w-5 h-5 text-white fa-icon fa-solid fa-calendar-days text-xl leading-none"></i>
+<i class="w-5 h-5 text-white fa-icon fa-regular fa-calendar text-base leading-none"></i>
                             </div>
                             <div>
                                 <h2 class="text-lg font-bold text-white">Schedule New Booking</h2>
@@ -423,16 +562,15 @@
                             </div>
                         </div>
                         <button @click="closeBookingModal()" class="text-white/80 hover:text-white">
-                            <i class="w-6 h-6 fa-icon fa-solid fa-xmark text-2xl leading-none"></i>
+<i class="w-6 h-6 fa-icon fa-solid fa-xmark text-lg leading-none"></i>
                         </button>
                     </div>
                 </div>
 
                 <!-- Modal Body -->
-                <form @submit.prevent="submitBooking()" class="flex flex-col min-h-0">
-                    <div class="p-6 flex-1 min-h-0 overflow-y-auto">
+                <form @submit.prevent="submitBooking()" class="p-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Left Column -->
+                        <!-- Left Column: Booking Information -->
                         <div>
                             <h3 class="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-4">
                                 <span class="w-1 h-4 bg-teal-600 rounded"></span>
@@ -444,109 +582,45 @@
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
                                         Purpose <span class="text-red-500">*</span>
                                     </label>
-                                    <input type="text" x-model="bookingForm.purpose" required
-                                           placeholder="e.g., Group study, Thesis consultation"
-                                           class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+<i class="w-5 h-5 fa-icon fa-solid fa-tag text-base leading-none"></i>
+                                        </span>
+                                             <input type="text" x-model="bookingForm.purpose" required
+                                                 placeholder="e.g., Group study, Thesis consultation"
+                                               class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                    </div>
                                 </div>
 
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
                                         Book for User <span class="text-red-500">*</span>
                                     </label>
-                                    <input type="text" x-model="bookingForm.user_name" required
-                                           placeholder="Enter user name..."
-                                           class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                                </div>
-
-                                <div class="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-3">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                                            QC ID Verification <span class="text-red-500">*</span>
-                                        </label>
-                                        <p x-show="!hasVerifiedRegistration" class="text-xs text-gray-500">Upload a clear photo of a Quezon City Citizen ID. The system will read the card using OCR and reject non-QC IDs.</p>
-                                        <p x-show="hasVerifiedRegistration" x-cloak class="text-xs text-emerald-700">QC ID already verified from your QC ID Registration.</p>
-                                    </div>
-
-                                    <input x-show="!hasVerifiedRegistration" x-cloak type="file"
-                                           accept="image/png,image/jpeg,image/jpg,image/webp"
-                                           @change="handleQcIdUpload($event)"
-                                           class="block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-teal-700">
-
-                                    <div x-show="hasVerifiedRegistration" x-cloak class="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                                        <p class="text-sm font-semibold text-emerald-800">QC ID Verified</p>
-                                        <p class="text-xs text-emerald-700 mt-1">Bookings will use your approved QC ID registration status.</p>
-                                    </div>
-
-                                    <div x-show="qcIdPreviewUrl" x-cloak class="rounded-lg overflow-hidden border border-gray-200 bg-white">
-                                        <img :src="qcIdPreviewUrl" alt="QC ID preview" class="w-full h-44 object-cover">
-                                    </div>
-
-                                    <div x-show="qcIdIsProcessing" x-cloak class="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-700">
-                                        <div class="flex items-center justify-between gap-3">
-                                            <span x-text="qcIdStatusMessage || 'Reading QC ID…'"></span>
-                                            <span class="font-semibold" x-text="Math.round(qcIdProgress || 0) + '%' "></span>
-                                        </div>
-                                    </div>
-
-                                    <div x-show="qcIdError" x-cloak class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" x-text="qcIdError"></div>
-
-                                    <div x-show="qcIdVerification?.is_valid" x-cloak class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
-                                        <div class="flex items-center justify-between gap-3">
-                                            <div>
-                                                <p class="text-sm font-semibold text-emerald-800">QC ID verified</p>
-                                                <p class="text-xs text-emerald-700" x-text="'Confidence score: ' + (qcIdVerification?.confidence_score ?? 0) + '%' "></p>
-                                            </div>
-                                            <button type="button"
-                                                    @click="reprocessQcId()"
-                                                    class="inline-flex items-center rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors">
-                                                Re-read ID
-                                            </button>
-                                        </div>
-
-                                        <dl class="grid grid-cols-1 gap-2 text-xs text-emerald-900 sm:grid-cols-2">
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Cardholder</dt>
-                                                <dd x-text="qcIdVerification?.cardholder_name || '—'"></dd>
-                                            </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Birth Date</dt>
-                                                <dd x-text="qcIdVerification?.date_of_birth || '—'"></dd>
-                                            </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Date Issued</dt>
-                                                <dd x-text="qcIdVerification?.date_issued || '—'"></dd>
-                                            </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Valid Until</dt>
-                                                <dd x-text="qcIdVerification?.valid_until || '—'"></dd>
-                                            </div>
-                                            <div class="sm:col-span-2">
-                                                <dt class="font-medium text-emerald-700">Address</dt>
-                                                <dd x-text="qcIdVerification?.address || '—'"></dd>
-                                            </div>
-                                        </dl>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+<i class="w-5 h-5 fa-icon fa-regular fa-user text-base leading-none"></i>
+                                        </span>
+                                        <input type="text" x-model="bookingForm.user_name" required
+                                               placeholder="Search and select a user..."
+                                               class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                     </div>
                                 </div>
-
-                                <!-- <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        User Email <span class="text-red-500">*</span>
-                                    </label>
-                                    <input type="email" x-model="bookingForm.user_email" required
-                                           placeholder="Enter user email..."
-                                           class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                                </div> -->
 
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                                    <textarea x-model="bookingForm.description" rows="3"
-                                              placeholder="Add any additional details..."
-                                              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"></textarea>
+                                    <div class="relative">
+                                        <textarea x-model="bookingForm.description" rows="3"
+                                                  placeholder="Add any additional details about the booking..."
+                                                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"></textarea>
+                                        <button type="button" class="absolute top-2 right-2 text-gray-400 hover:text-gray-600">
+<i class="w-4 h-4 fa-icon fa-regular fa-clipboard text-sm leading-none"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Right Column -->
+                        <!-- Right Column: Schedule & Room -->
                         <div>
                             <h3 class="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-4">
                                 <span class="w-1 h-4 bg-teal-600 rounded"></span>
@@ -558,90 +632,99 @@
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
                                         Room <span class="text-red-500">*</span>
                                     </label>
-                                    <select x-model="bookingForm.room_id" required
-                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                                        <option value="">Select a room</option>
-                                        @foreach($rooms as $room)
-                                        <option value="{{ $room->id }}">{{ $room->name }} (Capacity: {{ $room->standardBookingCapacityLimit() }})</option>
-                                        @endforeach
-                                    </select>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+<i class="w-5 h-5 fa-icon fa-solid fa-building text-base leading-none"></i>
+                                        </span>
+                                        <select x-model="bookingForm.room_id" required
+                                                class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 appearance-none bg-white">
+                                            <option value="">Select a room</option>
+                                            @foreach($rooms as $room)
+                                            <option value="{{ $room->id }}">{{ $room->name }} (Capacity: {{ $room->standardBookingCapacityLimit() }})</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
                                 </div>
 
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
                                         Date <span class="text-red-500">*</span>
                                     </label>
-                                    <select x-model="bookingForm.date" required
-                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                                        <option value="">Select a date</option>
-                                        <template x-for="dateOption in bookingDateOptions" :key="dateOption.value">
-                                            <option :value="dateOption.value" x-text="dateOption.label"></option>
-                                        </template>
-                                    </select>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+<i class="w-5 h-5 fa-icon fa-regular fa-calendar text-base leading-none"></i>
+                                        </span>
+                                        <input type="date" x-model="bookingForm.date" required
+                                               min="{{ now()->format('Y-m-d') }}"
+                                               class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                    </div>
                                 </div>
 
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Time Slot <span class="text-red-500">*</span>
-                                    </label>
-                                    <select x-model="bookingForm.time_slot" required
-                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                                        <option value="">Select a time slot</option>
-                                        <template x-for="slot in bookingTimeSlots" :key="slot.value">
-                                            <option :value="slot.value" x-text="slot.label"></option>
-                                        </template>
-                                    </select>
-                                    <div x-show="isLoadingTimeConflictSuggestions" x-cloak class="mt-2 text-xs text-gray-500">
-                                        Checking nearby available slots...
-                                    </div>
-                                    <div x-show="timeConflictMessage || timeConflictSuggestions.length" x-cloak class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
-                                        <p class="text-xs font-medium text-amber-800" x-text="timeConflictMessage"></p>
-
-                                        <div x-show="timeConflictSuggestions.length" x-cloak class="mt-2 flex flex-wrap gap-2">
-                                            <template x-for="suggestedSlot in timeConflictSuggestions" :key="suggestedSlot.value">
-                                                <button type="button"
-                                                        @click="applySuggestedTimeSlot(suggestedSlot.value)"
-                                                        class="inline-flex items-center rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100 transition-colors"
-                                                        x-text="suggestedSlot.label"></button>
-                                            </template>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            Start Time <span class="text-red-500">*</span>
+                                        </label>
+                                        <div class="relative">
+                                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+<i class="w-5 h-5 fa-icon fa-regular fa-clock text-base leading-none"></i>
+                                            </span>
+                                            <input type="time" x-model="bookingForm.start_time" required
+                                                   class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                         </div>
                                     </div>
-                                    {{-- <p class="mt-1 text-xs text-gray-500">One-hour slots from 8:00 AM to 5:00 PM.</p> --}}
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            End Time <span class="text-red-500">*</span>
+                                        </label>
+                                        <div class="relative">
+                                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+<i class="w-5 h-5 fa-icon fa-regular fa-clock text-base leading-none"></i>
+                                            </span>
+                                            <input type="time" x-model="bookingForm.end_time" required
+                                                   class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
                                         Number of Attendees <span class="text-red-500">*</span>
                                     </label>
-                                     <input type="number" x-model="bookingForm.attendees" min="1" :max="attendeeInputMax || null" required
-                                           class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                                     <p x-show="attendeeGuidance" x-cloak class="mt-1 text-xs text-gray-500" x-text="attendeeGuidance"></p>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+<i class="w-5 h-5 fa-icon fa-solid fa-users text-base leading-none"></i>
+                                        </span>
+                                        <input type="number" x-model="bookingForm.attendees" min="1" :max="attendeeInputMax || null" required
+                                               class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                    </div>
+                                    <p x-show="attendeeGuidance" x-cloak class="mt-1 text-xs text-gray-500" x-text="attendeeGuidance"></p>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
                     <!-- Footer -->
-                    <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-white shrink-0">
-                        <p x-show="!hasVerifiedRegistration && !qcIdVerification?.is_valid" x-cloak class="mr-auto text-sm text-amber-600">
-                            Upload and verify a QC ID before creating the booking.
-                        </p>
+                    <div class="flex items-center justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
                         <button type="button" @click="closeBookingModal()"
                                 class="px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
-                            Cancel
-                        </button>
-                        <button type="submit" :disabled="isSubmitting || (!hasVerifiedRegistration && !qcIdVerification?.is_valid)"
-                                class="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             <span class="flex items-center gap-2">
-                                <i x-show="isSubmitting" class="animate-spin w-4 h-4 fa-icon fa-solid fa-spinner text-base leading-none"></i>
+<i class="w-4 h-4 fa-icon fa-solid fa-xmark text-sm leading-none"></i>
+                                Cancel
+                            </span>
+                        </button>
+                        <button type="submit" :disabled="isSubmitting"
+                                class="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50">
+                            <span class="flex items-center gap-2">
+                                
+                                
                                 <span x-text="isSubmitting ? 'Creating...' : 'Create Booking'"></span>
                             </span>
                         </button>
                     </div>
                 </form>
+            </div>
         </div>
-        <button type="button" class="modal-backdrop fixed inset-0 bg-black/40" @click="closeBookingModal()">close</button>
     </div>
 </div>
 
@@ -667,9 +750,6 @@
 
 @push('scripts')
 @php
-    $verifiedRegistration = auth()->user()?->qcidRegistration;
-    $hasVerifiedRegistration = $verifiedRegistration && $verifiedRegistration->verification_status === 'verified';
-
     $roomOptions = $rooms->map(function ($room) {
         return [
             'id' => $room->id,
@@ -680,20 +760,260 @@
         ];
     })->values();
 @endphp
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
-window.dashboardCalendarConfig = {
-    hasVerifiedRegistration: @json($hasVerifiedRegistration),
-    verifiedRegistrationName: @json($verifiedRegistration?->full_name),
-    isStaffUser: @json(auth()->user()?->isStaff() ?? false),
-    rooms: @json($roomOptions),
-    defaultDate: '{{ now()->format("Y-m-d") }}',
-    initialCalendarData: @json($calendarData),
-    monthDataUrl: '{{ route("calendar.month") }}',
-    eventsUrl: '{{ route("calendar.events") }}',
-    verifyQcIdUrl: '{{ route("qcid.verify") }}',
-    storeBookingUrl: '{{ route("reservations.store") }}',
-};
+function dashboardApp() {
+    return {
+        showBookingModal: false,
+        isSubmitting: false,
+        showBookingModal: false,
+        showViewModal: false,
+        showDayEventsModal: false,
+        selectedBooking: null,
+        selectedDay: null,
+        isSubmitting: false,
+        calendarView: 'month',
+        currentMonth: new Date().getMonth(),
+        currentYear: new Date().getFullYear(),
+        calendarData: @json($calendarData),
+        isStaffUser: @json(auth()->user()?->isStaff() ?? false),
+        rooms: @json($roomOptions),
+        monthNames: ['January', 'February', 'March', 'April', 'May', 'June', 
+                     'July', 'August', 'September', 'October', 'November', 'December'],
+        
+        bookingForm: {
+            purpose: '',
+            room_id: '',
+            date: '{{ now()->format("Y-m-d") }}',
+            start_time: '09:00',
+            end_time: '10:00',
+            attendees: 1,
+            user_name: '',
+            description: '',
+        },
+
+        get calendarWeeks() {
+            const weeks = [];
+            const firstDay = new Date(this.currentYear, this.currentMonth, 1);
+            const lastDay = new Date(this.currentYear, this.currentMonth + 1, 0);
+            const startPadding = firstDay.getDay();
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            let currentWeek = [];
+            
+            // Previous month days
+            const prevMonth = new Date(this.currentYear, this.currentMonth, 0);
+            for (let i = startPadding - 1; i >= 0; i--) {
+                currentWeek.push({
+                    day: prevMonth.getDate() - i,
+                    isCurrentMonth: false,
+                    isToday: false,
+                    events: []
+                });
+            }
+
+            // Current month days
+            for (let i = 1; i <= lastDay.getDate(); i++) {
+                const date = new Date(this.currentYear, this.currentMonth, i);
+                const dateStr = this.formatDateKey(date);
+                const isToday = date.getTime() === today.getTime();
+                
+                currentWeek.push({
+                    day: i,
+                    date: dateStr,
+                    isCurrentMonth: true,
+                    isToday,
+                    events: this.calendarData[dateStr] || []
+                });
+
+                if (currentWeek.length === 7) {
+                    weeks.push(currentWeek);
+                    currentWeek = [];
+                }
+            }
+
+            // Next month days
+            let nextMonthDay = 1;
+            while (currentWeek.length < 7 && currentWeek.length > 0) {
+                currentWeek.push({
+                    day: nextMonthDay++,
+                    isCurrentMonth: false,
+                    isToday: false,
+                    events: []
+                });
+            }
+            if (currentWeek.length > 0) {
+                weeks.push(currentWeek);
+            }
+
+            // Ensure we have 6 weeks for consistent height
+            while (weeks.length < 6) {
+                const week = [];
+                for (let i = 0; i < 7; i++) {
+                    week.push({
+                        day: nextMonthDay++,
+                        isCurrentMonth: false,
+                        isToday: false,
+                        events: []
+                    });
+                }
+                weeks.push(week);
+            }
+
+            return weeks.reverse();
+        },
+
+        init() {
+            this.$watch('bookingForm.room_id', () => {
+                const max = this.attendeeInputMax;
+                if (max && Number(this.bookingForm.attendees) > Number(max)) {
+                    this.bookingForm.attendees = max;
+                }
+            });
+
+            this.fetchCalendarData();
+        },
+
+        get selectedRoomMeta() {
+            return this.rooms.find(room => String(room.id) === String(this.bookingForm.room_id)) || null;
+        },
+
+        get attendeeInputMax() {
+            const room = this.selectedRoomMeta;
+
+            if (!room) {
+                return null;
+            }
+
+            return this.isStaffUser ? room.capacity : room.student_limit;
+        },
+
+        get attendeeGuidance() {
+            const room = this.selectedRoomMeta;
+
+            if (!room) {
+                return '';
+            }
+
+            if (!room.is_collaborative) {
+                return `Room capacity: ${room.capacity} attendees.`;
+            }
+
+            if (this.isStaffUser) {
+                return `Collaborative room capacity: ${room.capacity} attendees.`;
+            }
+
+            if (room.student_limit > room.standard_limit) {
+                return `Collaborative rooms allow up to ${room.standard_limit} attendees by default. Requests up to ${room.student_limit} attendees need librarian approval.`;
+            }
+
+            return `This collaborative room allows up to ${room.standard_limit} attendees.`;
+        },
+
+        formatDateKey(date) {
+            return date.getFullYear() + '-' + 
+                   String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+                   String(date.getDate()).padStart(2, '0');
+        },
+
+        async fetchCalendarData() {
+            try {
+                const response = await fetch(`/rooms/calendar/month?month=${this.currentMonth + 1}&year=${this.currentYear}`);
+                this.calendarData = await response.json();
+            } catch (error) {
+                console.error('Failed to fetch calendar data:', error);
+            }
+        },
+
+        prevMonth() {
+            if (this.currentMonth === 0) {
+                this.currentMonth = 11;
+                this.currentYear--;
+            } else {
+                this.currentMonth--;
+            }
+            this.fetchCalendarData();
+        },
+
+        nextMonth() {
+            if (this.currentMonth === 11) {
+                this.currentMonth = 0;
+                this.currentYear++;
+            } else {
+                this.currentMonth++;
+            }
+            this.fetchCalendarData();
+        },
+
+        goToToday() {
+            const today = new Date();
+            this.currentMonth = today.getMonth();
+            this.currentYear = today.getFullYear();
+            this.fetchCalendarData();
+        },
+
+        openBookingModal() {
+            this.bookingForm = {
+                purpose: '',
+                room_id: '',
+                date: '{{ now()->format("Y-m-d") }}',
+                start_time: '09:00',
+                end_time: '10:00',
+                attendees: 1,
+                user_name: '',
+                description: '',
+            };
+            this.showBookingModal = true;
+        },
+
+        closeBookingModal() {
+            this.showBookingModal = false;
+        },
+
+        openViewBookingModal(booking) {
+            this.selectedBooking = booking;
+            this.showViewModal = true;
+        },
+
+        openDayEventsModal(day) {
+            this.selectedDay = day;
+            this.showDayEventsModal = true;
+        },
+
+        viewBooking(booking) {
+            this.openViewBookingModal(booking);
+        },
+
+        async submitBooking() {
+            this.isSubmitting = true;
+            try {
+                const response = await fetch('{{ route("reservations.store") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify(this.bookingForm)
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                    this.closeBookingModal();
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Failed to create booking');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while creating the booking');
+            } finally {
+                this.isSubmitting = false;
+            }
+        }
+    }
+}
 </script>
 @endpush
 @endsection

@@ -63,7 +63,7 @@ class BookingController extends Controller
                 ->first()
             : null;
 
-        $requiresBookingOcr = ! $verifiedRegistration;
+        $requiresBookingOcr = ! $actingUser && ! $verifiedRegistration;
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -111,6 +111,13 @@ class BookingController extends Controller
 
             $validated['user_name'] = $validated['user_name'] ?: $verifiedRegistration->full_name;
             $validated['user_email'] = $validated['user_email'] ?: $verifiedRegistration->email;
+        } elseif ($actingUser) {
+            $qcIdVerification = [
+                'is_valid' => true,
+                'name_matches' => true,
+                'source' => 'account',
+                'cardholder_name' => $actingUser->name,
+            ];
         } else {
             $qcIdVerification = $qcIdOcrVerifier->verify(
                 $validated['qc_id_ocr_text'],
