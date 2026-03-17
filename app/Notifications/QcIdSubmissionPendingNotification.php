@@ -35,7 +35,7 @@ class QcIdSubmissionPendingNotification extends Notification
             ->greeting('Hello,')
             ->line('Your QC ID registration was submitted successfully and is now pending staff verification.')
             ->line('Submitted name: ' . ($this->registration->full_name ?: 'N/A'))
-            ->action('Open SmartSpace', route('dashboard'))
+            ->action('View QC ID Registration', route('qcid.registration.show'))
             ->line('You will receive another notification once your registration has been reviewed.');
     }
 
@@ -47,7 +47,7 @@ class QcIdSubmissionPendingNotification extends Notification
         return [
             'title' => 'QC ID registration submitted',
             'message' => 'Your QC ID registration is now pending verification.',
-            'url' => route('dashboard'),
+            'url' => route('qcid.registration.show'),
             'status' => 'pending',
             'submitted_at' => optional($this->registration->submitted_at)->toDateTimeString(),
         ];

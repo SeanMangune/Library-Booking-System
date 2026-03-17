@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('title', 'Reports - SmartSpace')
+@section('title', 'Reports | SmartSpace')
 
 @section('breadcrumb')
-<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-sm leading-none"></i>
+<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
 <span class="text-gray-700 font-medium">Reports</span>
 @endsection
 
@@ -18,13 +18,13 @@
             <button type="button"
                     onclick="window.print()"
                     class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold transition-colors">
-<i class="w-4 h-4 fa-icon fa-solid fa-print text-sm leading-none"></i>
+                <i class="w-4 h-4 fa-icon fa-solid fa-print text-base leading-none"></i>
                 Print Report
             </button>
 
             <a href="{{ route('reports.index', array_filter(array_merge($filters, ['export' => 'csv']))) }}"
                class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-colors">
-<i class="w-4 h-4 fa-icon fa-solid fa-upload text-sm leading-none"></i>
+                <i class="w-4 h-4 fa-icon fa-solid fa-download text-base leading-none"></i>
                 Download CSV
             </a>
         </div>
