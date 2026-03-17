@@ -3,9 +3,7 @@
 @section('title', 'Dashboard - SmartSpace')
 
 @section('breadcrumb')
-<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-</svg>
+<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-sm leading-none"></i>
 <span class="text-gray-700 font-medium">Rooms</span>
 @endsection
 @section('content')
@@ -18,9 +16,7 @@
         </div>
         <button @click="openBookingModal()" 
                 class="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
+<i class="w-4 h-4 fa-icon fa-solid fa-plus text-sm leading-none"></i>
             Create Booking
         </button>
     </div>
@@ -191,9 +187,7 @@
                     </div>
                     @empty
                     <div class="text-center py-8">
-                        <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
+<i class="w-12 h-12 text-gray-300 mx-auto mb-3 fa-icon fa-regular fa-calendar text-4xl leading-none"></i>
                         <p class="text-sm text-gray-500">No reservations for today</p>
                     </div>
                     @endforelse
@@ -232,9 +226,7 @@
                     </div>
                     @empty
                     <div class="text-center py-8">
-                        <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
+<i class="w-12 h-12 text-gray-300 mx-auto mb-3 fa-icon fa-regular fa-calendar text-4xl leading-none"></i>
                         <p class="text-sm text-gray-500">No upcoming reservations</p>
                     </div>
                     @endforelse
@@ -249,14 +241,10 @@
                 <div class="flex items-center justify-between mb-6">
                     <div class="flex items-center gap-2">
                         <button @click="prevMonth()" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
-                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                            </svg>
+<i class="w-4 h-4 text-gray-600 fa-icon fa-solid fa-chevron-left text-sm leading-none"></i>
                         </button>
                         <button @click="nextMonth()" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
-                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
+<i class="w-4 h-4 text-gray-600 fa-icon fa-solid fa-chevron-right text-sm leading-none"></i>
                         </button>
                         <button @click="goToToday()" class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
                             today
@@ -316,27 +304,19 @@
                                                     <div class="font-semibold text-sm mb-2" x-text="event.title || event.room_name"></div>
                                                     <div class="space-y-1.5 text-gray-300">
                                                         <div class="flex items-center gap-2">
-                                                            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                                                            </svg>
+<i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-building text-xs leading-none"></i>
                                                             <span x-text="event.room_name"></span>
                                                         </div>
                                                         <div class="flex items-center gap-2">
-                                                            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                            </svg>
+<i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-regular fa-clock text-xs leading-none"></i>
                                                             <span x-text="event.formatted_time"></span>
                                                         </div>
                                                         <div class="flex items-center gap-2">
-                                                            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                                            </svg>
+<i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-regular fa-user text-xs leading-none"></i>
                                                             <span x-text="event.user_name"></span>
                                                         </div>
                                                         <div class="flex items-center gap-2">
-                                                            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                                            </svg>
+<i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-users text-xs leading-none"></i>
                                                             <span x-text="event.attendees + ' attendees'"></span>
                                                         </div>
                                                     </div>
@@ -376,9 +356,7 @@
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                </svg>
+<i class="w-5 h-5 text-white fa-icon fa-regular fa-calendar text-base leading-none"></i>
                             </div>
                             <div>
                                 <h3 class="text-lg font-semibold text-white">Booking Details</h3>
@@ -386,9 +364,7 @@
                             </div>
                         </div>
                         <button @click="showViewModal = false" class="text-white/80 hover:text-white transition-colors">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
+<i class="w-6 h-6 fa-icon fa-solid fa-xmark text-lg leading-none"></i>
                         </button>
                     </div>
                 </div>
@@ -400,9 +376,7 @@
                             <!-- Title -->
                             <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
                                 <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-                                    </svg>
+<i class="w-5 h-5 text-blue-600 fa-icon fa-solid fa-tag text-base leading-none"></i>
                                 </div>
                                 <div>
                                     <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Purpose</p>
@@ -414,9 +388,7 @@
                                 <!-- Date -->
                                 <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
                                     <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                                        <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                        </svg>
+<i class="w-5 h-5 text-green-600 fa-icon fa-regular fa-calendar text-base leading-none"></i>
                                     </div>
                                     <div>
                                         <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Date</p>
@@ -427,9 +399,7 @@
                                 <!-- Time -->
                                 <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
                                     <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                                        <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                        </svg>
+<i class="w-5 h-5 text-purple-600 fa-icon fa-regular fa-clock text-base leading-none"></i>
                                     </div>
                                     <div>
                                         <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Time</p>
@@ -440,9 +410,7 @@
                                 <!-- Booked By -->
                                 <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
                                     <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                                        <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                        </svg>
+<i class="w-5 h-5 text-amber-600 fa-icon fa-regular fa-user text-base leading-none"></i>
                                     </div>
                                     <div>
                                         <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Booked By</p>
@@ -453,9 +421,7 @@
                                 <!-- Attendees -->
                                 <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
                                     <div class="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center">
-                                        <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                        </svg>
+<i class="w-5 h-5 text-teal-600 fa-icon fa-solid fa-users text-base leading-none"></i>
                                     </div>
                                     <div>
                                         <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Attendees</p>
@@ -468,9 +434,7 @@
                             <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                                 <div class="flex items-center gap-3">
                                     <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                        </svg>
+<i class="w-5 h-5 text-indigo-600 fa-icon fa-solid fa-circle-check text-base leading-none"></i>
                                     </div>
                                     <div>
                                         <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Status</p>
@@ -516,9 +480,7 @@
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                </svg>
+<i class="w-5 h-5 text-white fa-icon fa-regular fa-calendar text-base leading-none"></i>
                             </div>
                             <div>
                                 <h3 class="text-lg font-semibold text-white">All Bookings</h3>
@@ -526,9 +488,7 @@
                             </div>
                         </div>
                         <button @click="showDayEventsModal = false" class="text-white/80 hover:text-white transition-colors">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
+<i class="w-6 h-6 fa-icon fa-solid fa-xmark text-lg leading-none"></i>
                         </button>
                     </div>
                 </div>
@@ -542,24 +502,18 @@
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="flex items-start gap-3">
                                         <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
-                                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                                            </svg>
+<i class="w-5 h-5 text-blue-600 fa-icon fa-solid fa-building text-base leading-none"></i>
                                         </div>
                                         <div class="flex-1 min-w-0">
                                             <h4 class="font-semibold text-gray-900" x-text="event.room_name"></h4>
                                             <p class="text-sm text-gray-600 mt-0.5" x-text="event.title || 'No title'"></p>
                                             <div class="flex items-center gap-3 mt-2 text-xs text-gray-500">
                                                 <span class="flex items-center gap-1">
-                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                    </svg>
+<i class="w-3.5 h-3.5 fa-icon fa-regular fa-clock text-xs leading-none"></i>
                                                     <span x-text="event.formatted_time"></span>
                                                 </span>
                                                 <span class="flex items-center gap-1">
-                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                                    </svg>
+<i class="w-3.5 h-3.5 fa-icon fa-regular fa-user text-xs leading-none"></i>
                                                     <span x-text="event.user_name"></span>
                                                 </span>
                                             </div>
@@ -600,9 +554,7 @@
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                </svg>
+<i class="w-5 h-5 text-white fa-icon fa-regular fa-calendar text-base leading-none"></i>
                             </div>
                             <div>
                                 <h2 class="text-lg font-bold text-white">Schedule New Booking</h2>
@@ -610,9 +562,7 @@
                             </div>
                         </div>
                         <button @click="closeBookingModal()" class="text-white/80 hover:text-white">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
+<i class="w-6 h-6 fa-icon fa-solid fa-xmark text-lg leading-none"></i>
                         </button>
                     </div>
                 </div>
@@ -634,9 +584,7 @@
                                     </label>
                                     <div class="relative">
                                         <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-                                            </svg>
+<i class="w-5 h-5 fa-icon fa-solid fa-tag text-base leading-none"></i>
                                         </span>
                                              <input type="text" x-model="bookingForm.purpose" required
                                                  placeholder="e.g., Group study, Thesis consultation"
@@ -650,9 +598,7 @@
                                     </label>
                                     <div class="relative">
                                         <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                            </svg>
+<i class="w-5 h-5 fa-icon fa-regular fa-user text-base leading-none"></i>
                                         </span>
                                         <input type="text" x-model="bookingForm.user_name" required
                                                placeholder="Search and select a user..."
@@ -667,9 +613,7 @@
                                                   placeholder="Add any additional details about the booking..."
                                                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"></textarea>
                                         <button type="button" class="absolute top-2 right-2 text-gray-400 hover:text-gray-600">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                                            </svg>
+<i class="w-4 h-4 fa-icon fa-regular fa-clipboard text-sm leading-none"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -690,9 +634,7 @@
                                     </label>
                                     <div class="relative">
                                         <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                                            </svg>
+<i class="w-5 h-5 fa-icon fa-solid fa-building text-base leading-none"></i>
                                         </span>
                                         <select x-model="bookingForm.room_id" required
                                                 class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 appearance-none bg-white">
@@ -710,9 +652,7 @@
                                     </label>
                                     <div class="relative">
                                         <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                            </svg>
+<i class="w-5 h-5 fa-icon fa-regular fa-calendar text-base leading-none"></i>
                                         </span>
                                         <input type="date" x-model="bookingForm.date" required
                                                min="{{ now()->format('Y-m-d') }}"
@@ -727,9 +667,7 @@
                                         </label>
                                         <div class="relative">
                                             <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                </svg>
+<i class="w-5 h-5 fa-icon fa-regular fa-clock text-base leading-none"></i>
                                             </span>
                                             <input type="time" x-model="bookingForm.start_time" required
                                                    class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
@@ -741,9 +679,7 @@
                                         </label>
                                         <div class="relative">
                                             <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                </svg>
+<i class="w-5 h-5 fa-icon fa-regular fa-clock text-base leading-none"></i>
                                             </span>
                                             <input type="time" x-model="bookingForm.end_time" required
                                                    class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
@@ -757,9 +693,7 @@
                                     </label>
                                     <div class="relative">
                                         <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-                                            </svg>
+<i class="w-5 h-5 fa-icon fa-solid fa-users text-base leading-none"></i>
                                         </span>
                                         <input type="number" x-model="bookingForm.attendees" min="1" :max="attendeeInputMax || null" required
                                                class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
@@ -775,22 +709,15 @@
                         <button type="button" @click="closeBookingModal()"
                                 class="px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
                             <span class="flex items-center gap-2">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                </svg>
+<i class="w-4 h-4 fa-icon fa-solid fa-xmark text-sm leading-none"></i>
                                 Cancel
                             </span>
                         </button>
                         <button type="submit" :disabled="isSubmitting"
                                 class="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50">
                             <span class="flex items-center gap-2">
-                                <svg x-show="!isSubmitting" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                </svg>
-                                <svg x-show="isSubmitting" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                                </svg>
+                                
+                                
                                 <span x-text="isSubmitting ? 'Creating...' : 'Create Booking'"></span>
                             </span>
                         </button>

@@ -3,13 +3,9 @@
 @section('title', 'Approvals - SmartSpace')
 
 @section('breadcrumb')
-<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-</svg>
+<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-sm leading-none"></i>
 <span class="text-gray-500">Rooms</span>
-<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-</svg>
+<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-sm leading-none"></i>
 <span class="text-gray-700 font-medium">Approvals</span>
 @endsection
 
@@ -29,9 +25,7 @@
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
             <div class="flex items-center justify-between">
                 <div class="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
-                    <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
+<i class="w-6 h-6 text-amber-600 fa-icon fa-regular fa-clock text-lg leading-none"></i>
                 </div>
                 <span class="text-3xl font-bold text-gray-900">{{ $stats['pending'] }}</span>
             </div>
@@ -42,9 +36,7 @@
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
             <div class="flex items-center justify-between">
                 <div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
-                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
+<i class="w-6 h-6 text-green-600 fa-icon fa-solid fa-circle-check text-lg leading-none"></i>
                 </div>
                 <span class="text-3xl font-bold text-gray-900">{{ $stats['approved'] }}</span>
             </div>
@@ -55,9 +47,7 @@
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
             <div class="flex items-center justify-between">
                 <div class="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">
-                    <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
+<i class="w-6 h-6 text-red-500 fa-icon fa-solid fa-circle-xmark text-lg leading-none"></i>
                 </div>
                 <span class="text-3xl font-bold text-gray-900">{{ $stats['rejected'] }}</span>
             </div>
@@ -112,9 +102,7 @@
             <div class="flex items-start justify-between gap-4">
                 <div class="flex items-start gap-4">
                     <div class="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
-                        <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                        </svg>
+<i class="w-6 h-6 text-indigo-600 fa-icon fa-solid fa-building text-lg leading-none"></i>
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-3 flex-wrap">
@@ -125,27 +113,21 @@
                             
                             @if($booking->has_conflict)
                             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
-                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                                </svg>
+<i class="w-3.5 h-3.5 fa-icon fa-solid fa-triangle-exclamation text-xs leading-none"></i>
                                 Conflict
                             </span>
                             @endif
                             
                             @if($booking->exceedsCapacity())
                             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
-                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
-                                </svg>
+<i class="w-3.5 h-3.5 fa-icon fa-solid fa-users text-xs leading-none"></i>
                                 Over Capacity
                             </span>
                             @endif
 
                             @if($booking->requiresCapacityPermission())
                             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M18 10A8 8 0 112 10a8 8 0 0116 0zm-7-4a1 1 0 10-2 0v4a1 1 0 102 0V6zm-1 8a1.25 1.25 0 100-2.5A1.25 1.25 0 0010 14z" clip-rule="evenodd"/>
-                                </svg>
+<i class="w-3.5 h-3.5 fa-icon fa-solid fa-circle-info text-xs leading-none"></i>
                                 Permission Needed
                             </span>
                             @endif
@@ -191,9 +173,7 @@
         @empty
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
             <div class="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
+<i class="w-8 h-8 text-gray-400 fa-icon fa-solid fa-circle-check text-2xl leading-none"></i>
             </div>
             <h3 class="text-lg font-medium text-gray-900">No pending approvals</h3>
             <p class="mt-1 text-sm text-gray-500">All booking requests have been reviewed.</p>
@@ -221,9 +201,7 @@
                             <p class="text-purple-200 text-sm">Review and take action</p>
                         </div>
                         <button @click="closeModal()" class="text-white/80 hover:text-white">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
+<i class="w-6 h-6 fa-icon fa-solid fa-xmark text-lg leading-none"></i>
                         </button>
                     </div>
                 </div>
@@ -234,9 +212,7 @@
                     <template x-if="selectedBooking?.requires_capacity_permission">
                         <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl mb-4">
                             <div class="flex items-center gap-2 mb-2">
-                                <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M18 10A8 8 0 112 10a8 8 0 0116 0zm-7-4a1 1 0 10-2 0v4a1 1 0 102 0V6zm-1 8a1.25 1.25 0 100-2.5A1.25 1.25 0 0010 14z" clip-rule="evenodd"/>
-                                </svg>
+<i class="w-5 h-5 text-blue-600 fa-icon fa-solid fa-circle-info text-base leading-none"></i>
                                 <span class="text-sm font-semibold text-blue-800">Collaborative Room Permission</span>
                             </div>
                             <p class="text-sm text-blue-700 mb-3" x-text="'Collaborative rooms allow up to ' + selectedBooking?.standard_capacity_limit + ' attendees by default. This request asks for ' + selectedBooking?.attendees + ' attendees and needs librarian approval.'"></p>
@@ -258,9 +234,7 @@
                     <template x-if="selectedBooking?.exceeds_capacity">
                         <div class="p-4 bg-purple-50 border border-purple-200 rounded-xl mb-4">
                             <div class="flex items-center gap-2 mb-2">
-                                <svg class="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
-                                </svg>
+<i class="w-5 h-5 text-purple-600 fa-icon fa-solid fa-users text-base leading-none"></i>
                                 <span class="text-sm font-semibold text-purple-800">Capacity Exceeded</span>
                             </div>
                             <p class="text-sm text-purple-700 mb-3" x-text="'This booking requests ' + selectedBooking?.attendees + ' attendees but the room capacity is ' + selectedBooking?.room_capacity + '.'"></p>
@@ -282,9 +256,7 @@
                     <!-- Conflict Warning -->
                     <template x-if="selectedBooking?.has_conflict">
                         <div class="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl mb-4">
-                            <svg class="w-5 h-5 text-red-500 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                            </svg>
+<i class="w-5 h-5 text-red-500 shrink-0 mt-0.5 fa-icon fa-solid fa-triangle-exclamation text-base leading-none"></i>
                             <div>
                                 <p class="text-sm font-medium text-red-800">Scheduling Conflict</p>
                                 <p class="text-xs text-red-600 mt-0.5">This booking conflicts with an existing reservation.</p>
@@ -296,9 +268,7 @@
                     <div class="grid grid-cols-2 gap-3 mb-6">
                         <div class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl">
                             <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                                </svg>
+<i class="w-5 h-5 text-purple-600 fa-icon fa-solid fa-building text-base leading-none"></i>
                             </div>
                             <div>
                                 <p class="text-xs text-gray-500">Room</p>
@@ -307,9 +277,7 @@
                         </div>
                         <div class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl">
                             <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                </svg>
+<i class="w-5 h-5 text-purple-600 fa-icon fa-regular fa-calendar text-base leading-none"></i>
                             </div>
                             <div>
                                 <p class="text-xs text-gray-500">Date</p>
@@ -318,9 +286,7 @@
                         </div>
                         <div class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl">
                             <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
+<i class="w-5 h-5 text-purple-600 fa-icon fa-regular fa-clock text-base leading-none"></i>
                             </div>
                             <div>
                                 <p class="text-xs text-gray-500">Time</p>
@@ -329,9 +295,7 @@
                         </div>
                         <div class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl">
                             <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
+<i class="w-5 h-5 text-purple-600 fa-icon fa-regular fa-clock text-base leading-none"></i>
                             </div>
                             <div>
                                 <p class="text-xs text-gray-500">Duration</p>
@@ -345,15 +309,11 @@
                         <h3 class="text-sm font-semibold text-gray-700 mb-3">Requestor Information</h3>
                         <div class="space-y-2">
                             <div class="flex items-center gap-2 text-sm">
-                                <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                </svg>
+<i class="w-4 h-4 text-purple-500 fa-icon fa-regular fa-user text-sm leading-none"></i>
                                 <span class="text-gray-900" x-text="selectedBooking?.user_name"></span>
                             </div>
                             <div class="flex items-center gap-2 text-sm">
-                                <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                                </svg>
+<i class="w-4 h-4 text-purple-500 fa-icon fa-regular fa-envelope text-sm leading-none"></i>
                                 <span class="text-gray-500" x-text="selectedBooking?.user_email"></span>
                             </div>
                         </div>
@@ -362,9 +322,7 @@
                     <!-- Attendees -->
                     <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl mb-6">
                         <div class="flex items-center gap-2">
-                            <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-                            </svg>
+<i class="w-5 h-5 text-purple-500 fa-icon fa-solid fa-users text-base leading-none"></i>
                             <div>
                                 <p class="text-xs text-gray-500">Attendees</p>
                                 <p class="text-sm font-semibold" :class="selectedBooking?.exceeds_capacity ? 'text-purple-600' : 'text-gray-900'" x-text="selectedBooking?.attendees + ' people'"></p>
@@ -396,25 +354,15 @@
                         <button @click="approveBooking()"
                             :disabled="isLoading || ((selectedBooking?.exceeds_capacity || selectedBooking?.requires_capacity_permission) && !showExceptionInput)"
                                 class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                            <svg x-show="!isLoading || actionType !== 'approve'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                            <svg x-show="isLoading && actionType === 'approve'" class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                            </svg>
+                            
+                            
                             <span x-text="isLoading && actionType === 'approve' ? 'Approving...' : (showExceptionInput ? 'Approve with Note' : 'Approve')"></span>
                         </button>
                         <button @click="rejectBooking()"
                                 :disabled="isLoading"
                                 class="flex items-center justify-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-all disabled:opacity-50">
-                            <svg x-show="!isLoading || actionType !== 'reject'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                            <svg x-show="isLoading && actionType === 'reject'" class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                            </svg>
+                            
+                            
                             <span x-text="isLoading && actionType === 'reject' ? 'Rejecting...' : 'Reject'"></span>
                         </button>
                     </div>
@@ -440,9 +388,7 @@
                 <!-- Success Header -->
                 <!-- <div class="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-8 rounded-t-2xl text-center">
                     <div class="w-16 h-16 mx-auto bg-white/20 rounded-full flex items-center justify-center mb-4">
-                        <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
+<i class="w-10 h-10 text-white fa-icon fa-solid fa-circle-check text-3xl leading-none"></i>
                     </div>
                     <h2 class="text-xl font-bold text-white">Booking Approved!</h2>
                     <p class="text-green-100 text-sm mt-1">The booking has been successfully approved</p>
@@ -450,10 +396,7 @@
 
                 <div class="success-header">
                 <div class="icon-circle">
-                    <svg class="check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
+<i class="check-icon fa-icon fa-solid fa-circle-check text-base leading-none"></i>
                 </div>
 
                 <h2 class="success-title">Booking Approved!</h2>
@@ -540,9 +483,7 @@
                             <template x-if="!approvedBooking?.qr_code_url || qrImageFailed">
                                 <div class="w-48 h-48 flex items-center justify-center bg-gray-100 rounded-lg">
                                     <div class="text-center">
-                                        <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
-                                        </svg>
+<i class="w-12 h-12 text-gray-400 mx-auto mb-2 fa-icon fa-solid fa-table-cells text-4xl leading-none"></i>
                                         <p class="text-sm text-gray-500">QR Code</p>
                                         <p class="text-xs text-gray-400">Not available</p>
                                     </div>
@@ -562,13 +503,8 @@
                             <button @click="downloadQr(approvedBooking.qr_code_url, `booking-${approvedBooking.qr_token}.png`)" 
                                     :disabled="isDownloading"
                                     class="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all flex items-center gap-2 disabled:opacity-50">
-                                <svg x-show="!isDownloading" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                                </svg>
-                                <svg x-show="isDownloading" class="animate-spin w-5 h-5" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                                </svg>
+                                
+                                
                                 <span x-text="isDownloading ? 'Saving...' : 'Download'"></span>
                             </button>
                         </template>
@@ -591,9 +527,7 @@
                 
                 <div class="p-8 text-center">
                     <div class="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
-                        <svg class="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
+<i class="w-10 h-10 text-red-500 fa-icon fa-solid fa-xmark text-3xl leading-none"></i>
                     </div>
                     <h2 class="text-xl font-bold text-gray-900 mb-2">Booking Rejected</h2>
                     <p class="text-gray-500 text-sm mb-6">The booking request has been rejected.</p>

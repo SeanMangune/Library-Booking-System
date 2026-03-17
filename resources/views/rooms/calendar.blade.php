@@ -3,13 +3,9 @@
 @section('title', 'Calendar - SmartSpace')
 
 @section('breadcrumb')
-<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-</svg>
+<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-sm leading-none"></i>
 <span class="text-gray-500">Rooms</span>
-<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-</svg>
+<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-sm leading-none"></i>
 <span class="text-gray-700 font-medium">Calendar</span>
 @endsection
 
@@ -30,9 +26,7 @@
                             <button @click="open = !open" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors">
                                 <span class="flex items-center gap-2">
                                     Status (1)
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                    </svg>
+<i class="w-4 h-4 fa-icon fa-solid fa-check text-sm leading-none"></i>
                                 </span>
                             </button>
                             <div x-show="open" @click.away="open = false" x-cloak
@@ -49,9 +43,7 @@
                         </div>
                         <button @click="openBookingModal()"
                                 class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                            </svg>
+<i class="w-4 h-4 fa-icon fa-solid fa-plus text-sm leading-none"></i>
                             Create Booking
                         </button>
                     </div>
@@ -64,14 +56,10 @@
                 <div class="flex items-center justify-between mb-6">
                     <div class="flex items-center gap-2">
                         <button @click="calendar?.prev()" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
-                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                            </svg>
+<i class="w-4 h-4 text-gray-600 fa-icon fa-solid fa-chevron-left text-sm leading-none"></i>
                         </button>
                         <button @click="calendar?.next()" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
-                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
+<i class="w-4 h-4 text-gray-600 fa-icon fa-solid fa-chevron-right text-sm leading-none"></i>
                         </button>
                         <button @click="calendar?.today()" class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
                             today
@@ -114,9 +102,7 @@
                 <div class="relative mb-4">
                     <input type="text" x-model="roomSearch" placeholder="Search rooms..."
                            class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
-                    <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                    </svg>
+<i class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 fa-icon fa-solid fa-magnifying-glass text-sm leading-none"></i>
                 </div>
 
                 <!-- Room List -->
@@ -129,9 +115,7 @@
                          style="position: relative; z-index: 10;">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                                </svg>
+<i class="w-5 h-5 text-gray-500 fa-icon fa-solid fa-building text-base leading-none"></i>
                             </div>
                             <div class="flex-1 min-w-0">
                                 <p class="font-medium text-gray-900 truncate">{{ $room->name }}</p>
@@ -142,9 +126,7 @@
                                 @endif
                             </div>
                             <template x-if="selectedRoom?.id == {{ $room->id }}">
-                                <svg class="w-5 h-5 text-blue-600 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                </svg>
+<i class="w-5 h-5 text-blue-600 shrink-0 fa-icon fa-solid fa-circle-check text-base leading-none"></i>
                             </template>
                         </div>
                     </div>
@@ -164,9 +146,7 @@
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                </svg>
+<i class="w-5 h-5 text-white fa-icon fa-regular fa-calendar text-base leading-none"></i>
                             </div>
                             <div>
                                 <h2 class="text-lg font-bold text-white">Schedule New Booking</h2>
@@ -174,9 +154,7 @@
                             </div>
                         </div>
                         <button @click="closeBookingModal()" class="text-white/80 hover:text-white">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
+<i class="w-6 h-6 fa-icon fa-solid fa-xmark text-lg leading-none"></i>
                         </button>
                     </div>
                 </div>
@@ -304,10 +282,7 @@
                         <button type="submit" :disabled="isSubmitting"
                                 class="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             <span class="flex items-center gap-2">
-                                <svg x-show="isSubmitting" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                                </svg>
+<i class="animate-spin w-4 h-4 fa-icon fa-solid fa-spinner text-sm leading-none" x-show="isSubmitting"></i>
                                 <span x-text="isSubmitting ? 'Creating...' : 'Create Booking'"></span>
                             </span>
                         </button>
@@ -322,9 +297,7 @@
         <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
                 <!-- <div class="bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-7 rounded-t-2xl text-center">
                     <div class="w-14 h-14 mx-auto bg-white/20 rounded-full flex items-center justify-center mb-3">
-                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
+<i class="w-8 h-8 text-white fa-icon fa-solid fa-circle-check text-2xl leading-none"></i>
                     </div>
                     <h2 class="text-lg font-bold text-white"
                         x-text="successBooking?.status === 'pending' ? 'Booking Submitted!' : 'Booking Confirmed!'"></h2>
@@ -333,10 +306,7 @@
 
                 <div class="success-header">
     <div class="success-icon-wrap">
-        <svg class="success-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-        </svg>
+<i class="success-icon fa-icon fa-solid fa-circle-check text-base leading-none"></i>
     </div>
 
     <h2 class="success-title"
@@ -423,9 +393,7 @@
                             <div class="mt-3">
                                 <a :href="successBooking.qr_code_url" download
                                    class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                                    </svg>
+<i class="w-4 h-4 fa-icon fa-solid fa-download text-sm leading-none"></i>
                                     Download
                                 </a>
                             </div>
@@ -448,9 +416,7 @@
                     <div class="flex items-center justify-between">
                         <h2 class="text-lg font-bold text-white">Booking Details</h2>
                         <button @click="closeEventModal()" class="text-white/80 hover:text-white">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
+<i class="w-6 h-6 fa-icon fa-solid fa-xmark text-lg leading-none"></i>
                         </button>
                     </div>
                 </div>
@@ -1127,27 +1093,19 @@ function calendarApp() {
                 <div class="font-semibold text-sm mb-2">${this.escapeHtml(purpose || roomName)}</div>
                 <div class="space-y-1.5 text-gray-300">
                     <div class="flex items-center gap-2">
-                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                        </svg>
+<i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-building text-xs leading-none"></i>
                         <span>${this.escapeHtml(roomName)}</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
+<i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-regular fa-clock text-xs leading-none"></i>
                         <span>${this.escapeHtml(time)}</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                        </svg>
+<i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-regular fa-user text-xs leading-none"></i>
                         <span>${this.escapeHtml(userName)}</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        </svg>
+<i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-users text-xs leading-none"></i>
                         <span>${this.escapeHtml(attendees ? attendees + ' attendees' : '')}</span>
                     </div>
                 </div>

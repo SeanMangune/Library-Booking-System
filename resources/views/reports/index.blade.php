@@ -3,9 +3,7 @@
 @section('title', 'Reports - SmartSpace')
 
 @section('breadcrumb')
-<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-</svg>
+<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-sm leading-none"></i>
 <span class="text-gray-700 font-medium">Reports</span>
 @endsection
 
@@ -20,17 +18,13 @@
             <button type="button"
                     onclick="window.print()"
                     class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold transition-colors">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9V4h12v5M6 18h12v-5H6v5zm-2-8h16a2 2 0 012 2v2h-4m-12 0H2v-2a2 2 0 012-2z"/>
-                </svg>
+<i class="w-4 h-4 fa-icon fa-solid fa-print text-sm leading-none"></i>
                 Print Report
             </button>
 
             <a href="{{ route('reports.index', array_filter(array_merge($filters, ['export' => 'csv']))) }}"
                class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-colors">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16v-8m0 8l-3-3m3 3l3-3M4 19h16"/>
-                </svg>
+<i class="w-4 h-4 fa-icon fa-solid fa-upload text-sm leading-none"></i>
                 Download CSV
             </a>
         </div>

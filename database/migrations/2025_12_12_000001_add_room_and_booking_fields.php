@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -24,8 +25,19 @@ return new class extends Migration
             $table->foreignId('user_id')->nullable()->after('description');
             $table->time('start_time')->nullable()->after('date');
             $table->time('end_time')->nullable()->after('start_time');
-            $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled'])->default('pending')->change();
         });
+
+        if (Schema::getConnection()->getDriverName() === 'pgsql') {
+            DB::statement("ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_status_check");
+            DB::statement("ALTER TABLE bookings ADD CONSTRAINT bookings_status_check CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled'))");
+            DB::statement("UPDATE bookings SET status = 'pending' WHERE status IS NULL");
+            DB::statement("ALTER TABLE bookings ALTER COLUMN status SET DEFAULT 'pending'");
+            DB::statement("ALTER TABLE bookings ALTER COLUMN status SET NOT NULL");
+        } else {
+            Schema::table('bookings', function (Blueprint $table) {
+                $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled'])->default('pending')->change();
+            });
+        }
     }
 
     public function down(): void
@@ -37,5 +49,17 @@ return new class extends Migration
         Schema::table('bookings', function (Blueprint $table) {
             $table->dropColumn(['title', 'description', 'user_id', 'start_time', 'end_time']);
         });
+
+        if (Schema::getConnection()->getDriverName() === 'pgsql') {
+            DB::statement("UPDATE bookings SET status = 'rejected' WHERE status = 'cancelled'");
+            DB::statement("ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_status_check");
+            DB::statement("ALTER TABLE bookings ADD CONSTRAINT bookings_status_check CHECK (status IN ('pending', 'approved', 'rejected'))");
+            DB::statement("ALTER TABLE bookings ALTER COLUMN status SET DEFAULT 'pending'");
+            DB::statement("ALTER TABLE bookings ALTER COLUMN status SET NOT NULL");
+        } else {
+            Schema::table('bookings', function (Blueprint $table) {
+                $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending')->change();
+            });
+        }
     }
 };

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class Room extends Model
@@ -25,6 +26,21 @@ class Room extends Model
         'status_start_at' => 'datetime',
         'status_end_at' => 'datetime',
     ];
+
+    public function setRequiresApprovalAttribute($value): void
+    {
+        $normalized = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        $boolValue = $normalized ?? false;
+
+        // PostgreSQL rejects integer bindings for boolean columns in this flow.
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            $this->attributes['requires_approval'] = $boolValue ? 'true' : 'false';
+
+            return;
+        }
+
+        $this->attributes['requires_approval'] = $boolValue;
+    }
 
     public function bookings(): HasMany
     {
