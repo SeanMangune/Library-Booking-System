@@ -110,7 +110,7 @@
             transition: opacity 180ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
         }
 
-        @media (min-width: 1024px) {
+        @media (hover: hover) and (pointer: fine) {
             aside.sidebar-collapsed .sidebar-brand,
             aside.sidebar-collapsed .sidebar-section-label,
             aside.sidebar-collapsed .sidebar-text,
@@ -186,11 +186,34 @@
     @endphp
     <div x-data="{
         sidebarOpen: false,
+        canHoverSidebar: false,
         sidebarHoverExpand: false,
         sidebarExpandTimer: null,
         sidebarCollapseTimer: null,
+        syncSidebarMode() {
+            const hoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+            const hasChanged = this.canHoverSidebar !== hoverCapable;
+
+            this.canHoverSidebar = hoverCapable;
+
+            if (this.canHoverSidebar) {
+                this.sidebarOpen = false;
+            }
+
+            if (!this.canHoverSidebar) {
+                this.sidebarHoverExpand = false;
+            }
+
+            if (hasChanged) {
+                window.dispatchEvent(new CustomEvent('layout:sidebar-toggled'));
+            }
+        },
+        initSidebarMode() {
+            this.syncSidebarMode();
+            window.addEventListener('resize', () => this.syncSidebarMode());
+        },
         handleSidebarMouseEnter() {
-            if (!window.matchMedia('(min-width: 1024px)').matches) {
+            if (!this.canHoverSidebar) {
                 return;
             }
 
@@ -209,7 +232,7 @@
             }, 70);
         },
         handleSidebarMouseLeave() {
-            if (!window.matchMedia('(min-width: 1024px)').matches) {
+            if (!this.canHoverSidebar) {
                 return;
             }
 
@@ -227,14 +250,15 @@
                 window.dispatchEvent(new CustomEvent('layout:sidebar-toggled'));
             }, 120);
         },
-    }" class="min-h-screen flex">
+    }" x-init="initSidebarMode()" class="min-h-screen flex">
         <!-- Sidebar -->
-        <aside class="sidebar-shell fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 transform lg:translate-x-0 shadow-2xl"
+        <aside class="sidebar-shell fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 transform shadow-2xl"
                @mouseenter="handleSidebarMouseEnter()"
                @mouseleave="handleSidebarMouseLeave()"
                :class="[
-                   sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-                   sidebarHoverExpand ? 'lg:w-64' : 'lg:w-20 sidebar-collapsed'
+                   canHoverSidebar
+                       ? (sidebarHoverExpand ? 'translate-x-0 w-64' : 'translate-x-0 w-20 sidebar-collapsed')
+                       : (sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64')
                ]">
             <!-- Logo -->
             <div class="sidebar-header flex items-center justify-between h-20 px-4 border-b border-white/10 bg-gradient-to-r from-indigo-900/50 to-transparent">
@@ -248,7 +272,7 @@
                         <p class="text-indigo-300 text-xs">Reservation System</p>
                     </div>
                 </div>
-                <button @click="sidebarOpen = false" class="lg:hidden text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors">
+                <button @click="sidebarOpen = false" x-show="!canHoverSidebar" x-cloak class="text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors">
                     <i class="w-5 h-5 fa-icon fa-solid fa-xmark text-xl leading-none"></i>
                 </button>
             </div>
@@ -308,12 +332,12 @@
         </aside>
 
         <!-- Main Content -->
-        <div class="content-shell flex-1" :class="sidebarHoverExpand ? 'lg:ml-64' : 'lg:ml-20'">
+        <div class="content-shell flex-1" :class="canHoverSidebar ? (sidebarHoverExpand ? 'ml-64' : 'ml-20') : ''">
             <!-- Top Header -->
             <header class="bg-white border-b border-gray-200 sticky top-0 z-30">
-                <div class="flex items-center justify-between h-16 px-4 sm:px-6">
+                <div class="flex items-center justify-between h-20 px-4 sm:px-6">
                     <div class="flex items-center gap-4">
-                        <button @click="sidebarOpen = true" class="lg:hidden text-gray-600 hover:text-gray-900">
+                        <button @click="sidebarOpen = true" x-show="!canHoverSidebar" x-cloak class="text-gray-600 hover:text-gray-900">
                             <i class="w-6 h-6 fa-icon fa-solid fa-bars text-2xl leading-none"></i>
                         </button>
                         <!-- Breadcrumb -->
@@ -496,8 +520,8 @@
         </div>
 
         <!-- Overlay for mobile sidebar -->
-        <div x-show="sidebarOpen" @click="sidebarOpen = false" x-cloak
-               class="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 lg:hidden"></div>
+         <div x-show="sidebarOpen && !canHoverSidebar" @click="sidebarOpen = false" x-cloak
+             class="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"></div>
     </div>
 
     @stack('scripts')

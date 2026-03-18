@@ -18,7 +18,7 @@ class BookingController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $canViewAll = $user?->isAdmin() || strcasecmp((string) ($user?->username ?? ''), 'superadmin') === 0;
+        $canViewAll = $user?->isAdmin() || $user?->isSuperAdmin();
 
         $query = Booking::with('room');
 
@@ -254,7 +254,7 @@ class BookingController extends Controller
     public function cancel(Request $request, Booking $booking)
     {
         $user = $request->user();
-        $canManageAll = $user?->isAdmin() || strcasecmp((string) ($user?->username ?? ''), 'superadmin') === 0;
+        $canManageAll = $user?->isAdmin() || $user?->isSuperAdmin();
         $isOwner = $user
             && (
                 ((int) ($booking->user_id ?? 0) === (int) $user->id)

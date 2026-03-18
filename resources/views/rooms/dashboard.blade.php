@@ -28,8 +28,8 @@
         <div class="min-w-0 xl:min-h-0">
             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 xl:h-full xl:flex xl:flex-col xl:min-h-0">
                 <!-- Calendar Navigation -->
-                <div class="flex flex-col gap-4 mb-6 xl:flex-row xl:items-center xl:justify-between">
-                    <div class="flex items-center gap-2">
+                <div class="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center">
+                    <div class="order-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start lg:order-1">
                         <button @click="prevMonth()" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
                             <i class="w-4 h-4 text-gray-600 fa-icon fa-solid fa-chevron-left text-base leading-none"></i>
                         </button>
@@ -41,9 +41,9 @@
                         </button>
                     </div>
 
-                    <h2 class="text-xl font-semibold text-gray-900 text-center" x-text="calendarTitle"></h2>
+                    <h2 class="order-1 text-center text-xl font-semibold text-gray-900 lg:order-2 lg:px-4" x-text="calendarTitle"></h2>
 
-                    <div class="flex flex-wrap items-center justify-end gap-2">
+                    <div class="order-3 flex flex-wrap items-center justify-center gap-2 sm:justify-end lg:order-3">
                         <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
                             <button @click="changeDashboardView('dayGridMonth')"
                                     class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
@@ -64,7 +64,7 @@
 
                         <button type="button"
                                 @click="toggleBookingsPanel()"
-                                class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                            class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors whitespace-nowrap"
                                 :title="bookingsPanelOpen ? 'Collapse bookings panel' : 'Expand bookings panel'">
                             <i class="w-4 h-4 fa-icon fa-solid text-base leading-none"
                                :class="bookingsPanelOpen ? 'fa-angles-right' : 'fa-angles-left'"></i>

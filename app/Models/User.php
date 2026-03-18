@@ -64,6 +64,11 @@ class User extends Authenticatable
         return $this->role === self::ROLE_ADMIN;
     }
 
+    public function isSuperAdmin(): bool
+    {
+        return $this->isAdmin() && strcasecmp((string) ($this->username ?? ''), 'superadmin') === 0;
+    }
+
     public function isLibrarian(): bool
     {
         return $this->role === self::ROLE_LIBRARIAN;
@@ -76,6 +81,10 @@ class User extends Authenticatable
 
     public function roleLabel(): string
     {
+        if ($this->isSuperAdmin()) {
+            return 'Super Admin';
+        }
+
         return match ($this->role) {
             self::ROLE_ADMIN => 'Administrator',
             self::ROLE_LIBRARIAN => 'Librarian',

@@ -34,10 +34,10 @@
             <!-- Calendar -->
             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
                 <!-- Calendar Header -->
-                <div class="flex items-center justify-between mb-6">
-                    <div class="flex items-center gap-2">
+                <div class="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center">
+                    <div class="order-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start lg:order-1">
                         <button @click="calendar?.prev()" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
-                            <i class="w-4 h-4 text-gray-600 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
+                            <i class="w-4 h-4 text-gray-600 fa-icon fa-solid fa-chevron-left text-base leading-none"></i>
                         </button>
                         <button @click="calendar?.next()" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
                             <i class="w-4 h-4 text-gray-600 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
@@ -46,23 +46,25 @@
                             today
                         </button>
                     </div>
-                    <h2 class="text-xl font-semibold text-gray-900" x-text="calendarTitle"></h2>
-                    <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                        <button @click="changeView('dayGridMonth')" 
-                                class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
-                                :class="currentView === 'dayGridMonth' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'">
-                            month
-                        </button>
-                        <button @click="changeView('timeGridWeek')" 
-                                class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
-                                :class="currentView === 'timeGridWeek' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'">
-                            week
-                        </button>
-                        <button @click="changeView('listWeek')" 
-                                class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
-                                :class="currentView === 'listWeek' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'">
-                            list
-                        </button>
+                    <h2 class="order-1 text-center text-xl font-semibold text-gray-900 lg:order-2 lg:px-4" x-text="calendarTitle"></h2>
+                    <div class="order-3 flex items-center justify-center sm:justify-end lg:order-3">
+                        <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                            <button @click="changeView('dayGridMonth')" 
+                                    class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+                                    :class="currentView === 'dayGridMonth' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'">
+                                month
+                            </button>
+                            <button @click="changeView('timeGridWeek')" 
+                                    class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+                                    :class="currentView === 'timeGridWeek' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'">
+                                week
+                            </button>
+                            <button @click="changeView('listWeek')" 
+                                    class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+                                    :class="currentView === 'listWeek' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'">
+                                list
+                            </button>
+                        </div>
                     </div>
                 </div>
 

@@ -12,7 +12,7 @@
 @section('content')
 @php
     $currentUser = auth()->user();
-    $canViewAllReservations = $currentUser?->isAdmin() || strcasecmp((string) ($currentUser?->username ?? ''), 'superadmin') === 0;
+    $canViewAllReservations = $currentUser?->isAdmin() || $currentUser?->isSuperAdmin();
 @endphp
 <div x-data="reservationsApp()">
     <!-- Header -->
