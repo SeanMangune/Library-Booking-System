@@ -28,7 +28,34 @@
             </div>
         @endif
 
-        <div x-data="signupLoginApp({{ (old('name') || old('phone_number') || old('user_type') || old('course') || old('qcid_number') || old('ocr_text') || $errors->any()) ? 'true' : 'false' }})">
+        @php
+            $signupFields = [
+                'name',
+                'email',
+                'phone_number',
+                'user_type',
+                'employee_category',
+                'course',
+                'qcid_number',
+                'sex',
+                'civil_status',
+                'date_of_birth',
+                'date_issued',
+                'valid_until',
+                'address',
+                'ocr_text',
+                'qcid_image',
+                'password',
+                'password_confirmation',
+            ];
+
+            $hasSignupOldInput = collect($signupFields)
+                ->contains(fn ($field) => filled(old($field)));
+
+            $openSignupOnLoad = $hasSignupOldInput || $errors->hasAny($signupFields);
+        @endphp
+
+        <div x-data="signupLoginApp({{ $openSignupOnLoad ? 'true' : 'false' }})">
             <div class="flex justify-center">
                 <!-- User Login -->
                 <div class="w-full max-w-xl">
