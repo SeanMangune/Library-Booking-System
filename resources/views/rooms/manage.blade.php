@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'Manage Rooms - SmartSpace')
+@section('title', 'Manage Rooms | SmartSpace')
 
 @section('breadcrumb')
-<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-sm leading-none"></i>
+<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
 <span class="text-gray-500">Rooms</span>
-<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-sm leading-none"></i>
+<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
 <span class="text-gray-700 font-medium">Manage</span>
 @endsection
 
@@ -55,11 +55,11 @@
                 <div class="relative">
                     <input type="text" x-model="searchQuery" @input="searchRooms()" placeholder="Search..."
                            class="w-48 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
-<i class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 fa-icon fa-solid fa-magnifying-glass text-sm leading-none"></i>
+                    <i class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 fa-icon fa-solid fa-magnifying-glass text-base leading-none"></i>
                 </div>
                 <button @click="openAddModal()"
                         class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors">
-<i class="w-4 h-4 fa-icon fa-solid fa-plus text-sm leading-none"></i>
+                    <i class="w-4 h-4 fa-icon fa-solid fa-plus text-base leading-none"></i>
                     Add New Room
                 </button>
             </div>
@@ -104,11 +104,11 @@
                             <div class="flex items-center gap-2">
                                 <button @click='openEditModal(@json($room))'
                                         class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-<i class="w-4 h-4 fa-icon fa-solid fa-pen text-sm leading-none"></i>
+                                    <i class="w-4 h-4 fa-icon fa-solid fa-pen-to-square text-base leading-none"></i>
                                 </button>
                                 <button @click='openDeleteModal(@json($room))'
                                         class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-<i class="w-4 h-4 fa-icon fa-regular fa-trash-can text-sm leading-none"></i>
+                                    <i class="w-4 h-4 fa-icon fa-solid fa-trash-can text-base leading-none"></i>
                                 </button>
                             </div>
                         </td>
@@ -116,7 +116,7 @@
                     @empty
                     <tr>
                         <td colspan="5" class="px-6 py-12 text-center">
-<i class="w-12 h-12 text-gray-300 mx-auto mb-3 fa-icon fa-solid fa-building text-4xl leading-none"></i>
+                            <i class="w-12 h-12 text-gray-300 mx-auto mb-3 fa-icon fa-solid fa-building text-5xl leading-none"></i>
                             <p class="text-sm text-gray-500">No rooms found</p>
                         </td>
                     </tr>
@@ -134,7 +134,7 @@
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-<i class="w-5 h-5 text-white fa-icon fa-solid fa-building text-base leading-none"></i>
+                                <i class="w-5 h-5 text-white fa-icon fa-solid fa-building text-xl leading-none"></i>
                             </div>
                             <div>
                                 <h2 class="text-lg font-bold text-white" x-text="isEditing ? 'Edit Room' : 'Add New Room'"></h2>
@@ -142,7 +142,7 @@
                             </div>
                         </div>
                         <button @click="closeModal()" class="text-white/80 hover:text-white">
-<i class="w-6 h-6 fa-icon fa-solid fa-xmark text-lg leading-none"></i>
+                            <i class="w-6 h-6 fa-icon fa-solid fa-xmark text-2xl leading-none"></i>
                         </button>
                     </div>
                 </div>
@@ -162,7 +162,7 @@
                             </label>
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-<i class="w-4 h-4 fa-icon fa-solid fa-tag text-sm leading-none"></i>
+                                    <i class="w-4 h-4 fa-icon fa-solid fa-tag text-base leading-none"></i>
                                 </span>
                                 <input type="text" x-model="roomForm.name" required
                                        placeholder="e.g., Conference Room A"
@@ -175,7 +175,7 @@
                             </label>
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-<i class="w-4 h-4 fa-icon fa-solid fa-users text-sm leading-none"></i>
+                                    <i class="w-4 h-4 fa-icon fa-solid fa-users text-base leading-none"></i>
                                 </span>
                                 <input type="number" x-model="roomForm.capacity" min="1" required
                                        class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm">
@@ -187,7 +187,7 @@
                             </label>
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-<i class="w-4 h-4 fa-icon fa-solid fa-shield-halved text-sm leading-none"></i>
+                                    <i class="w-4 h-4 fa-icon fa-solid fa-location-dot text-base leading-none"></i>
                                 </span>
                                 <input type="text" x-model="roomForm.location"
                                        placeholder="e.g., 2nd Floor, Building A"
@@ -217,7 +217,7 @@
                             </label>
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-<i class="w-4 h-4 fa-icon fa-solid fa-circle-check text-sm leading-none"></i>
+                                    <i class="w-4 h-4 fa-icon fa-solid fa-circle-check text-base leading-none"></i>
                                 </span>
                                 <select x-model="roomForm.status" required
                                         class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm appearance-none bg-white">
@@ -232,7 +232,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Start Date/Time</label>
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-<i class="w-4 h-4 fa-icon fa-regular fa-calendar text-sm leading-none"></i>
+                                    <i class="w-4 h-4 fa-icon fa-solid fa-calendar-days text-base leading-none"></i>
                                 </span>
                                 <input type="datetime-local" x-model="roomForm.status_start_at"
                                        class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm bg-gray-50">
@@ -242,7 +242,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">End Date/Time</label>
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-<i class="w-4 h-4 fa-icon fa-regular fa-calendar text-sm leading-none"></i>
+                                    <i class="w-4 h-4 fa-icon fa-solid fa-calendar-days text-base leading-none"></i>
                                 </span>
                                 <input type="datetime-local" x-model="roomForm.status_end_at"
                                        class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm bg-gray-50">
@@ -255,22 +255,22 @@
                         <button type="button" @click="closeModal()"
                                 class="px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
                             <span class="flex items-center gap-2">
-<i class="w-4 h-4 fa-icon fa-solid fa-xmark text-sm leading-none"></i>
+                                <i class="w-4 h-4 fa-icon fa-solid fa-xmark text-base leading-none"></i>
                                 Cancel
                             </span>
                         </button>
                         <button type="submit" :disabled="isSubmitting"
                                 class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50">
                             <span class="flex items-center gap-2">
-                                
-                                
+                                <i x-show="!isSubmitting" class="w-4 h-4 fa-icon fa-solid fa-floppy-disk text-base leading-none"></i>
+                                <i x-show="isSubmitting" class="animate-spin w-4 h-4 fa-icon fa-solid fa-spinner text-base leading-none"></i>
                                 <span x-text="isSubmitting ? 'Saving...' : (isEditing ? 'Update Room' : 'Add Room')"></span>
                             </span>
                         </button>
                     </div>
                 </form>
             </div>
-        </div>
+            <button type="button" class="modal-backdrop fixed inset-0 bg-black/40" @click="closeModal()">close</button>
     </div>
 
     <!-- Delete Confirmation Modal -->
@@ -281,7 +281,7 @@
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-<i class="w-5 h-5 text-white fa-icon fa-regular fa-trash-can text-base leading-none"></i>
+                                <i class="w-5 h-5 text-white fa-icon fa-solid fa-trash-can text-xl leading-none"></i>
                             </div>
                             <div>
                                 <h2 class="text-lg font-bold text-white">Delete Room</h2>
@@ -289,7 +289,7 @@
                             </div>
                         </div>
                         <button @click="closeDeleteModal()" class="text-white/80 hover:text-white">
-<i class="w-6 h-6 fa-icon fa-solid fa-xmark text-lg leading-none"></i>
+                            <i class="w-6 h-6 fa-icon fa-solid fa-xmark text-2xl leading-none"></i>
                         </button>
                     </div>
                 </div>
@@ -299,28 +299,28 @@
                     <div class="grid grid-cols-2 gap-4 mb-6">
                         <div class="p-4 bg-green-50 rounded-xl">
                             <div class="flex items-center gap-2 text-green-600 text-xs font-medium mb-1">
-<i class="w-4 h-4 fa-icon fa-solid fa-circle-check text-sm leading-none"></i>
+                                <i class="w-4 h-4 fa-icon fa-solid fa-circle-check text-base leading-none"></i>
                                 STATUS
                             </div>
                             <p class="text-gray-900 font-semibold" x-text="deleteRoom?.status ? deleteRoom.status.charAt(0).toUpperCase() + deleteRoom.status.slice(1) : ''"></p>
                         </div>
                         <div class="p-4 bg-blue-50 rounded-xl">
                             <div class="flex items-center gap-2 text-blue-600 text-xs font-medium mb-1">
-<i class="w-4 h-4 fa-icon fa-solid fa-building text-sm leading-none"></i>
+                                <i class="w-4 h-4 fa-icon fa-solid fa-building text-base leading-none"></i>
                                 ROOM NAME
                             </div>
                             <p class="text-gray-900 font-semibold" x-text="deleteRoom?.name"></p>
                         </div>
                         <div class="p-4 bg-gray-50 rounded-xl">
                             <div class="flex items-center gap-2 text-gray-600 text-xs font-medium mb-1">
-<i class="w-4 h-4 fa-icon fa-solid fa-shield-halved text-sm leading-none"></i>
+                                <i class="w-4 h-4 fa-icon fa-solid fa-location-dot text-base leading-none"></i>
                                 LOCATION
                             </div>
                             <p class="text-gray-900 font-semibold" x-text="deleteRoom?.location || '-'"></p>
                         </div>
                         <div class="p-4 bg-gray-50 rounded-xl">
                             <div class="flex items-center gap-2 text-gray-600 text-xs font-medium mb-1">
-<i class="w-4 h-4 fa-icon fa-solid fa-users text-sm leading-none"></i>
+                                <i class="w-4 h-4 fa-icon fa-solid fa-users text-base leading-none"></i>
                                 CAPACITY
                             </div>
                             <p class="text-gray-900 font-semibold" x-text="deleteRoom?.capacity"></p>
@@ -331,22 +331,22 @@
                         <button @click="closeDeleteModal()"
                                 class="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors">
                             <span class="flex items-center justify-center gap-2">
-<i class="w-4 h-4 fa-icon fa-solid fa-xmark text-sm leading-none"></i>
+                                <i class="w-4 h-4 fa-icon fa-solid fa-xmark text-base leading-none"></i>
                                 No, Keep Room
                             </span>
                         </button>
                         <button @click="confirmDelete()" :disabled="isDeleting"
                                 class="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50">
                             <span class="flex items-center justify-center gap-2">
-                                
-                                
+                                <i x-show="!isDeleting" class="w-4 h-4 fa-icon fa-solid fa-trash-can text-base leading-none"></i>
+                                <i x-show="isDeleting" class="animate-spin w-4 h-4 fa-icon fa-solid fa-spinner text-base leading-none"></i>
                                 <span x-text="isDeleting ? 'Deleting...' : 'Yes, Delete Room'"></span>
                             </span>
                         </button>
                     </div>
                 </div>
             </div>
-        </div>
+            <button type="button" class="modal-backdrop fixed inset-0 bg-black/40" @click="closeDeleteModal()">close</button>
     </div>
 </div>
 
@@ -445,15 +445,17 @@ function roomManagement() {
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert(data.message);
+                    window.notifyApp?.('success', data.message || 'Room saved successfully.');
                     this.closeModal();
-                    window.location.reload();
+                    window.setTimeout(() => {
+                        window.location.reload();
+                    }, 850);
                 } else {
-                    alert(data.message || 'An error occurred');
+                    window.notifyApp?.('error', data.message || 'An error occurred');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('An error occurred while saving the room');
+                window.notifyApp?.('error', 'An error occurred while saving the room');
             } finally {
                 this.isSubmitting = false;
             }
@@ -475,15 +477,17 @@ function roomManagement() {
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert(data.message);
+                    window.notifyApp?.('success', data.message || 'Room deleted successfully.');
                     this.closeDeleteModal();
-                    window.location.reload();
+                    window.setTimeout(() => {
+                        window.location.reload();
+                    }, 850);
                 } else {
-                    alert(data.message || 'Cannot delete room');
+                    window.notifyApp?.('error', data.message || 'Cannot delete room');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('An error occurred while deleting the room');
+                window.notifyApp?.('error', 'An error occurred while deleting the room');
             } finally {
                 this.isDeleting = false;
             }

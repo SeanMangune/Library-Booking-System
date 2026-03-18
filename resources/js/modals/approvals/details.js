@@ -62,6 +62,10 @@ export function createApprovalDetailsModalState() {
                     booking.qr_code_url = `/bookings/qr/${booking.qr_token}`;
                 }
 
+                if (!booking.booking_status && booking.qr_status) {
+                    booking.booking_status = booking.qr_status;
+                }
+
                 this.approvedBooking = booking;
                 this.qrImageFailed = false;
                 this.showModal = false;

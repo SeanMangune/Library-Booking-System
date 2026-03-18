@@ -5,6 +5,15 @@
 @section('content')
 <div class="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
     @if($booking)
+    @php
+        $lifecycleStatus = $booking->booking_status ?? 'upcoming';
+        $approvalStatus = $booking->status ?? 'unknown';
+        [$badgeBackground, $badgeText] = match ($lifecycleStatus) {
+            'valid' => ['#ECFDF5', '#047857'],
+            'expired' => ['#FEF2F2', '#B91C1C'],
+            default => ['#FFFBEB', '#B45309'],
+        };
+    @endphp
     <div class="bg-white shadow rounded-2xl overflow-hidden border border-gray-100">
         <div class="verify-header">
     <div class="verify-left">
@@ -21,8 +30,8 @@
     </div>
 
     <div>
-        <span class="status-badge">
-            {{ ucfirst($booking->status ?? 'unknown') }}
+        <span class="status-badge" style="background: {{ $badgeBackground }}; color: {{ $badgeText }};">
+            {{ ucfirst($lifecycleStatus) }}
         </span>
     </div>
 </div>
@@ -90,8 +99,8 @@
     border-radius: 9999px; /* rounded-full */
     font-size: 0.875rem;
     font-weight: 600;
-    background: rgba(255,255,255,0.12);
-    color: #D1FAE5; /* your updated color */
+    background: #ecfdf5;
+    color: #065f46;
 }
 </style>
 
@@ -132,13 +141,14 @@
                     </div>
 
                     <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
-                        <p class="text-xs text-gray-500 uppercase tracking-wide">Status</p>
+                        <p class="text-xs text-gray-500 uppercase tracking-wide">QR Status</p>
                         <div class="mt-2">
-                            @php $status = $booking->status ?? 'unknown'; @endphp
+                            @php $status = $booking->booking_status ?? 'upcoming'; @endphp
                             <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold"
-                                  style="background: {{ $status === 'approved' ? '#ECFDF5' : '#FEF3C7' }}; color: {{ $status === 'approved' ? '#065F46' : '#92400E' }};">
+                                  style="background: {{ $status === 'valid' ? '#ECFDF5' : ($status === 'expired' ? '#FEF2F2' : '#FFFBEB') }}; color: {{ $status === 'valid' ? '#047857' : ($status === 'expired' ? '#B91C1C' : '#B45309') }};">
                                 {{ ucfirst($status) }}
                             </span>
+                            <p class="mt-2 text-xs text-gray-500">Approval: {{ ucfirst($approvalStatus) }}</p>
                         </div>
                     </div>
                 </div>

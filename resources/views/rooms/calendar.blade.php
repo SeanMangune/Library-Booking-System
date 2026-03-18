@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'Calendar - SmartSpace')
+@section('title', 'Calendar | SmartSpace')
 
 @section('breadcrumb')
-<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-sm leading-none"></i>
+<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
 <span class="text-gray-500">Rooms</span>
-<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-sm leading-none"></i>
+<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
 <span class="text-gray-700 font-medium">Calendar</span>
 @endsection
 
@@ -19,31 +19,12 @@
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <h1 class="text-xl font-bold text-gray-900" x-text="selectedRoom?.name || 'All Rooms'"></h1>
-                        <p class="text-sm text-gray-500 mt-1">Manage bookings and view room status</p>
+                        {{-- <p class="text-sm text-gray-500 mt-1">Manage bookings and view room status</p> --}}
                     </div>
                     <div class="flex items-center gap-3">
-                        <div x-data="{ open: false }" class="relative">
-                            <button @click="open = !open" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors">
-                                <span class="flex items-center gap-2">
-                                    Status (1)
-<i class="w-4 h-4 fa-icon fa-solid fa-check text-sm leading-none"></i>
-                                </span>
-                            </button>
-                            <div x-show="open" @click.away="open = false" x-cloak
-                                 class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10">
-                                <label class="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" checked class="rounded text-blue-600">
-                                    <span class="text-sm text-gray-700">Approved</span>
-                                </label>
-                                <label class="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="rounded text-blue-600">
-                                    <span class="text-sm text-gray-700">Pending</span>
-                                </label>
-                            </div>
-                        </div>
                         <button @click="openBookingModal()"
                                 class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors">
-<i class="w-4 h-4 fa-icon fa-solid fa-plus text-sm leading-none"></i>
+                            <i class="w-4 h-4 fa-icon fa-solid fa-plus text-base leading-none"></i>
                             Create Booking
                         </button>
                     </div>
@@ -56,10 +37,10 @@
                 <div class="flex items-center justify-between mb-6">
                     <div class="flex items-center gap-2">
                         <button @click="calendar?.prev()" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
-<i class="w-4 h-4 text-gray-600 fa-icon fa-solid fa-chevron-left text-sm leading-none"></i>
+                            <i class="w-4 h-4 text-gray-600 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
                         </button>
                         <button @click="calendar?.next()" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
-<i class="w-4 h-4 text-gray-600 fa-icon fa-solid fa-chevron-right text-sm leading-none"></i>
+                            <i class="w-4 h-4 text-gray-600 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
                         </button>
                         <button @click="calendar?.today()" class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
                             today
@@ -102,7 +83,7 @@
                 <div class="relative mb-4">
                     <input type="text" x-model="roomSearch" placeholder="Search rooms..."
                            class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
-<i class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 fa-icon fa-solid fa-magnifying-glass text-sm leading-none"></i>
+                    <i class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 fa-icon fa-solid fa-magnifying-glass text-base leading-none"></i>
                 </div>
 
                 <!-- Room List -->
@@ -115,7 +96,7 @@
                          style="position: relative; z-index: 10;">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-<i class="w-5 h-5 text-gray-500 fa-icon fa-solid fa-building text-base leading-none"></i>
+                                <i class="w-5 h-5 text-gray-500 fa-icon fa-solid fa-building text-xl leading-none"></i>
                             </div>
                             <div class="flex-1 min-w-0">
                                 <p class="font-medium text-gray-900 truncate">{{ $room->name }}</p>
@@ -126,7 +107,7 @@
                                 @endif
                             </div>
                             <template x-if="selectedRoom?.id == {{ $room->id }}">
-<i class="w-5 h-5 text-blue-600 shrink-0 fa-icon fa-solid fa-circle-check text-base leading-none"></i>
+                                <i class="w-5 h-5 text-blue-600 shrink-0 fa-icon fa-solid fa-circle-check text-xl leading-none"></i>
                             </template>
                         </div>
                     </div>
@@ -137,16 +118,14 @@
     </div>
 
     <!-- Booking Modal -->
-    <div x-show="showBookingModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto">
-        <div class="fixed inset-0 bg-black/30 backdrop-blur-sm" @click="closeBookingModal()"></div>
-        <div class="relative min-h-screen flex items-center justify-center p-4">
-            <div class="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl" @click.stop>
+    <div x-show="showBookingModal" x-cloak class="modal p-4" :class="{ 'modal-open': showBookingModal }" @keydown.escape.window="closeBookingModal()">
+        <div class="modal-box w-11/12 max-w-2xl p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
                 <!-- Modal Header -->
                 <div class="bg-gradient-to-r from-teal-600 to-teal-700 px-6 py-4 rounded-t-2xl">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-<i class="w-5 h-5 text-white fa-icon fa-regular fa-calendar text-base leading-none"></i>
+                                <i class="w-5 h-5 text-white fa-icon fa-solid fa-calendar-days text-xl leading-none"></i>
                             </div>
                             <div>
                                 <h2 class="text-lg font-bold text-white">Schedule New Booking</h2>
@@ -154,13 +133,14 @@
                             </div>
                         </div>
                         <button @click="closeBookingModal()" class="text-white/80 hover:text-white">
-<i class="w-6 h-6 fa-icon fa-solid fa-xmark text-lg leading-none"></i>
+                            <i class="w-6 h-6 fa-icon fa-solid fa-xmark text-2xl leading-none"></i>
                         </button>
                     </div>
                 </div>
 
                 <!-- Modal Body -->
-                <form @submit.prevent="submitBooking()" class="p-6">
+                <form @submit.prevent="submitBooking()" class="flex flex-col min-h-0">
+                    <div class="p-6 flex-1 min-h-0 overflow-y-auto">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Left Column -->
                         <div>
@@ -188,13 +168,74 @@
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                 </div>
 
-                                <div class="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-2">
-                                    <label class="block text-sm font-medium text-gray-700">
-                                        Identity Verification
-                                    </label>
-                                    <p class="text-xs text-gray-600">
-                                        Booking access is available for students, employees, and alumni. QC ID details are managed through the signup registration flow.
-                                    </p>
+                                <div class="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            QC ID Verification <span class="text-red-500">*</span>
+                                        </label>
+                                        <p x-show="!hasVerifiedRegistration" class="text-xs text-gray-500">Upload a clear photo of a Quezon City Citizen ID. The system will read the card using OCR and reject non-QC IDs.</p>
+                                        <p x-show="hasVerifiedRegistration" x-cloak class="text-xs text-emerald-700">QC ID already verified from your QC ID Registration.</p>
+                                    </div>
+
+                                    <input x-show="!hasVerifiedRegistration" x-cloak type="file"
+                                           accept="image/png,image/jpeg,image/jpg,image/webp"
+                                           @change="handleQcIdUpload($event)"
+                                           class="block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-teal-700">
+
+                                    <div x-show="hasVerifiedRegistration" x-cloak class="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                                        <p class="text-sm font-semibold text-emerald-800">QC ID Verified</p>
+                                        <p class="text-xs text-emerald-700 mt-1">Bookings will use your approved QC ID registration status.</p>
+                                    </div>
+
+                                    <div x-show="qcIdPreviewUrl" x-cloak class="rounded-lg overflow-hidden border border-gray-200 bg-white">
+                                        <img :src="qcIdPreviewUrl" alt="QC ID preview" class="w-full h-44 object-cover">
+                                    </div>
+
+                                    <div x-show="qcIdIsProcessing" x-cloak class="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-700">
+                                        <div class="flex items-center justify-between gap-3">
+                                            <span x-text="qcIdStatusMessage || 'Reading QC ID…'"></span>
+                                            <span class="font-semibold" x-text="Math.round(qcIdProgress || 0) + '%' "></span>
+                                        </div>
+                                    </div>
+
+                                    <div x-show="qcIdError" x-cloak class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" x-text="qcIdError"></div>
+
+                                    <div x-show="qcIdVerification?.is_valid" x-cloak class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
+                                        <div class="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p class="text-sm font-semibold text-emerald-800">QC ID verified</p>
+                                                <p class="text-xs text-emerald-700" x-text="'Confidence score: ' + (qcIdVerification?.confidence_score ?? 0) + '%' "></p>
+                                            </div>
+                                            <button type="button"
+                                                    @click="reprocessQcId()"
+                                                    class="inline-flex items-center rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors">
+                                                Re-read ID
+                                            </button>
+                                        </div>
+
+                                        <dl class="grid grid-cols-1 gap-2 text-xs text-emerald-900 sm:grid-cols-2">
+                                            <div>
+                                                <dt class="font-medium text-emerald-700">Cardholder</dt>
+                                                <dd x-text="qcIdVerification?.cardholder_name || '—'"></dd>
+                                            </div>
+                                            <div>
+                                                <dt class="font-medium text-emerald-700">Birth Date</dt>
+                                                <dd x-text="qcIdVerification?.date_of_birth || '—'"></dd>
+                                            </div>
+                                            <div>
+                                                <dt class="font-medium text-emerald-700">Date Issued</dt>
+                                                <dd x-text="qcIdVerification?.date_issued || '—'"></dd>
+                                            </div>
+                                            <div>
+                                                <dt class="font-medium text-emerald-700">Valid Until</dt>
+                                                <dd x-text="qcIdVerification?.valid_until || '—'"></dd>
+                                            </div>
+                                            <div class="sm:col-span-2">
+                                                <dt class="font-medium text-emerald-700">Address</dt>
+                                                <dd x-text="qcIdVerification?.address || '—'"></dd>
+                                            </div>
+                                        </dl>
+                                    </div>
                                 </div>
 
                                 <!-- <div>
@@ -240,25 +281,42 @@
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
                                         Date <span class="text-red-500">*</span>
                                     </label>
-                                    <input type="date" x-model="bookingForm.date" required min="{{ now()->format('Y-m-d') }}"
-                                           class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                    <select x-model="bookingForm.date" required
+                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                        <option value="">Select a date</option>
+                                        <template x-for="dateOption in bookingDateOptions" :key="dateOption.value">
+                                            <option :value="dateOption.value" x-text="dateOption.label"></option>
+                                        </template>
+                                    </select>
                                 </div>
 
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                                            Start Time <span class="text-red-500">*</span>
-                                        </label>
-                                        <input type="time" x-model="bookingForm.start_time" required
-                                               class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        Time Slot <span class="text-red-500">*</span>
+                                    </label>
+                                    <select x-model="bookingForm.time_slot" required
+                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                        <option value="">Select a time slot</option>
+                                        <template x-for="slot in bookingTimeSlots" :key="slot.value">
+                                            <option :value="slot.value" x-text="slot.label"></option>
+                                        </template>
+                                    </select>
+                                    <div x-show="isLoadingTimeConflictSuggestions" x-cloak class="mt-2 text-xs text-gray-500">
+                                        Checking nearby available slots...
                                     </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                                            End Time <span class="text-red-500">*</span>
-                                        </label>
-                                        <input type="time" x-model="bookingForm.end_time" required
-                                               class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                    <div x-show="timeConflictMessage || timeConflictSuggestions.length" x-cloak class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                                        <p class="text-xs font-medium text-amber-800" x-text="timeConflictMessage"></p>
+
+                                        <div x-show="timeConflictSuggestions.length" x-cloak class="mt-2 flex flex-wrap gap-2">
+                                            <template x-for="suggestedSlot in timeConflictSuggestions" :key="suggestedSlot.value">
+                                                <button type="button"
+                                                        @click="applySuggestedTimeSlot(suggestedSlot.value)"
+                                                        class="inline-flex items-center rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100 transition-colors"
+                                                        x-text="suggestedSlot.label"></button>
+                                            </template>
+                                        </div>
                                     </div>
+                                    {{-- <p class="mt-1 text-xs text-gray-500">One-hour slots from 8:00 AM to 5:00 PM.</p> --}}
                                 </div>
 
                                 <div>
@@ -272,24 +330,28 @@
                             </div>
                         </div>
                     </div>
+                </div>
 
                     <!-- Footer -->
-                    <div class="flex items-center justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
+                    <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-white shrink-0">
+                        <p x-show="!hasVerifiedRegistration && !qcIdVerification?.is_valid" x-cloak class="mr-auto text-sm text-amber-600">
+                            Upload and verify a QC ID before creating the booking.
+                        </p>
                         <button type="button" @click="closeBookingModal()"
                                 class="px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
                             Cancel
                         </button>
-                        <button type="submit" :disabled="isSubmitting"
+                        <button type="submit" :disabled="isSubmitting || (!hasVerifiedRegistration && !qcIdVerification?.is_valid)"
                                 class="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             <span class="flex items-center gap-2">
-<i class="animate-spin w-4 h-4 fa-icon fa-solid fa-spinner text-sm leading-none" x-show="isSubmitting"></i>
+                                <i x-show="isSubmitting" class="animate-spin w-4 h-4 fa-icon fa-solid fa-spinner text-base leading-none"></i>
                                 <span x-text="isSubmitting ? 'Creating...' : 'Create Booking'"></span>
                             </span>
                         </button>
                     </div>
                 </form>
-            </div>
         </div>
+        <button type="button" class="modal-backdrop fixed inset-0 bg-black/40" @click="closeBookingModal()">close</button>
     </div>
 
     <!-- Booking Success Modal -->
@@ -297,7 +359,7 @@
         <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
                 <!-- <div class="bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-7 rounded-t-2xl text-center">
                     <div class="w-14 h-14 mx-auto bg-white/20 rounded-full flex items-center justify-center mb-3">
-<i class="w-8 h-8 text-white fa-icon fa-solid fa-circle-check text-2xl leading-none"></i>
+                        <i class="w-8 h-8 text-white fa-icon fa-solid fa-circle-check text-3xl leading-none"></i>
                     </div>
                     <h2 class="text-lg font-bold text-white"
                         x-text="successBooking?.status === 'pending' ? 'Booking Submitted!' : 'Booking Confirmed!'"></h2>
@@ -306,7 +368,7 @@
 
                 <div class="success-header">
     <div class="success-icon-wrap">
-<i class="success-icon fa-icon fa-solid fa-circle-check text-base leading-none"></i>
+        <i class="success-icon fa-icon fa-solid fa-circle-check text-[2rem] leading-none"></i>
     </div>
 
     <h2 class="success-title"
@@ -318,7 +380,7 @@
 <style>
 /* Header container */
 .success-header{
-    background: linear-gradient(to right, #0d9488, #059669); /* teal-600 -> emerald-600 */
+    background: linear-gradient(to right, #0d9488, #059669); /* teal-600 → emerald-600 */
     padding: 1.75rem 1.5rem; /* px-6 py-7 */
     border-top-left-radius: 1rem;
     border-top-right-radius: 1rem; /* rounded-t-2xl */
@@ -366,7 +428,7 @@
                         <div class="grid grid-cols-2 gap-4 text-sm">
                             <div>
                                 <p class="text-gray-500">Room</p>
-                                <p class="font-semibold text-gray-900" x-text="successBooking?.room?.name || selectedRoom?.name || '-'"></p>
+                                <p class="font-semibold text-gray-900" x-text="successBooking?.room?.name || selectedRoom?.name || '—'"></p>
                             </div>
                             <div>
                                 <p class="text-gray-500">Date</p>
@@ -393,7 +455,7 @@
                             <div class="mt-3">
                                 <a :href="successBooking.qr_code_url" download
                                    class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors">
-<i class="w-4 h-4 fa-icon fa-solid fa-download text-sm leading-none"></i>
+                                    <i class="w-4 h-4 fa-icon fa-solid fa-arrow-up-from-bracket text-base leading-none"></i>
                                     Download
                                 </a>
                             </div>
@@ -405,8 +467,8 @@
                         Done
                     </button>
                 </div>
-            </div>
         </div>
+        <button type="button" class="modal-backdrop fixed inset-0 bg-black/40 transition-opacity" @click="closeSuccessModal()">close</button>
     </div>
 
     <!-- Event Detail Modal -->
@@ -416,7 +478,7 @@
                     <div class="flex items-center justify-between">
                         <h2 class="text-lg font-bold text-white">Booking Details</h2>
                         <button @click="closeEventModal()" class="text-white/80 hover:text-white">
-<i class="w-6 h-6 fa-icon fa-solid fa-xmark text-lg leading-none"></i>
+                            <i class="w-6 h-6 fa-icon fa-solid fa-xmark text-2xl leading-none"></i>
                         </button>
                     </div>
                 </div>
@@ -470,8 +532,8 @@
                         </button>
                     </div>
                 </div>
-            </div>
         </div>
+        <button type="button" class="modal-backdrop fixed inset-0 bg-black/40" @click="closeEventModal()">close</button>
     </div>
 </div>
 
@@ -511,722 +573,18 @@
 @endphp
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
-function calendarApp() {
-    return {
-        calendar: null,
-        calendarTitle: '',
-        currentView: 'dayGridMonth',
-        selectedRoom: @json($selectedRoom),
-        roomSearch: '',
-        showBookingModal: false,
-        showEventModal: false,
-        showSuccessModal: false,
-        successMessage: '',
-        successBooking: null,
-        selectedEvent: null,
-        isSubmitting: false,
-        hasVerifiedRegistration: @json($hasVerifiedRegistration),
-        verifiedRegistrationName: @json($verifiedRegistration?->full_name),
-        isStaffUser: @json(auth()->user()?->isStaff() ?? false),
-        rooms: @json($roomOptions),
-        qcIdFile: null,
-        qcIdPreviewUrl: '',
-        qcIdIsProcessing: false,
-        qcIdProgress: 0,
-        qcIdStatusMessage: '',
-        qcIdError: '',
-        qcIdVerification: null,
-        
-        bookingForm: {
-            purpose: '',
-            room_id: '{{ $selectedRoom?->id ?? "" }}',
-            date: '{{ now()->format("Y-m-d") }}',
-            start_time: '09:00',
-            end_time: '10:00',
-            attendees: 1,
-            user_name: '',
-            user_email: '',
-            description: '',
-            qc_id_ocr_text: '',
-            qc_id_cardholder_name: '',
-        },
-
-        init() {
-            this.$nextTick(() => {
-                this.initCalendar();
-            });
-
-            // Room search filter
-            this.$watch('roomSearch', (value) => {
-                const query = value.toLowerCase();
-                document.querySelectorAll('.room-item').forEach(item => {
-                    const name = item.dataset.name;
-                    item.style.display = name.includes(query) ? '' : 'none';
-                });
-            });
-
-            this.$watch('bookingForm.user_name', (value) => {
-                if (this.hasVerifiedRegistration) {
-                    return;
-                }
-
-                if (!this.qcIdVerification?.cardholder_name) {
-                    return;
-                }
-
-                if (!this.namesMatch(value, this.qcIdVerification.cardholder_name)) {
-                    this.qcIdVerification = null;
-                    this.bookingForm.qc_id_cardholder_name = '';
-                    this.bookingForm.qc_id_ocr_text = '';
-                    this.qcIdError = 'The booking name changed after verification. Please upload the QC ID again.';
-                }
-            });
-
-            this.$watch('bookingForm.room_id', () => {
-                const max = this.attendeeInputMax;
-                if (max && Number(this.bookingForm.attendees) > Number(max)) {
-                    this.bookingForm.attendees = max;
-                }
-            });
-
-            if (this.hasVerifiedRegistration) {
-                this.qcIdVerification = {
-                    is_valid: true,
-                    cardholder_name: this.verifiedRegistrationName || '',
-                    confidence_score: 100,
-                    source: 'registration',
-                };
-            }
-        },
-
-        get selectedRoomMeta() {
-            return this.rooms.find(room => String(room.id) === String(this.bookingForm.room_id)) || null;
-        },
-
-        get attendeeInputMax() {
-            const room = this.selectedRoomMeta;
-
-            if (!room) {
-                return null;
-            }
-
-            return this.isStaffUser ? room.capacity : room.student_limit;
-        },
-
-        get attendeeGuidance() {
-            const room = this.selectedRoomMeta;
-
-            if (!room) {
-                return '';
-            }
-
-            if (!room.is_collaborative) {
-                return `Room capacity: ${room.capacity} attendees.`;
-            }
-
-            if (this.isStaffUser) {
-                return `Collaborative room capacity: ${room.capacity} attendees.`;
-            }
-
-            if (room.student_limit > room.standard_limit) {
-                return `Collaborative rooms allow up to ${room.standard_limit} attendees by default. Requests up to ${room.student_limit} attendees need librarian approval.`;
-            }
-
-            return `This collaborative room allows up to ${room.standard_limit} attendees.`;
-        },
-
-        normalizeName(value) {
-            return String(value || '')
-                .toUpperCase()
-                .replace(/[^A-Z\s]/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim();
-        },
-
-        normalizeOcrText(value) {
-            return String(value || '')
-                .toUpperCase()
-                .replace(/\r/g, '')
-                .replace(/[^A-Z0-9,./\-\n\s]/g, ' ')
-                .replace(/[ \t]+/g, ' ')
-                .replace(/\n{2,}/g, '\n')
-                .trim();
-        },
-
-        async buildQcCanvas(file) {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const scale = Math.max(1, 2800 / Math.max(img.width, img.height));
-                    canvas.width = Math.round(img.width * scale);
-                    canvas.height = Math.round(img.height * scale);
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    const data = imageData.data;
-                    for (let i = 0; i < data.length; i += 4) {
-                        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-                        const contrast = Math.min(255, Math.max(0, ((gray - 128) * 1.7) + 128));
-                        data[i] = contrast;
-                        data[i + 1] = contrast;
-                        data[i + 2] = contrast;
-                    }
-                    ctx.putImageData(imageData, 0, 0);
-
-                    resolve(canvas);
-                };
-                img.onerror = () => resolve(null);
-                img.src = URL.createObjectURL(file);
-            });
-        },
-
-        createQcCropCanvas(sourceCanvas, rect, threshold = false) {
-            const crop = document.createElement('canvas');
-            const sx = Math.max(0, Math.round(sourceCanvas.width * rect.x));
-            const sy = Math.max(0, Math.round(sourceCanvas.height * rect.y));
-            const sw = Math.max(1, Math.round(sourceCanvas.width * rect.w));
-            const sh = Math.max(1, Math.round(sourceCanvas.height * rect.h));
-
-            crop.width = sw;
-            crop.height = sh;
-
-            const ctx = crop.getContext('2d');
-            ctx.drawImage(sourceCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
-
-            if (threshold) {
-                const imageData = ctx.getImageData(0, 0, sw, sh);
-                const data = imageData.data;
-                for (let i = 0; i < data.length; i += 4) {
-                    const value = data[i] > 145 ? 255 : 0;
-                    data[i] = value;
-                    data[i + 1] = value;
-                    data[i + 2] = value;
-                }
-                ctx.putImageData(imageData, 0, 0);
-            }
-
-            return crop;
-        },
-
-        async recognizeQcCanvas(canvas, config = {}, withProgress = false) {
-            const options = {
-                preserve_interword_spaces: '1',
-                ...config,
-            };
-
-            if (withProgress) {
-                options.logger = (message) => {
-                    if (message.status) {
-                        this.qcIdStatusMessage = message.status;
-                    }
-
-                    if (typeof message.progress === 'number') {
-                        this.qcIdProgress = message.progress * 100;
-                    }
-                };
-            }
-
-            const result = await window.Tesseract.recognize(canvas, 'eng', options);
-
-            return this.normalizeOcrText(result?.data?.text || '');
-        },
-
-        async collectQcOcrText(file) {
-            const enhancedCanvas = await this.buildQcCanvas(file);
-            if (!enhancedCanvas) {
-                throw new Error('Unable to prepare the QC ID image for OCR.');
-            }
-
-            const fullText = await this.recognizeQcCanvas(enhancedCanvas, {
-                tessedit_pageseg_mode: 6,
-            }, true);
-
-            const sparseText = await this.recognizeQcCanvas(enhancedCanvas, {
-                tessedit_pageseg_mode: 11,
-            });
-
-            // Focused crops boost key fields that generic OCR may blur.
-            const bottomStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.62, y: 0.76, w: 0.34, h: 0.14 }, true);
-            const dateStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.25, y: 0.39, w: 0.48, h: 0.15 }, true);
-
-            const bottomText = await this.recognizeQcCanvas(bottomStrip, {
-                tessedit_pageseg_mode: 7,
-                tessedit_char_whitelist: '0123456789 ',
-            });
-
-            const dateText = await this.recognizeQcCanvas(dateStrip, {
-                tessedit_pageseg_mode: 7,
-                tessedit_char_whitelist: '0123456789/ -',
-            });
-
-            return this.normalizeOcrText([fullText, sparseText, dateText, bottomText].filter(Boolean).join('\n'));
-        },
-
-        namesMatch(first, second) {
-            const firstTokens = this.normalizeName(first).split(' ').filter(token => token.length >= 2);
-            const secondTokens = this.normalizeName(second).split(' ').filter(token => token.length >= 2);
-
-            if (!firstTokens.length || !secondTokens.length) {
-                return false;
-            }
-
-            const overlap = firstTokens.filter(token => secondTokens.includes(token));
-            const threshold = Math.min(firstTokens.length, secondTokens.length);
-
-            return threshold <= 2 ? overlap.length === threshold : overlap.length >= 2;
-        },
-
-        resetQcIdState({ keepPreview = true } = {}) {
-            this.qcIdIsProcessing = false;
-            this.qcIdProgress = 0;
-            this.qcIdStatusMessage = '';
-            this.qcIdError = '';
-            this.qcIdVerification = null;
-            this.bookingForm.qc_id_ocr_text = '';
-            this.bookingForm.qc_id_cardholder_name = '';
-
-            if (!keepPreview) {
-                if (this.qcIdPreviewUrl) {
-                    URL.revokeObjectURL(this.qcIdPreviewUrl);
-                }
-
-                this.qcIdPreviewUrl = '';
-                this.qcIdFile = null;
-            }
-        },
-
-        async handleQcIdUpload(event) {
-            const file = event.target?.files?.[0];
-            this.resetQcIdState({ keepPreview: false });
-
-            if (!file) {
-                return;
-            }
-
-            if (!file.type.startsWith('image/')) {
-                this.qcIdError = 'Please upload an image file for the QC ID.';
-                return;
-            }
-
-            this.qcIdFile = file;
-            this.qcIdPreviewUrl = URL.createObjectURL(file);
-
-            await this.runQcIdVerification(file);
-        },
-
-        async reprocessQcId() {
-            if (!this.qcIdFile) {
-                this.qcIdError = 'Upload a QC ID image first.';
-                return;
-            }
-
-            this.resetQcIdState();
-            await this.runQcIdVerification(this.qcIdFile);
-        },
-
-        async runQcIdVerification(file) {
-            if (!window.Tesseract) {
-                this.qcIdError = 'OCR is not available right now. Please refresh the page and try again.';
-                return;
-            }
-
-            this.qcIdIsProcessing = true;
-            this.qcIdStatusMessage = 'Reading QC ID image...';
-            this.qcIdProgress = 0;
-
-            try {
-                this.qcIdStatusMessage = 'Enhancing image for OCR...';
-                const extractedText = await this.collectQcOcrText(file);
-                if (!extractedText) {
-                    throw new Error('No readable text was found in the uploaded QC ID image.');
-                }
-
-                this.bookingForm.qc_id_ocr_text = extractedText;
-                this.qcIdStatusMessage = 'Validating QC ID format...';
-
-                const response = await fetch('/rooms/qc-id/verify', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                    },
-                    body: JSON.stringify({
-                        ocr_text: extractedText,
-                        user_name: this.bookingForm.user_name,
-                    }),
-                });
-
-                const payload = await response.json();
-                const v = payload.verification || null;
-
-                // Always populate with whatever was detected
-                this.qcIdVerification = v;
-                if (v?.cardholder_name) {
-                    this.bookingForm.qc_id_cardholder_name = v.cardholder_name;
-                    this.bookingForm.user_name = v.cardholder_name;
-                }
-
-                if (!payload.success) {
-                    this.qcIdError = payload.message || 'The uploaded image is not recognized as a QC ID.';
-                    return;
-                }
-
-                this.qcIdError = '';
-                this.qcIdProgress = 100;
-                this.qcIdStatusMessage = 'QC ID verified.';
-            } catch (error) {
-                console.error('QC ID verification failed:', error);
-                this.qcIdError = error?.message || 'Unable to read the QC ID image. Please upload a clearer photo.';
-                this.qcIdVerification = null;
-                this.bookingForm.qc_id_cardholder_name = '';
-                this.bookingForm.qc_id_ocr_text = '';
-            } finally {
-                this.qcIdIsProcessing = false;
-            }
-        },
-
-        initCalendar() {
-            const calendarEl = document.getElementById('calendar');
-            if (!calendarEl) return;
-
-            const self = this;
-            this.calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
-                headerToolbar: false,
-                height: 'auto',
-                events: this.fetchEvents.bind(this),
-                eventClick: function(info) {
-                    const props = info.event.extendedProps || {};
-
-                    // derive a friendly date for the modal (prefer server-provided formatted value)
-                    const derivedDate = props.formatted_date || props.date || self.formatDate(info.event.start);
-
-                    // derive a friendly time range (prefer server-provided formatted_time)
-                    let derivedTime = props.formatted_time;
-                    if (!derivedTime && info.event.start && info.event.end) {
-                        const s = `${String(info.event.start.getHours()).padStart(2,'0')}:${String(info.event.start.getMinutes()).padStart(2,'0')}`;
-                        const e = `${String(info.event.end.getHours()).padStart(2,'0')}:${String(info.event.end.getMinutes()).padStart(2,'0')}`;
-                        derivedTime = self.formatTimeRange(s, e);
-                    }
-
-                    self.selectedEvent = {
-                        id: info.event.id,
-                        title: info.event.title,
-                        purpose: props.purpose || info.event.title,
-                        room_name: props.room_name || props.room,
-                        date: derivedDate,
-                        formatted_date: props.formatted_date || derivedDate,
-                        formatted_time: derivedTime || '',
-                        user_name: props.user_name || props.userName,
-                        attendees: props.attendees,
-                        status: props.status,
-                        description: props.description,
-                    };
-
-                    self.showEventModal = true;
-                },
-                dateClick: function(info) {
-                    self.bookingForm.date = info.dateStr;
-                    self.openBookingModal();
-                },
-                datesSet: function(info) {
-                    const months = ['January', 'February', 'March', 'April', 'May', 'June', 
-                                   'July', 'August', 'September', 'October', 'November', 'December'];
-                    const date = info.view.currentStart;
-                    self.calendarTitle = months[date.getMonth()] + ' ' + date.getFullYear();
-                },
-                eventDidMount: function(info) {
-                    const props = info.event.extendedProps || {};
-                    const selfRef = self;
-
-                    // Avoid the browser default tooltip (we render our own)
-                    info.el.removeAttribute('title');
-
-                    const onEnter = () => selfRef.showEventTooltip(info, props);
-                    const onLeave = () => selfRef.hideEventTooltip();
-
-                    info.el.addEventListener('mouseenter', onEnter);
-                    info.el.addEventListener('mouseleave', onLeave);
-                    info.el.addEventListener('focusin', onEnter);
-                    info.el.addEventListener('focusout', onLeave);
-
-                    info.el.__tooltipHandlers = { onEnter, onLeave };
-                },
-                eventWillUnmount: function(info) {
-                    const handlers = info.el.__tooltipHandlers;
-                    if (handlers) {
-                        info.el.removeEventListener('mouseenter', handlers.onEnter);
-                        info.el.removeEventListener('mouseleave', handlers.onLeave);
-                        info.el.removeEventListener('focusin', handlers.onEnter);
-                        info.el.removeEventListener('focusout', handlers.onLeave);
-                    }
-                    if (self.tooltipAnchorEl === info.el) {
-                        self.hideEventTooltip();
-                    }
-                },
-            });
-            
-            this.calendar.render();
-            
-            // Set initial title
-            const months = ['January', 'February', 'March', 'April', 'May', 'June', 
-                           'July', 'August', 'September', 'October', 'November', 'December'];
-            const now = new Date();
-            this.calendarTitle = months[now.getMonth()] + ' ' + now.getFullYear();
-        },
-
-        async fetchEvents(info, successCallback, failureCallback) {
-            try {
-                const params = new URLSearchParams({
-                    start: info.startStr,
-                    end: info.endStr,
-                });
-                
-                if (this.selectedRoom) {
-                    params.append('room_id', this.selectedRoom.id);
-                }
-
-                const response = await fetch(`/rooms/calendar/events?${params}`);
-                const events = await response.json();
-                successCallback(events);
-            } catch (error) {
-                console.error('Failed to fetch events:', error);
-                failureCallback(error);
-            }
-        },
-
-        changeView(view) {
-            this.currentView = view;
-            this.calendar?.changeView(view);
-        },
-
-        selectRoom(room) {
-            console.log('Selecting room:', room);
-            this.selectedRoom = room;
-            this.bookingForm.room_id = room.id;
-            this.calendar?.refetchEvents();
-            
-            // Update URL to persist room selection
-            const url = new URL(window.location);
-            url.searchParams.set('room', room.id);
-            window.history.pushState({}, '', url);
-        },
-
-        openBookingModal() {
-            if (this.selectedRoom) {
-                this.bookingForm.room_id = this.selectedRoom.id;
-            }
-            this.qcIdError = '';
-
-            if (this.hasVerifiedRegistration) {
-                this.qcIdVerification = {
-                    is_valid: true,
-                    cardholder_name: this.verifiedRegistrationName || '',
-                    confidence_score: 100,
-                    source: 'registration',
-                };
-            }
-
-            this.showBookingModal = true;
-        },
-
-        closeBookingModal() {
-            this.qcIdError = '';
-            this.showBookingModal = false;
-        },
-
-        closeEventModal() {
-            this.showEventModal = false;
-            this.selectedEvent = null;
-        },
-
-        closeSuccessModal() {
-            this.showSuccessModal = false;
-            this.successMessage = '';
-            this.successBooking = null;
-            // Refresh the page after modal closes
-            window.location.reload();
-        },
-
-        formatDate(value) {
-            if (!value) return '';
-            const d = new Date(value);
-            if (Number.isNaN(d.getTime())) return String(value);
-            return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-        },
-
-        formatTime(value) {
-            if (!value) return '';
-            const parts = String(value).split(':');
-            if (parts.length < 2) return String(value);
-            const h = parseInt(parts[0], 10);
-            const m = parseInt(parts[1], 10);
-            if (Number.isNaN(h) || Number.isNaN(m)) return String(value);
-            const d = new Date();
-            d.setHours(h, m, 0, 0);
-            // force AM/PM display regardless of browser locale
-            return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
-        },
-
-        tooltipEl: null,
-        tooltipAnchorEl: null,
-        tooltipCleanup: null,
-
-        showEventTooltip(info, props) {
-            this.hideEventTooltip();
-
-            const title = info?.event?.title || '';
-            const purpose = props.purpose || title;
-            const roomName = props.room_name || props.room || '';
-            const time = props.formatted_time || '';
-            const userName = props.user_name || props.userName || '';
-            const attendees = props.attendees != null ? String(props.attendees) : '';
-
-            const el = document.createElement('div');
-            el.className = 'fixed z-50 w-72 bg-gray-900 text-white text-xs rounded-lg shadow-xl p-3';
-            el.style.pointerEvents = 'none';
-
-            el.innerHTML = `
-                <div class="font-semibold text-sm mb-2">${this.escapeHtml(purpose || roomName)}</div>
-                <div class="space-y-1.5 text-gray-300">
-                    <div class="flex items-center gap-2">
-<i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-building text-xs leading-none"></i>
-                        <span>${this.escapeHtml(roomName)}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-<i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-regular fa-clock text-xs leading-none"></i>
-                        <span>${this.escapeHtml(time)}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-<i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-regular fa-user text-xs leading-none"></i>
-                        <span>${this.escapeHtml(userName)}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-<i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-users text-xs leading-none"></i>
-                        <span>${this.escapeHtml(attendees ? attendees + ' attendees' : '')}</span>
-                    </div>
-                </div>
-                <div data-arrow class="absolute left-6 top-full w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-gray-900"></div>
-            `;
-
-            document.body.appendChild(el);
-
-            const anchor = info?.el;
-            if (!anchor) {
-                el.remove();
-                return;
-            }
-
-            this.tooltipEl = el;
-            this.tooltipAnchorEl = anchor;
-
-            const position = () => {
-                if (!this.tooltipEl || !this.tooltipAnchorEl) return;
-                const rect = this.tooltipAnchorEl.getBoundingClientRect();
-                const tipRect = this.tooltipEl.getBoundingClientRect();
-
-                const viewportW = window.innerWidth;
-                const viewportH = window.innerHeight;
-                const padding = 8;
-                const gap = 10;
-
-                let left = rect.left + rect.width / 2;
-                const half = tipRect.width / 2;
-                left = Math.max(padding + half, Math.min(viewportW - padding - half, left));
-
-                let top = rect.top - tipRect.height - gap;
-                let placeBelow = false;
-                if (top < padding) {
-                    top = rect.bottom + gap;
-                    placeBelow = true;
-                }
-                if (top + tipRect.height > viewportH - padding) {
-                    top = Math.max(padding, viewportH - padding - tipRect.height);
-                }
-
-                this.tooltipEl.style.left = `${left}px`;
-                this.tooltipEl.style.top = `${top}px`;
-                this.tooltipEl.style.transform = 'translateX(-50%)';
-
-                const arrow = this.tooltipEl.querySelector('[data-arrow]');
-                if (arrow) {
-                    if (placeBelow) {
-                        arrow.className = 'absolute left-6 bottom-full w-0 h-0 border-l-8 border-r-8 border-b-8 border-transparent border-b-gray-900';
-                    } else {
-                        arrow.className = 'absolute left-6 top-full w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-gray-900';
-                    }
-                }
-            };
-
-            position();
-
-            const onScrollOrResize = () => position();
-            window.addEventListener('scroll', onScrollOrResize, true);
-            window.addEventListener('resize', onScrollOrResize);
-            this.tooltipCleanup = () => {
-                window.removeEventListener('scroll', onScrollOrResize, true);
-                window.removeEventListener('resize', onScrollOrResize);
-            };
-        },
-
-        hideEventTooltip() {
-            if (this.tooltipCleanup) {
-                this.tooltipCleanup();
-            }
-            this.tooltipCleanup = null;
-            this.tooltipAnchorEl = null;
-
-            if (this.tooltipEl) {
-                this.tooltipEl.remove();
-            }
-            this.tooltipEl = null;
-        },
-
-        escapeHtml(value) {
-            return String(value ?? '')
-                .replaceAll('&', '&amp;')
-                .replaceAll('<', '&lt;')
-                .replaceAll('>', '&gt;')
-                .replaceAll('"', '&quot;')
-                .replaceAll("'", '&#039;');
-        },
-
-        async submitBooking() {
-            this.isSubmitting = true;
-            try {
-                const response = await fetch('/rooms/room-reservations', {
-                    method: 'POST',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                    },
-                    body: JSON.stringify(this.bookingForm)
-                });
-
-                const data = await response.json();
-                
-                if (response.ok && data.success) {
-                    this.successMessage = data.message || 'Booking created successfully.';
-                    this.successBooking = data.booking || null;
-                    this.closeBookingModal();
-                    this.showSuccessModal = true;
-                } else {
-                    this.qcIdError = data.message || 'Failed to create booking';
-                    alert(data.message || 'Failed to create booking');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('An error occurred while creating the booking');
-            } finally {
-                this.isSubmitting = false;
-            }
-        },
-    }
-}
+window.roomCalendarConfig = {
+    selectedRoom: @json($selectedRoom),
+    hasVerifiedRegistration: @json($hasVerifiedRegistration),
+    verifiedRegistrationName: @json($verifiedRegistration?->full_name),
+    isStaffUser: @json(auth()->user()?->isStaff() ?? false),
+    rooms: @json($roomOptions),
+    defaultRoomId: @json($selectedRoom?->id),
+    defaultDate: '{{ now()->format("Y-m-d") }}',
+    eventsUrl: '{{ route("calendar.events") }}',
+    verifyQcIdUrl: '{{ route("qcid.verify") }}',
+    storeBookingUrl: '{{ route("reservations.store") }}',
+};
 </script>
 @endpush
 @endsection
