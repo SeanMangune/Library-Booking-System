@@ -202,47 +202,47 @@
                     <div class="mb-4">
                         <span class="px-3 py-1 rounded-full text-xs font-semibold"
                               :class="{
-                                  'bg-amber-100 text-amber-700': viewBooking?.status === 'pending',
-                                  'bg-green-100 text-green-700': viewBooking?.status === 'approved',
-                                  'bg-red-100 text-red-700': viewBooking?.status === 'rejected',
-                                  'bg-gray-100 text-gray-700': viewBooking?.status === 'cancelled'
+                                  'bg-amber-100 text-amber-700': selectedBooking?.status === 'pending',
+                                  'bg-green-100 text-green-700': selectedBooking?.status === 'approved',
+                                  'bg-red-100 text-red-700': selectedBooking?.status === 'rejected',
+                                  'bg-gray-100 text-gray-700': selectedBooking?.status === 'cancelled'
                               }"
-                              x-text="viewBooking?.status?.charAt(0).toUpperCase() + viewBooking?.status?.slice(1)"></span>
+                              x-text="selectedBooking?.status?.charAt(0).toUpperCase() + selectedBooking?.status?.slice(1)"></span>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4 mb-6">
                         <div class="p-4 bg-gray-50 rounded-xl">
                             <p class="text-xs font-medium text-gray-500 mb-1">Room</p>
-                            <p class="font-semibold text-gray-900" x-text="viewBooking?.room_name"></p>
-                            <p class="text-sm text-gray-500" x-text="viewBooking?.room_location || 'No location'"></p>
+                            <p class="font-semibold text-gray-900" x-text="selectedBooking?.room_name"></p>
+                            <p class="text-sm text-gray-500" x-text="selectedBooking?.room_location || 'No location'"></p>
                         </div>
                         <div class="p-4 bg-gray-50 rounded-xl">
                             <p class="text-xs font-medium text-gray-500 mb-1">Date & Time</p>
-                            <p class="font-semibold text-gray-900" x-text="viewBooking?.formatted_date || viewBooking?.date"></p>
-                            <p class="text-sm text-gray-500" x-text="viewBooking?.formatted_time"></p>
+                            <p class="font-semibold text-gray-900" x-text="selectedBooking?.formatted_date || selectedBooking?.date"></p>
+                            <p class="text-sm text-gray-500" x-text="selectedBooking?.formatted_time"></p>
                         </div>
                         <div class="p-4 bg-gray-50 rounded-xl">
                             <p class="text-xs font-medium text-gray-500 mb-1">Booked By</p>
-                            <p class="font-semibold text-gray-900" x-text="viewBooking?.user_name"></p>
-                            <p class="text-sm text-gray-500" x-text="viewBooking?.user_email"></p>
+                            <p class="font-semibold text-gray-900" x-text="selectedBooking?.user_name"></p>
+                            <p class="text-sm text-gray-500" x-text="selectedBooking?.user_email"></p>
                         </div>
                         <div class="p-4 bg-gray-50 rounded-xl">
                             <p class="text-xs font-medium text-gray-500 mb-1">Attendees</p>
-                            <p class="font-semibold text-gray-900" x-text="viewBooking?.attendees + ' people'"></p>
+                            <p class="font-semibold text-gray-900" x-text="selectedBooking?.attendees + ' people'"></p>
                         </div>
                     </div>
 
-                            <template x-if="viewBooking?.title">
+                            <template x-if="selectedBooking?.title">
                         <div class="mb-4 p-4 bg-gray-50 rounded-xl">
                             <p class="text-xs font-medium text-gray-500 mb-1">Purpose</p>
-                            <p class="text-gray-900" x-text="viewBooking?.title"></p>
+                            <p class="text-gray-900" x-text="selectedBooking?.title"></p>
                         </div>
                     </template>
 
-                    <template x-if="viewBooking?.description">
+                    <template x-if="selectedBooking?.description">
                         <div class="mb-4 p-4 bg-gray-50 rounded-xl">
                             <p class="text-xs font-medium text-gray-500 mb-1">Description</p>
-                            <p class="text-gray-900" x-text="viewBooking?.description"></p>
+                            <p class="text-gray-900" x-text="selectedBooking?.description"></p>
                         </div>
                     </template>
 
@@ -263,16 +263,16 @@
 function reservationsApp() {
     return {
         showViewModal: false,
-        viewBooking: null,
+        selectedBooking: null,
 
         viewBooking(booking) {
-            this.viewBooking = booking;
+            this.selectedBooking = booking;
             this.showViewModal = true;
         },
 
         closeViewModal() {
             this.showViewModal = false;
-            this.viewBooking = null;
+            this.selectedBooking = null;
         },
 
         async cancelBooking(id) {

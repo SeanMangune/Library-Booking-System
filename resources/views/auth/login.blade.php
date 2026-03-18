@@ -432,6 +432,165 @@ function signupLoginApp(initialSignupOpen) {
             return '';
         },
 
+        normalizeOcrText(value) {
+            return String(value || '')
+                .toUpperCase()
+                .replace(/\r/g, '')
+                .replace(/[^A-Z0-9,./\-\+\n\s]/g, ' ')
+                .replace(/[ \t]+/g, ' ')
+                .replace(/\n{2,}/g, '\n')
+                .trim();
+        },
+
+        async buildQcCanvas(file) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const scale = Math.max(1, 2800 / Math.max(img.width, img.height));
+                    canvas.width = Math.round(img.width * scale);
+                    canvas.height = Math.round(img.height * scale);
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+                    for (let i = 0; i < data.length; i += 4) {
+                        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+                        const contrast = Math.min(255, Math.max(0, ((gray - 128) * 1.7) + 128));
+                        data[i] = contrast;
+                        data[i + 1] = contrast;
+                        data[i + 2] = contrast;
+                    }
+                    ctx.putImageData(imageData, 0, 0);
+
+                    resolve(canvas);
+                };
+                img.onerror = () => resolve(null);
+                img.src = URL.createObjectURL(file);
+            });
+        },
+
+        createQcCropCanvas(sourceCanvas, rect, threshold = false) {
+            const crop = document.createElement('canvas');
+            const sx = Math.max(0, Math.round(sourceCanvas.width * rect.x));
+            const sy = Math.max(0, Math.round(sourceCanvas.height * rect.y));
+            const sw = Math.max(1, Math.round(sourceCanvas.width * rect.w));
+            const sh = Math.max(1, Math.round(sourceCanvas.height * rect.h));
+
+            crop.width = sw;
+            crop.height = sh;
+
+            const ctx = crop.getContext('2d');
+            ctx.drawImage(sourceCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+            if (threshold) {
+                const imageData = ctx.getImageData(0, 0, sw, sh);
+                const data = imageData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    const value = data[i] > 145 ? 255 : 0;
+                    data[i] = value;
+                    data[i + 1] = value;
+                    data[i + 2] = value;
+                }
+                ctx.putImageData(imageData, 0, 0);
+            }
+
+            return crop;
+        },
+
+        async recognizeQcCanvas(canvas, ocrConfig = {}) {
+            const result = await window.Tesseract.recognize(canvas, 'eng', {
+                preserve_interword_spaces: '1',
+                ...ocrConfig,
+            });
+
+            return this.normalizeOcrText(result?.data?.text || '');
+        },
+
+        async collectSignupQcOcrText(file) {
+            const enhancedCanvas = await this.buildQcCanvas(file);
+            if (!enhancedCanvas) {
+                throw new Error('Unable to prepare the QC ID image for OCR.');
+            }
+
+            const fullText = await this.recognizeQcCanvas(enhancedCanvas, {
+                tessedit_pageseg_mode: 6,
+            });
+
+            const sparseText = await this.recognizeQcCanvas(enhancedCanvas, {
+                tessedit_pageseg_mode: 11,
+            });
+
+            const nameStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.23, y: 0.24, w: 0.45, h: 0.13 }, false);
+            const demographicStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.22, y: 0.33, w: 0.48, h: 0.16 }, true);
+            const issuedStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.34, y: 0.43, w: 0.19, h: 0.09 }, true);
+            const validStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.52, y: 0.43, w: 0.19, h: 0.09 }, true);
+            const addressStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.19, y: 0.54, w: 0.46, h: 0.19 }, true);
+            const idStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.60, y: 0.74, w: 0.36, h: 0.18 }, true);
+
+            const nameText = await this.recognizeQcCanvas(nameStrip, {
+                tessedit_pageseg_mode: 7,
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ,.- ',
+            });
+
+            const demographicsText = await this.recognizeQcCanvas(demographicStrip, {
+                tessedit_pageseg_mode: 6,
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/ -',
+            });
+
+            const issuedText = await this.recognizeQcCanvas(issuedStrip, {
+                tessedit_pageseg_mode: 7,
+                tessedit_char_whitelist: '0123456789/ -',
+            });
+
+            const validText = await this.recognizeQcCanvas(validStrip, {
+                tessedit_pageseg_mode: 7,
+                tessedit_char_whitelist: '0123456789/ -',
+            });
+
+            const addressText = await this.recognizeQcCanvas(addressStrip, {
+                tessedit_pageseg_mode: 6,
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.- ',
+            });
+
+            const idText = await this.recognizeQcCanvas(idStrip, {
+                tessedit_pageseg_mode: 6,
+                tessedit_char_whitelist: '0123456789 ',
+            });
+
+            const structuredLines = [fullText, sparseText];
+
+            if (nameText) {
+                structuredLines.push('LAST NAME, FIRST NAME, MIDDLE NAME');
+                structuredLines.push(nameText);
+            }
+
+            if (demographicsText) {
+                structuredLines.push(demographicsText);
+                structuredLines.push('SEX DATE OF BIRTH CIVIL STATUS');
+            }
+
+            if (issuedText) {
+                structuredLines.push(`DATE ISSUED ${issuedText}`);
+            }
+
+            if (validText) {
+                structuredLines.push(`VALID UNTIL ${validText}`);
+            }
+
+            if (addressText) {
+                structuredLines.push(`ADDRESS ${addressText}`);
+            }
+
+            if (idText) {
+                structuredLines.push(idText);
+            }
+
+            return this.normalizeOcrText(structuredLines.filter(Boolean).join('\n'));
+        },
+
         async scanSignupQcId() {
             this.scan.error = '';
             this.scan.status = '';
@@ -450,8 +609,7 @@ function signupLoginApp(initialSignupOpen) {
             this.scan.status = 'Reading QC ID image...';
 
             try {
-                const result = await window.Tesseract.recognize(this.scan.file, 'eng');
-                const ocrText = String(result?.data?.text || '').trim();
+                const ocrText = await this.collectSignupQcOcrText(this.scan.file);
 
                 if (ocrText.length < 20) {
                     throw new Error('No readable text was found. Please upload a clearer QC ID image.');

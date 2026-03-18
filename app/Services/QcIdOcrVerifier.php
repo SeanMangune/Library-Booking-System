@@ -61,6 +61,7 @@ class QcIdOcrVerifier
         $parsedFieldCount = count(array_filter([
             $fields['cardholder_name'] ?? null,
             $fields['sex'] ?? null,
+            $fields['blood_type'] ?? null,
             $fields['date_of_birth'] ?? null,
             $fields['civil_status'] ?? null,
             $fields['date_issued'] ?? null,
@@ -127,6 +128,7 @@ class QcIdOcrVerifier
             'marker_count' => count($matchedMarkers),
             'cardholder_name' => $fields['cardholder_name'] ?? null,
             'sex' => $fields['sex'] ?? null,
+            'blood_type' => $fields['blood_type'] ?? null,
             'date_of_birth' => $fields['date_of_birth'] ?? null,
             'civil_status' => $fields['civil_status'] ?? null,
             'date_issued' => $fields['date_issued'] ?? null,
@@ -300,7 +302,7 @@ class QcIdOcrVerifier
     {
         $text = mb_strtoupper($text, 'UTF-8');
         $text = str_replace(["\r\n", "\r", "\n"], ' ', $text);
-        $text = preg_replace('/[^A-Z0-9\/,&.\-\s]/u', ' ', $text) ?? $text;
+        $text = preg_replace('/[^A-Z0-9\/,&.\-\+\s]/u', ' ', $text) ?? $text;
         $text = preg_replace('/\s+/', ' ', $text) ?? $text;
 
         return trim($text);
@@ -314,7 +316,7 @@ class QcIdOcrVerifier
         $lines = preg_split('/\R+/', mb_strtoupper($text, 'UTF-8')) ?: [];
 
         $cleaned = array_map(function (string $line): string {
-            $line = preg_replace('/[^A-Z0-9\/,&.\-\s]/u', ' ', $line) ?? $line;
+            $line = preg_replace('/[^A-Z0-9\/,&.\-\+\s]/u', ' ', $line) ?? $line;
             $line = preg_replace('/\s+/', ' ', $line) ?? $line;
 
             return trim($line);
@@ -396,6 +398,7 @@ class QcIdOcrVerifier
         $fields = [
             'cardholder_name' => $this->extractCardholderName($normalized, $lines),
             'sex' => ($layoutFields['sex'] ?? null) ?? $this->extractSex($normalized),
+            'blood_type' => ($layoutFields['blood_type'] ?? null) ?? $this->extractBloodType($normalized),
             'date_of_birth' => ($layoutFields['date_of_birth'] ?? null) ?? $this->extractDate('DATE\s*(?:OF)?\s*BIRTH\s*[:\s]*', $normalized),
             'civil_status' => ($layoutFields['civil_status'] ?? null) ?? $this->extractCivilStatus($normalized),
             'date_issued' => ($layoutFields['date_issued'] ?? null) ?? $this->extractDate('DATE\s*ISSUED\s*[:\s]*', $normalized),
@@ -563,6 +566,19 @@ class QcIdOcrVerifier
         return null;
     }
 
+    private function extractBloodType(string $normalized): ?string
+    {
+        if (preg_match('/\bBLOOD\s*TYPE\s*[:\s]*([ABO0]{1,2}\s*[\+\-])\b/', $normalized, $m)) {
+            return str_replace('0', 'O', strtoupper(preg_replace('/\s+/', '', $m[1]) ?? $m[1]));
+        }
+
+        if (preg_match('/\b([ABO0]{1,2}\s*[\+\-])\s+DATE\s*ISSUED\b/', $normalized, $m)) {
+            return str_replace('0', 'O', strtoupper(preg_replace('/\s+/', '', $m[1]) ?? $m[1]));
+        }
+
+        return null;
+    }
+
     /**
      * Extract a date that follows $labelPattern. Tolerates multiple
      * date formats commonly produced by OCR.
@@ -596,6 +612,18 @@ class QcIdOcrVerifier
             $raw = $m[1];
 
             return substr($raw, 0, 4) . '/' . substr($raw, 4, 2) . '/' . substr($raw, 6, 2);
+        }
+
+        // Try: LABEL followed by compact date with one separator (e.g. 2022/1205)
+        if (preg_match('/' . $labelPattern . '(\d{4}[\/\-]\d{4})/', $normalized, $m)) {
+            $raw = str_replace('-', '/', $m[1]);
+            return substr($raw, 0, 4) . '/' . substr($raw, 5, 2) . '/' . substr($raw, 7, 2);
+        }
+
+        // Try: LABEL followed by compact date with merged year-month (e.g. 202212/05)
+        if (preg_match('/' . $labelPattern . '(\d{6}[\/\-]\d{2})/', $normalized, $m)) {
+            $raw = str_replace('-', '/', $m[1]);
+            return substr($raw, 0, 4) . '/' . substr($raw, 4, 2) . '/' . substr($raw, 7, 2);
         }
 
         // Try: LABEL followed by garbled date (e.g. 20030/01 or 2003/0101)
@@ -799,6 +827,24 @@ class QcIdOcrVerifier
             $year = (int) $m[1];
             $month = (int) $m[2];
             $day = (int) $m[3];
+            if ($year >= 1900 && $year <= 2099 && $month >= 1 && $month <= 12 && $day >= 1 && $day <= 31) {
+                return sprintf('%04d/%02d/%02d', $year, $month, $day);
+            }
+        }
+
+        if (preg_match('/^(\d{4})\/(\d{4})$/', $value, $m)) {
+            $year = (int) $m[1];
+            $month = (int) substr($m[2], 0, 2);
+            $day = (int) substr($m[2], 2, 2);
+            if ($year >= 1900 && $year <= 2099 && $month >= 1 && $month <= 12 && $day >= 1 && $day <= 31) {
+                return sprintf('%04d/%02d/%02d', $year, $month, $day);
+            }
+        }
+
+        if (preg_match('/^(\d{6})\/(\d{2})$/', $value, $m)) {
+            $year = (int) substr($m[1], 0, 4);
+            $month = (int) substr($m[1], 4, 2);
+            $day = (int) $m[2];
             if ($year >= 1900 && $year <= 2099 && $month >= 1 && $month <= 12 && $day >= 1 && $day <= 31) {
                 return sprintf('%04d/%02d/%02d', $year, $month, $day);
             }
@@ -1223,12 +1269,18 @@ class QcIdOcrVerifier
     private function extractAddress(array $lines, string $normalized): ?string
     {
         if (preg_match('/ADDRESS\s+([A-Z0-9,\.\-\s]+?QUEZON\s*CITY)/', $normalized, $m)) {
-            return $this->cleanAddress($m[1]);
+            $candidate = $this->cleanAddress($m[1]);
+            if ($this->looksPlausibleAddress($candidate)) {
+                return $candidate;
+            }
         }
 
         // Prefer explicit city-anchored chunks and avoid field-label contamination.
-        if (preg_match('/((?:BLK|LOT|UNIT|#|\d+[A-Z\-]*)[A-Z0-9,\.\-\s]{8,}?QUEZON\s*CITY)/', $normalized, $m)) {
-            return $this->cleanAddress($m[1]);
+        if (preg_match('/((?:BLK\-?\d*|LOT\-?\d*|UNIT\-?\d*|#\d+)[A-Z0-9,\.\-\s]{8,}?QUEZON\s*CITY)/', $normalized, $m)) {
+            $candidate = $this->cleanAddress($m[1]);
+            if ($this->looksPlausibleAddress($candidate)) {
+                return $candidate;
+            }
         }
 
         // Strategy 1: Line containing "QUEZON CITY"
@@ -1304,6 +1356,34 @@ class QcIdOcrVerifier
         return null;
     }
 
+    /**
+     * Prefer the strict 3-3-8 digit pattern from the lower card strip.
+     * This avoids accidental matches from dates or noisy OCR fragments.
+     *
+     * @param list<string> $lines
+     */
+    private function extractStrictBottomIdCandidate(array $lines): ?string
+    {
+        if ($lines === []) {
+            return null;
+        }
+
+        $tail = array_slice($lines, -12);
+
+        for ($i = count($tail) - 1; $i >= 0; $i--) {
+            $line = $this->ocrToDigits((string) $tail[$i]);
+
+            if (preg_match('/\b(\d{3})\D{0,4}(\d{3})\D{0,4}(\d{8})\b/', $line, $m) === 1) {
+                $formatted = $this->formatIdNumber($m[1] . $m[2] . $m[3]);
+                if ($formatted !== null) {
+                    return $formatted;
+                }
+            }
+        }
+
+        return null;
+    }
+
     private function extractMatch(string $pattern, string $subject): ?string
     {
         if (preg_match($pattern, $subject, $matches) !== 1) {
@@ -1317,6 +1397,10 @@ class QcIdOcrVerifier
     {
         $value = preg_replace('/\s+/', ' ', trim($value)) ?? trim($value);
         $value = trim($value, ' .,');
+
+        // OCR sometimes prefixes a stray single character before
+        // surname-based names (e.g. "A JIBE, MICCO JIRO FRUELDA").
+        $value = preg_replace('/^[A-Z0-9]\s+(?=[A-Z]{2,},\s*[A-Z])/', '', $value) ?? $value;
 
         // Remove trailing digits / single characters that are OCR noise
         // e.g. "CALINAWAN 3" → "CALINAWAN"
@@ -1340,10 +1424,15 @@ class QcIdOcrVerifier
     {
         $value = mb_strtoupper($value, 'UTF-8');
         $value = preg_replace('/[^A-Z0-9,\.\-\s]/u', ' ', $value) ?? $value;
-        $value = preg_replace('/\b(?:ADDRESS|CARDHOLDER|SIGNATURE|EMERGENCY|CONTACT|RELAY|GNATURE|DATE\s*ISSUED|VALID\s*UNTIL|DATE\s*(?:OF)?\s*BIRTH|CIVIL\s*STATUS|REPUBLIC\s+OF\s+THE\s+PHILIPPINES|Q\s*CITIZEN\s*CARD)\b/', ' ', $value) ?? $value;
+        $value = preg_replace('/\b(?:ADDRESS|CARDHOLDER|SIGNATURE|EMERGENCY|CONTACT|RELAY|GNATURE|DATE\s*ISSUED|VALID\s*UNTIL|DATE\s*(?:OF)?\s*BIRTH|CIVIL\s*STATUS|REPUBLIC\s+OF\s+THE\s+PHILIPPINES|Q\s*CITIZEN\s*CARD|LAST\s*NAME|FIRST\s*NAME|MIDDLE\s*NAME|SEX|IN\s*CASE\s*OF)\b/', ' ', $value) ?? $value;
+        $value = preg_replace('/\bREPUBLIC\s+OF\s+THE\s+[A-Z]{1,20}\b/', ' ', $value) ?? $value;
         $value = preg_replace('/\s+/', ' ', trim($value)) ?? trim($value);
 
-        if (preg_match('/((?:BLK|LOT|UNIT|#|\d+[A-Z\-]*)\s+[A-Z0-9,\.\-\s]+?QUEZON\s*CITY)/', $value, $m)) {
+        if (preg_match('/\b(?:BLK|BLOCK|LOT|STREET|ST|ROAD|RD|AVENUE|AVE|SUBD|SUBDIVISION)\b.*$/', $value, $m)) {
+            $value = $m[0];
+        }
+
+        if (preg_match('/((?:BLK\-?\d*|LOT\-?\d*|UNIT\-?\d*|#\d+)\s*[A-Z0-9,\.\-\s]+?QUEZON\s*CITY)/', $value, $m)) {
             $value = $m[1];
         } elseif (preg_match('/([A-Z0-9,\.\-\s]+?QUEZON\s*CITY)/', $value, $m)) {
             $value = $m[1];
@@ -1353,6 +1442,23 @@ class QcIdOcrVerifier
         $value = preg_replace('/\s{2,}/', ' ', $value) ?? $value;
 
         return trim($value, ' ,.-');
+    }
+
+    private function looksPlausibleAddress(?string $value): bool
+    {
+        if (! is_string($value) || $value === '') {
+            return false;
+        }
+
+        if (! str_contains($value, 'QUEZON CITY')) {
+            return false;
+        }
+
+        if (preg_match('/\b(LAST\s*NAME|FIRST\s*NAME|MIDDLE\s*NAME|DATE\s*ISSUED|VALID\s*UNTIL|CIVIL\s*STATUS|CARDHOLDER|SIGNATURE)\b/', $value) === 1) {
+            return false;
+        }
+
+        return strlen($value) >= 12;
     }
 
     private function looksLikeLabel(string $value): bool
@@ -1456,6 +1562,10 @@ class QcIdOcrVerifier
             }
         }
 
+        if (! isset($fields['blood_type']) && preg_match('/\b([ABO0]{1,2}\s*[\+\-])\s+\d{2,4}[\/\-]?\d{2,4}/', $normalized, $m)) {
+            $fields['blood_type'] = str_replace('0', 'O', strtoupper(preg_replace('/\s+/', '', $m[1]) ?? $m[1]));
+        }
+
         // Civil status standalone (before SEX label)
         if (! isset($fields['civil_status']) && preg_match(
             '/\b(' . $civilStatuses . ')\b.*?\bSEX\b.*?CIVIL\s*STATUS/',
@@ -1548,6 +1658,24 @@ class QcIdOcrVerifier
             // Label line containing DATE ISSUED
             if (preg_match('/DATE\s*ISSUED/', $line)) {
                 $prevLine = $lines[$i - 1] ?? '';
+
+                if (! isset($fields['blood_type']) && preg_match('/\b([ABO0]{1,2}\s*[\+\-])\b/', $prevLine, $bloodMatch)) {
+                    $fields['blood_type'] = str_replace('0', 'O', strtoupper(preg_replace('/\s+/', '', $bloodMatch[1]) ?? $bloodMatch[1]));
+                }
+
+                // Compact date pairs like "2022/1205 2032/0825" above DATE ISSUED labels.
+                if (preg_match('/(\d{4}[\/\-]\d{4})\s+(\d{4}[\/\-]\d{4})/', $prevLine, $compactPair)) {
+                    $issuedFromCompact = $this->normalizeDateToYmd($compactPair[1]);
+                    $validFromCompact = $this->normalizeDateToYmd($compactPair[2]);
+
+                    if ($issuedFromCompact !== null && ! isset($fields['date_issued'])) {
+                        $fields['date_issued'] = $issuedFromCompact;
+                    }
+
+                    if ($validFromCompact !== null && (! isset($fields['valid_until']) || (isset($fields['date_issued']) && $fields['valid_until'] === $fields['date_issued']))) {
+                        $fields['valid_until'] = $validFromCompact;
+                    }
+                }
 
                 // Standard dates with separators
                 if (preg_match_all('/' . $datePat . '/', $prevLine, $m)) {

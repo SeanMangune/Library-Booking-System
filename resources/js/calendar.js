@@ -627,7 +627,7 @@ export function createRoomCalendarApp(config = {}) {
             return String(value || '')
                 .toUpperCase()
                 .replace(/\r/g, '')
-                .replace(/[^A-Z0-9,./\-\n\s]/g, ' ')
+                .replace(/[^A-Z0-9,./\-\+\n\s]/g, ' ')
                 .replace(/[ \t]+/g, ' ')
                 .replace(/\n{2,}/g, '\n')
                 .trim();
@@ -726,8 +726,44 @@ export function createRoomCalendarApp(config = {}) {
                 tessedit_pageseg_mode: 11,
             });
 
+            const nameStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.23, y: 0.24, w: 0.45, h: 0.13 }, false);
+            const demographicStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.22, y: 0.33, w: 0.48, h: 0.16 }, true);
+            const issuedStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.34, y: 0.43, w: 0.19, h: 0.09 }, true);
+            const validStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.52, y: 0.43, w: 0.19, h: 0.09 }, true);
+            const addressStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.19, y: 0.54, w: 0.46, h: 0.19 }, true);
+            const idStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.60, y: 0.74, w: 0.36, h: 0.18 }, true);
             const bottomStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.62, y: 0.76, w: 0.34, h: 0.14 }, true);
             const dateStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.25, y: 0.39, w: 0.48, h: 0.15 }, true);
+
+            const nameText = await this.recognizeQcCanvas(nameStrip, {
+                tessedit_pageseg_mode: 7,
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ,.- ',
+            });
+
+            const demographicsText = await this.recognizeQcCanvas(demographicStrip, {
+                tessedit_pageseg_mode: 6,
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/ -',
+            });
+
+            const issuedText = await this.recognizeQcCanvas(issuedStrip, {
+                tessedit_pageseg_mode: 7,
+                tessedit_char_whitelist: '0123456789/ -',
+            });
+
+            const validText = await this.recognizeQcCanvas(validStrip, {
+                tessedit_pageseg_mode: 7,
+                tessedit_char_whitelist: '0123456789/ -',
+            });
+
+            const addressText = await this.recognizeQcCanvas(addressStrip, {
+                tessedit_pageseg_mode: 6,
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.- ',
+            });
+
+            const idText = await this.recognizeQcCanvas(idStrip, {
+                tessedit_pageseg_mode: 6,
+                tessedit_char_whitelist: '0123456789 ',
+            });
 
             const bottomText = await this.recognizeQcCanvas(bottomStrip, {
                 tessedit_pageseg_mode: 7,
@@ -739,7 +775,43 @@ export function createRoomCalendarApp(config = {}) {
                 tessedit_char_whitelist: '0123456789/ -',
             });
 
-            return this.normalizeOcrText([fullText, sparseText, dateText, bottomText].filter(Boolean).join('\n'));
+            const structuredLines = [fullText, sparseText];
+
+            if (nameText) {
+                structuredLines.push('LAST NAME, FIRST NAME, MIDDLE NAME');
+                structuredLines.push(nameText);
+            }
+
+            if (demographicsText) {
+                structuredLines.push(demographicsText);
+                structuredLines.push('SEX DATE OF BIRTH CIVIL STATUS');
+            }
+
+            if (issuedText) {
+                structuredLines.push(`DATE ISSUED ${issuedText}`);
+            }
+
+            if (validText) {
+                structuredLines.push(`VALID UNTIL ${validText}`);
+            }
+
+            if (dateText) {
+                structuredLines.push(`DATE ISSUED VALID UNTIL ${dateText}`);
+            }
+
+            if (addressText) {
+                structuredLines.push(`ADDRESS ${addressText}`);
+            }
+
+            if (idText) {
+                structuredLines.push(idText);
+            }
+
+            if (bottomText && bottomText !== idText) {
+                structuredLines.push(bottomText);
+            }
+
+            return this.normalizeOcrText(structuredLines.filter(Boolean).join('\n'));
         },
 
         namesMatch(first, second) {
@@ -1579,7 +1651,7 @@ export function createDashboardApp(config = {}) {
             return String(value || '')
                 .toUpperCase()
                 .replace(/\r/g, '')
-                .replace(/[^A-Z0-9,./\-\n\s]/g, ' ')
+                .replace(/[^A-Z0-9,./\-\+\n\s]/g, ' ')
                 .replace(/[ \t]+/g, ' ')
                 .replace(/\n{2,}/g, '\n')
                 .trim();
@@ -1678,8 +1750,44 @@ export function createDashboardApp(config = {}) {
                 tessedit_pageseg_mode: 11,
             });
 
+            const nameStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.23, y: 0.24, w: 0.45, h: 0.13 }, false);
+            const demographicStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.22, y: 0.33, w: 0.48, h: 0.16 }, true);
+            const issuedStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.34, y: 0.43, w: 0.19, h: 0.09 }, true);
+            const validStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.52, y: 0.43, w: 0.19, h: 0.09 }, true);
+            const addressStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.19, y: 0.54, w: 0.46, h: 0.19 }, true);
+            const idStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.60, y: 0.74, w: 0.36, h: 0.18 }, true);
             const bottomStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.62, y: 0.76, w: 0.34, h: 0.14 }, true);
             const dateStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.25, y: 0.39, w: 0.48, h: 0.15 }, true);
+
+            const nameText = await this.recognizeQcCanvas(nameStrip, {
+                tessedit_pageseg_mode: 7,
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ,.- ',
+            });
+
+            const demographicsText = await this.recognizeQcCanvas(demographicStrip, {
+                tessedit_pageseg_mode: 6,
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/ -',
+            });
+
+            const issuedText = await this.recognizeQcCanvas(issuedStrip, {
+                tessedit_pageseg_mode: 7,
+                tessedit_char_whitelist: '0123456789/ -',
+            });
+
+            const validText = await this.recognizeQcCanvas(validStrip, {
+                tessedit_pageseg_mode: 7,
+                tessedit_char_whitelist: '0123456789/ -',
+            });
+
+            const addressText = await this.recognizeQcCanvas(addressStrip, {
+                tessedit_pageseg_mode: 6,
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.- ',
+            });
+
+            const idText = await this.recognizeQcCanvas(idStrip, {
+                tessedit_pageseg_mode: 6,
+                tessedit_char_whitelist: '0123456789 ',
+            });
 
             const bottomText = await this.recognizeQcCanvas(bottomStrip, {
                 tessedit_pageseg_mode: 7,
@@ -1691,7 +1799,43 @@ export function createDashboardApp(config = {}) {
                 tessedit_char_whitelist: '0123456789/ -',
             });
 
-            return this.normalizeOcrText([fullText, sparseText, dateText, bottomText].filter(Boolean).join('\n'));
+            const structuredLines = [fullText, sparseText];
+
+            if (nameText) {
+                structuredLines.push('LAST NAME, FIRST NAME, MIDDLE NAME');
+                structuredLines.push(nameText);
+            }
+
+            if (demographicsText) {
+                structuredLines.push(demographicsText);
+                structuredLines.push('SEX DATE OF BIRTH CIVIL STATUS');
+            }
+
+            if (issuedText) {
+                structuredLines.push(`DATE ISSUED ${issuedText}`);
+            }
+
+            if (validText) {
+                structuredLines.push(`VALID UNTIL ${validText}`);
+            }
+
+            if (dateText) {
+                structuredLines.push(`DATE ISSUED VALID UNTIL ${dateText}`);
+            }
+
+            if (addressText) {
+                structuredLines.push(`ADDRESS ${addressText}`);
+            }
+
+            if (idText) {
+                structuredLines.push(idText);
+            }
+
+            if (bottomText && bottomText !== idText) {
+                structuredLines.push(bottomText);
+            }
+
+            return this.normalizeOcrText(structuredLines.filter(Boolean).join('\n'));
         },
 
         namesMatch(first, second) {

@@ -11,9 +11,16 @@ class ReportsController extends Controller
 {
     public function index(Request $request)
     {
+        $dateFrom = trim((string) $request->input('date_from', ''));
+        $dateTo = trim((string) $request->input('date_to', ''));
+
+        if ($dateFrom !== '' && $dateTo !== '' && $dateFrom > $dateTo) {
+            [$dateFrom, $dateTo] = [$dateTo, $dateFrom];
+        }
+
         $filters = [
-            'date_from' => (string) ($request->input('date_from') ?: now()->startOfMonth()->toDateString()),
-            'date_to' => (string) ($request->input('date_to') ?: now()->toDateString()),
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
             'room_id' => (string) $request->input('room_id', ''),
             'status' => (string) $request->input('status', ''),
         ];

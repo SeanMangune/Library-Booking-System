@@ -6,9 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Carbon\Carbon;
 use App\Services\QrCodeService;
+use Illuminate\Support\Facades\Schema;
 
 class Booking extends Model
 {
+    private static bool $bookingStatusColumnResolved = false;
+
+    private static ?bool $bookingStatusColumnExists = null;
+
     protected $fillable = [
         'room_id',
         'title',
@@ -48,11 +53,15 @@ class Booking extends Model
     protected static function booted(): void
     {
         static::saving(function (Booking $booking) {
-            $booking->booking_status = $booking->determineBookingStatus();
+            if (self::hasBookingStatusColumn()) {
+                $booking->booking_status = $booking->determineBookingStatus();
+            }
         });
 
         static::retrieved(function (Booking $booking) {
-            $booking->syncBookingStatus();
+            if (self::hasBookingStatusColumn()) {
+                $booking->syncBookingStatus();
+            }
         });
 
         static::created(function (Booking $booking) {
@@ -196,6 +205,10 @@ class Booking extends Model
     {
         $calculatedStatus = $this->determineBookingStatus();
 
+        if (! self::hasBookingStatusColumn()) {
+            return $calculatedStatus;
+        }
+
         if ($this->booking_status !== $calculatedStatus) {
             $this->forceFill(['booking_status' => $calculatedStatus]);
 
@@ -205,6 +218,23 @@ class Booking extends Model
         }
 
         return $calculatedStatus;
+    }
+
+    private static function hasBookingStatusColumn(): bool
+    {
+        if (self::$bookingStatusColumnResolved) {
+            return (bool) self::$bookingStatusColumnExists;
+        }
+
+        self::$bookingStatusColumnResolved = true;
+
+        try {
+            self::$bookingStatusColumnExists = Schema::hasColumn('bookings', 'booking_status');
+        } catch (\Throwable $exception) {
+            self::$bookingStatusColumnExists = false;
+        }
+
+        return (bool) self::$bookingStatusColumnExists;
     }
 
     private function normalizeBookingTime($time): ?string

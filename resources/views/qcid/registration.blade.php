@@ -135,8 +135,20 @@
                                                 <dd class="text-right font-semibold text-gray-900" x-text="verification?.date_of_birth || '—'"></dd>
                                             </div>
                                             <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">Blood type</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="verification?.blood_type || '—'"></dd>
+                                            </div>
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">Date issued</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="verification?.date_issued || '—'"></dd>
+                                            </div>
+                                            <div class="flex items-start justify-between gap-4">
                                                 <dt class="text-gray-500">Validity</dt>
                                                 <dd class="text-right font-semibold text-gray-900" x-text="verification?.valid_until || '—'"></dd>
+                                            </div>
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">Address</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="verification?.address || '—'"></dd>
                                             </div>
                                         </dl>
                                     </div>
@@ -590,7 +602,7 @@ function qcidRegistrationApp() {
             return String(value || '')
                 .toUpperCase()
                 .replace(/\r/g, '')
-                .replace(/[^A-Z0-9,./\-\n\s]/g, ' ')
+                .replace(/[^A-Z0-9,./\-\+\n\s]/g, ' ')
                 .replace(/[ \t]+/g, ' ')
                 .replace(/\n{2,}/g, '\n')
                 .trim();

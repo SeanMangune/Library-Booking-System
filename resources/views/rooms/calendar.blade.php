@@ -221,8 +221,16 @@
                                                 <dd x-text="qcIdVerification?.cardholder_name || '—'"></dd>
                                             </div>
                                             <div>
+                                                <dt class="font-medium text-emerald-700">QC ID Number</dt>
+                                                <dd x-text="qcIdVerification?.id_number || '—'"></dd>
+                                            </div>
+                                            <div>
                                                 <dt class="font-medium text-emerald-700">Birth Date</dt>
                                                 <dd x-text="qcIdVerification?.date_of_birth || '—'"></dd>
+                                            </div>
+                                            <div>
+                                                <dt class="font-medium text-emerald-700">Blood Type</dt>
+                                                <dd x-text="qcIdVerification?.blood_type || '—'"></dd>
                                             </div>
                                             <div>
                                                 <dt class="font-medium text-emerald-700">Date Issued</dt>
