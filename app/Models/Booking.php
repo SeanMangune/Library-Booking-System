@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Storage;
 use App\Services\QrCodeService;
 
 class Booking extends Model
@@ -24,6 +23,7 @@ class Booking extends Model
         'duration',
         'attendees',
         'status',
+        'booking_status',
         'has_conflict',
         'conflicts_with',
         'reason',
@@ -33,6 +33,7 @@ class Booking extends Model
 
     protected $casts = [
         'date' => 'date',
+        'booking_status' => 'string',
         'has_conflict' => 'boolean',
     ];
 
@@ -46,6 +47,14 @@ class Booking extends Model
 
     protected static function booted(): void
     {
+        static::saving(function (Booking $booking) {
+            $booking->booking_status = $booking->determineBookingStatus();
+        });
+
+        static::retrieved(function (Booking $booking) {
+            $booking->syncBookingStatus();
+        });
+
         static::created(function (Booking $booking) {
             // Only auto-generate QR code for bookings that are immediately approved
             // Pending bookings will get QR codes when approved via the approval process
@@ -138,6 +147,77 @@ class Booking extends Model
     {
         if (! $this->qr_token) return null;
         return url('/verify?token=' . $this->qr_token);
+    }
+
+    public function determineBookingStatus(?Carbon $reference = null): string
+    {
+        $reference ??= now();
+
+        if (blank($this->date)) {
+            return 'upcoming';
+        }
+
+        $bookingDate = $this->date instanceof Carbon
+            ? $this->date->copy()->startOfDay()
+            : Carbon::parse((string) $this->date)->startOfDay();
+
+        $currentDate = $reference->copy()->startOfDay();
+
+        if ($bookingDate->gt($currentDate)) {
+            return 'upcoming';
+        }
+
+        if ($bookingDate->lt($currentDate)) {
+            return 'expired';
+        }
+
+        $currentTime = $reference->format('H:i:s');
+        $startTime = $this->normalizeBookingTime($this->start_time);
+        $endTime = $this->normalizeBookingTime($this->end_time);
+
+        if ($startTime !== null && strcmp($currentTime, $startTime) < 0) {
+            return 'upcoming';
+        }
+
+        if ($startTime !== null && $endTime !== null
+            && strcmp($currentTime, $startTime) >= 0
+            && strcmp($currentTime, $endTime) <= 0) {
+            return 'valid';
+        }
+
+        if ($endTime !== null && strcmp($currentTime, $endTime) > 0) {
+            return 'expired';
+        }
+
+        return 'upcoming';
+    }
+
+    public function syncBookingStatus(bool $persist = true): string
+    {
+        $calculatedStatus = $this->determineBookingStatus();
+
+        if ($this->booking_status !== $calculatedStatus) {
+            $this->forceFill(['booking_status' => $calculatedStatus]);
+
+            if ($persist && $this->exists) {
+                $this->saveQuietly();
+            }
+        }
+
+        return $calculatedStatus;
+    }
+
+    private function normalizeBookingTime($time): ?string
+    {
+        if (blank($time)) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse((string) $time)->format('H:i:s');
+        } catch (\Throwable $exception) {
+            return null;
+        }
     }
 
     public function scopeToday($query)

@@ -314,7 +314,7 @@
                      x-transition:leave="transition ease-in duration-200"
                      x-transition:leave-start="opacity-100 scale-100"
                      x-transition:leave-end="opacity-0 scale-95"
-                     class="modal-box w-11/12 max-w-lg p-0 bg-white rounded-2xl shadow-2xl overflow-hidden"
+                     class="modal-box w-11/12 max-w-lg p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col"
                      @click.stop>
                     
                     <!-- Purple Header -->
@@ -331,7 +331,7 @@
                         </div>
                     </div>
                     
-                    <div class="p-6">
+                    <div class="p-6 flex-1 min-h-0 overflow-y-auto">
                         <!-- Status Badge (for non-pending) -->
                         <div x-show="selectedBooking?.status !== 'pending'" class="mb-4">
                             <span class="px-3 py-1 rounded-full text-xs font-semibold"

@@ -22,6 +22,7 @@ class QcIdRegistrationReviewedNotification extends Notification
 
         if ($notifiable instanceof User) {
             $channels[] = 'database';
+            $channels[] = 'broadcast';
         }
 
         return $channels;
@@ -43,7 +44,7 @@ class QcIdRegistrationReviewedNotification extends Notification
             $mail->line('Reviewer note: ' . $this->registration->verification_notes);
         }
 
-        return $mail->action('Open SmartSpace', route('dashboard'));
+        return $mail->action('View QC ID Registration', route('qcid.registration.show'));
     }
 
     /**
@@ -58,7 +59,7 @@ class QcIdRegistrationReviewedNotification extends Notification
             'message' => $status === 'verified'
                 ? 'Your QC ID registration has been approved.'
                 : 'Your QC ID registration was reviewed. Please check the latest status.',
-            'url' => route('dashboard'),
+            'url' => route('qcid.registration.show'),
             'status' => $status,
             'reviewed_at' => optional($this->registration->reviewed_at)->toDateTimeString(),
         ];

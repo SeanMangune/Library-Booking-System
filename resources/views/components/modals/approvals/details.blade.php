@@ -1,5 +1,5 @@
 <div x-show="showModal" x-cloak class="modal p-4" :class="{ 'modal-open': showModal }" @keydown.escape.window="closeModal()">
-    <div class="modal-box w-11/12 max-w-lg p-0 bg-white rounded-2xl shadow-2xl" @click.stop>
+    <div class="modal-box w-11/12 max-w-lg p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
         <div class="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4 rounded-t-2xl">
             <div class="flex items-center justify-between">
                 <div>
@@ -12,7 +12,7 @@
             </div>
         </div>
 
-        <div class="p-6">
+        <div class="p-6 flex-1 min-h-0 overflow-y-auto">
             <template x-if="selectedBooking?.requires_capacity_permission">
                 <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl mb-4">
                     <div class="flex items-center gap-2 mb-2">

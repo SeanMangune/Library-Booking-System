@@ -6,18 +6,31 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\QcIdRegistration;
 use App\Models\Room;
-use App\Models\User;
 use App\Notifications\BookingApprovedNotification;
 use App\Services\QcIdOcrVerifier;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
 class BookingController extends Controller
 {
     public function index(Request $request)
     {
+        $user = $request->user();
+        $canViewAll = $user?->isAdmin() || $user?->isSuperAdmin();
+
         $query = Booking::with('room');
+
+        if (! $canViewAll && $user) {
+            $query->where(function ($scoped) use ($user) {
+                $scoped->where('user_id', $user->id);
+
+                if (! empty($user->email)) {
+                    $scoped->orWhere('user_email', $user->email);
+                }
+            });
+        }
 
         // Apply filters
         if ($request->filled('status') && $request->status !== 'all') {
@@ -63,7 +76,7 @@ class BookingController extends Controller
                 ->first()
             : null;
 
-        $requiresBookingOcr = ! $actingUser && ! $verifiedRegistration;
+        $requiresBookingOcr = ! $verifiedRegistration;
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -111,13 +124,6 @@ class BookingController extends Controller
 
             $validated['user_name'] = $validated['user_name'] ?: $verifiedRegistration->full_name;
             $validated['user_email'] = $validated['user_email'] ?: $verifiedRegistration->email;
-        } elseif ($actingUser) {
-            $qcIdVerification = [
-                'is_valid' => true,
-                'name_matches' => true,
-                'source' => 'account',
-                'cardholder_name' => $actingUser->name,
-            ];
         } else {
             $qcIdVerification = $qcIdOcrVerifier->verify(
                 $validated['qc_id_ocr_text'],
@@ -245,8 +251,23 @@ class BookingController extends Controller
         return response()->json(['success' => true, 'message' => 'Booking deleted successfully']);
     }
 
-    public function cancel(Booking $booking)
+    public function cancel(Request $request, Booking $booking)
     {
+        $user = $request->user();
+        $canManageAll = $user?->isAdmin() || $user?->isSuperAdmin();
+        $isOwner = $user
+            && (
+                ((int) ($booking->user_id ?? 0) === (int) $user->id)
+                || (! empty($user->email) && $booking->user_email === $user->email)
+            );
+
+        if (! $canManageAll && ! $isOwner) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not allowed to cancel this booking.',
+            ], 403);
+        }
+
         $booking->update(['status' => 'cancelled']);
 
         return response()->json(['success' => true, 'message' => 'Booking cancelled successfully']);
@@ -280,6 +301,9 @@ class BookingController extends Controller
                 }
             }
         }
+
+        // Keep the lifecycle status in sync for the latest date/time before generating QR payloads.
+        $booking->syncBookingStatus();
 
         // Keep legacy QR file generation (if service installed)
         try {
@@ -320,11 +344,22 @@ class BookingController extends Controller
         // Prefer inline PNG data (Endroid) when available, otherwise use stored/public URL
         $payload['qr_code_data'] = $qrDataUri;
         $payload['qr_code_url'] = $qrDataUri ?? $fresh->getAttribute('qr_code_url') ?? null;
+        $payload['approval_status'] = $fresh->status;
+        $payload['qr_status'] = $fresh->booking_status;
 
-        if ($fresh->user) {
-            $fresh->user->notify(new BookingApprovedNotification($fresh));
-        } elseif (! empty($fresh->user_email)) {
-            Notification::route('mail', $fresh->user_email)->notify(new BookingApprovedNotification($fresh));
+        try {
+            if ($fresh->user) {
+                $fresh->user->notify(new BookingApprovedNotification($fresh));
+            } elseif (! empty($fresh->user_email)) {
+                Notification::route('mail', $fresh->user_email)->notify(new BookingApprovedNotification($fresh));
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Booking approval notification failed.', [
+                'booking_id' => $fresh->id,
+                'user_id' => $fresh->user?->id,
+                'user_email' => $fresh->user_email,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         return response()->json([
@@ -376,6 +411,9 @@ class BookingController extends Controller
         if (! $booking) {
             return response('Not found', 404);
         }
+
+        // Every QR render re-evaluates the booking lifecycle status (upcoming/valid/expired).
+        $booking->syncBookingStatus();
 
         // Build a public verification URL directly (route name may not exist in all installs)
         $verifyUrl = url('/verify?token=' . $token);
@@ -435,6 +473,8 @@ class BookingController extends Controller
         if (! $booking) {
             return view('rooms.verify', ['booking' => null, 'token' => $token]);
         }
+
+        $booking->syncBookingStatus();
 
         return view('rooms.verify', ['booking' => $booking, 'token' => $token]);
     }

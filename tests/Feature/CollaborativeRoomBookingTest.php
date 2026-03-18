@@ -151,9 +151,12 @@ class CollaborativeRoomBookingTest extends TestCase
         ]);
 
         $approvedResponse->assertOk();
+        $approvedResponse->assertJsonPath('booking.booking_status', 'upcoming');
+        $approvedResponse->assertJsonPath('booking.qr_status', 'upcoming');
         $this->assertDatabaseHas('bookings', [
             'id' => $booking->id,
             'status' => 'approved',
+            'booking_status' => 'upcoming',
         ]);
     }
 }

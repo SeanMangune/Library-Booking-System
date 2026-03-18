@@ -1,12 +1,12 @@
 <div x-show="showRejectModal" x-cloak class="modal p-4 z-[60]" :class="{ 'modal-open': showRejectModal }" @keydown.escape.window="closeRejectModal()">
-    <div class="modal-box w-11/12 max-w-sm p-0 bg-white rounded-2xl shadow-2xl transform transition-all"
+    <div class="modal-box w-11/12 max-w-sm p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col transform transition-all"
          x-show="showRejectModal"
          x-transition:enter="ease-out duration-300"
          x-transition:enter-start="opacity-0 scale-95"
          x-transition:enter-end="opacity-100 scale-100"
          @click.stop>
 
-        <div class="p-8 text-center">
+        <div class="p-8 text-center flex-1 min-h-0 overflow-y-auto">
             <div class="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
                 <i class="w-10 h-10 text-red-500 fa-icon fa-solid fa-xmark text-4xl leading-none"></i>
             </div>

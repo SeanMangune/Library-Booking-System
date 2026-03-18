@@ -22,6 +22,7 @@ class BookingApprovedNotification extends Notification
 
         if ($notifiable instanceof User) {
             $channels[] = 'database';
+            $channels[] = 'broadcast';
         }
 
         return $channels;
