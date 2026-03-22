@@ -148,7 +148,15 @@
                 </div>
             </template>
 
-            <div class="flex gap-3">
+            <template x-if="selectedBooking?.status === 'approved' && selectedBooking?.qr_token">
+                <div class="mb-6 p-4 bg-green-50 rounded-xl flex flex-col items-center">
+                    <h3 class="text-sm font-semibold text-green-700 mb-2">Booking QR Code</h3>
+                    <img :src="`/bookings/qr/${selectedBooking.qr_token}`"
+                         alt="Booking QR Code" class="w-40 h-40 object-contain border border-gray-200 rounded-lg bg-white" />
+                    <p class="text-xs text-gray-500 mt-2">Scan this QR code for check-in.</p>
+                </div>
+            </template>
+            <div class="flex gap-3" x-show="selectedBooking?.status === 'pending'">
                 <button @click="approveBooking()"
                         :disabled="isLoading || ((selectedBooking?.exceeds_capacity || selectedBooking?.requires_capacity_permission) && !showExceptionInput)"
                         class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed">

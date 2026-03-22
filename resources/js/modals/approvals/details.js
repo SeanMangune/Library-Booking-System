@@ -58,7 +58,11 @@ export function createApprovalDetailsModalState() {
 
                 const booking = data.booking || { ...this.selectedBooking };
 
-                if (!booking.qr_code_url && booking.qr_token) {
+                // Use encrypted QR code payload for the QR code URL if available
+                if (!booking.qr_code_url && booking.qr_code_encrypted) {
+                    booking.qr_code_url = `/bookings/qr/${booking.qr_code_encrypted}`;
+                } else if (!booking.qr_code_url && booking.qr_token) {
+                    // fallback for legacy
                     booking.qr_code_url = `/bookings/qr/${booking.qr_token}`;
                 }
 

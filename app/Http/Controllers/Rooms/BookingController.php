@@ -346,6 +346,8 @@ class BookingController extends Controller
         $payload['qr_code_url'] = $qrDataUri ?? $fresh->getAttribute('qr_code_url') ?? null;
         $payload['approval_status'] = $fresh->status;
         $payload['qr_status'] = $fresh->booking_status;
+        // Always add plain QR code payload for frontend to use in QR code URL
+        $payload['qr_code_encrypted'] = $fresh->qr_token ?? $fresh->booking_code;
 
         try {
             if ($fresh->user) {
@@ -381,7 +383,8 @@ class BookingController extends Controller
 
     public function approvals(Request $request)
     {
-        $query = Booking::with('room')->where('status', 'pending');
+        $status = $request->get('status', 'pending');
+        $query = Booking::with('room')->where('status', $status);
 
         if ($request->filled('room') && $request->room !== 'all') {
             $query->where('room_id', $request->room);
@@ -396,7 +399,7 @@ class BookingController extends Controller
             'rejected' => Booking::where('status', 'rejected')->count(),
         ];
 
-        return view('rooms.approvals', compact('bookings', 'rooms', 'stats'));
+        return view('rooms.approvals', compact('bookings', 'rooms', 'stats', 'status'));
     }
 
     /**
@@ -406,7 +409,13 @@ class BookingController extends Controller
      */
     public function qrImage(Request $request, string $token)
     {
-        $booking = Booking::where('qr_token', $token)->first();
+        // Use the QR payload (token) as plain text
+        $decrypted = $token;
+
+        // Try to find booking by qr_token first, then by booking_code (for legacy/backup)
+        $booking = Booking::where('qr_token', $decrypted)
+            ->orWhere('booking_code', $decrypted)
+            ->first();
 
         if (! $booking) {
             return response('Not found', 404);
@@ -415,50 +424,24 @@ class BookingController extends Controller
         // Every QR render re-evaluates the booking lifecycle status (upcoming/valid/expired).
         $booking->syncBookingStatus();
 
-        // Build a public verification URL directly (route name may not exist in all installs)
-        $verifyUrl = url('/verify?token=' . $token);
+        // Try to load the PNG from storage
+        $path = "qrcodes/booking_{$booking->booking_code}.png";
+        if (\Storage::disk('public')->exists($path)) {
+            $png = \Storage::disk('public')->get($path);
+            return response($png, 200, ['Content-Type' => 'image/png']);
+        }
 
+        // Fallback: regenerate the QR code if not found in storage
         try {
-            // Use Endroid to generate a scannable PNG in-app
+            $payload = $booking->qr_token ?? $booking->booking_code;
             $builder = new \Endroid\QrCode\Builder\Builder();
             $result = $builder->build(
-                null, // writer
-                null, // writer options
-                null, // validate result
-                $verifyUrl, // data
-                null, // encoding
-                null, // error correction
-                480, // size
-                10 // margin
+                null, null, null, $payload, null, null, 480, 10
             );
-
             $png = $result->getString();
-
-            $headers = ['Content-Type' => 'image/png'];
-            if ($request->query('download')) {
-                $headers['Content-Disposition'] = 'attachment; filename="booking-' . $token . '.png"';
-            }
-
-            return response($png, 200, $headers);
+            return response($png, 200, ['Content-Type' => 'image/png']);
         } catch (\Throwable $e) {
-            // Fallback to external QR generator if Endroid fails for any reason
-            try {
-                $external = 'https://api.qrserver.com/v1/create-qr-code/?size=480x480&data=' . urlencode($verifyUrl);
-                $resp = \Illuminate\Support\Facades\Http::get($external);
-                $content = $resp->body();
-                $headers = ['Content-Type' => 'image/png'];
-                if ($request->query('download')) {
-                    $headers['Content-Disposition'] = 'attachment; filename="booking-' . $token . '.png"';
-                }
-                return response($content, 200, $headers);
-            } catch (\Throwable $e) {
-                // Last-resort: return fallback placeholder (keeps <img> from breaking)
-                if (file_exists(resource_path('images/qr-fallback.png'))) {
-                    return response()->file(resource_path('images/qr-fallback.png'));
-                }
-
-                return response('QR generation unavailable', 500);
-            }
+            return response('QR generation unavailable', 500);
         }
     }
 

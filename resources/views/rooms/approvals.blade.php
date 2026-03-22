@@ -22,7 +22,8 @@
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <!-- Pending -->
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <a href="{{ route('approvals.index', array_merge(request()->except('page'), ['status' => 'pending'])) }}"
+           class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 block {{ $status === 'pending' ? 'ring-2 ring-blue-400' : '' }}">
             <div class="flex items-center justify-between">
                 <div class="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
                     <i class="w-6 h-6 text-amber-600 fa-icon fa-solid fa-clock text-2xl leading-none"></i>
@@ -30,10 +31,11 @@
                 <span class="text-3xl font-bold text-gray-900">{{ $stats['pending'] }}</span>
             </div>
             <p class="mt-3 text-sm font-medium text-gray-600">Pending Reviews</p>
-        </div>
+        </a>
 
         <!-- Approved -->
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <a href="{{ route('approvals.index', array_merge(request()->except('page'), ['status' => 'approved'])) }}"
+           class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 block {{ $status === 'approved' ? 'ring-2 ring-green-400' : '' }}">
             <div class="flex items-center justify-between">
                 <div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
                     <i class="w-6 h-6 text-green-600 fa-icon fa-solid fa-circle-check text-2xl leading-none"></i>
@@ -41,10 +43,11 @@
                 <span class="text-3xl font-bold text-gray-900">{{ $stats['approved'] }}</span>
             </div>
             <p class="mt-3 text-sm font-medium text-gray-600">Approved</p>
-        </div>
+        </a>
 
         <!-- Rejected -->
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <a href="{{ route('approvals.index', array_merge(request()->except('page'), ['status' => 'rejected'])) }}"
+           class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 block {{ $status === 'rejected' ? 'ring-2 ring-red-400' : '' }}">
             <div class="flex items-center justify-between">
                 <div class="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">
                     <i class="w-6 h-6 text-red-500 fa-icon fa-solid fa-circle-xmark text-2xl leading-none"></i>
@@ -52,7 +55,7 @@
                 <span class="text-3xl font-bold text-gray-900">{{ $stats['rejected'] }}</span>
             </div>
             <p class="mt-3 text-sm font-medium text-gray-600">Rejected</p>
-        </div>
+        </a>
     </div>
 
     <!-- Filter by Room -->
@@ -96,6 +99,9 @@
                 'requires_capacity_permission' => $booking->requiresCapacityPermission(),
                 'standard_capacity_limit' => $booking->room->standardBookingCapacityLimit(),
                 'student_capacity_limit' => $booking->room->maxStudentBookingCapacity(),
+                // Add QR code info for modal
+                'qr_code_encrypted' => $booking->qr_code_encrypted ?? null,
+                'qr_token' => $booking->qr_token ?? null,
             ];
         @endphp
         <div class="booking-card bg-white rounded-xl border border-gray-200 shadow-sm p-5 hover:shadow-md transition-all cursor-pointer"
@@ -111,21 +117,18 @@
                             @if($booking->room->location)
                             <span class="text-sm text-gray-500">{{ $booking->room->location }}</span>
                             @endif
-                            
                             @if($booking->has_conflict)
                             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
                                 <i class="w-3.5 h-3.5 fa-icon fa-solid fa-triangle-exclamation text-sm leading-none"></i>
                                 Conflict
                             </span>
                             @endif
-                            
                             @if($booking->exceedsCapacity())
                             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
                                 <i class="w-3.5 h-3.5 fa-icon fa-solid fa-users text-sm leading-none"></i>
                                 Over Capacity
                             </span>
                             @endif
-
                             @if($booking->requiresCapacityPermission())
                             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
                                 <i class="w-3.5 h-3.5 fa-icon fa-solid fa-circle-info text-sm leading-none"></i>
@@ -133,22 +136,28 @@
                             </span>
                             @endif
                         </div>
-                        
                         @if($booking->title)
                         <p class="text-sm text-gray-700 mt-1"><span class="font-medium">Purpose:</span> {{ $booking->title }}</p>
                         @endif
-                        
                         <p class="text-sm text-gray-500 mt-1">
                             Requested by <span class="font-medium text-gray-700">{{ $booking->user_name }}</span>
                         </p>
                     </div>
                 </div>
-                
+                @if($booking->status === 'pending')
                 <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
                     Pending
                 </span>
+                @elseif($booking->status === 'approved')
+                <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
+                    Approved
+                </span>
+                @elseif($booking->status === 'rejected')
+                <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+                    Rejected
+                </span>
+                @endif
             </div>
-            
             <!-- Details Grid -->
             <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div class="bg-gray-50 rounded-lg p-3">
@@ -176,8 +185,8 @@
             <div class="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
                 <i class="w-8 h-8 text-gray-400 fa-icon fa-solid fa-circle-check text-3xl leading-none"></i>
             </div>
-            <h3 class="text-lg font-medium text-gray-900">No pending approvals</h3>
-            <p class="mt-1 text-sm text-gray-500">All booking requests have been reviewed.</p>
+            <h3 class="text-lg font-medium text-gray-900">No bookings found</h3>
+            <p class="mt-1 text-sm text-gray-500">No bookings for this status.</p>
         </div>
         @endforelse
     </div>
