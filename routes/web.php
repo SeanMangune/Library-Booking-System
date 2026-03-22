@@ -73,6 +73,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::put('/settings/preferences', [SettingsController::class, 'updatePreferences'])->name('settings.preferences.update');
     Route::put('/settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password.update');
+    // Staff creation route for settings
+    Route::post('/settings/staff', [SettingsController::class, 'storeStaff'])->name('settings.staff.store');
 
     // Reports
     Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
