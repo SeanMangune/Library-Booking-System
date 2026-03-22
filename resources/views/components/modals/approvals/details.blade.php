@@ -148,6 +148,22 @@
                 </div>
             </template>
 
+            <!-- QR Code Section -->
+            <div class="mb-6 p-4 bg-green-50 rounded-xl flex flex-col items-center">
+                <h3 class="text-sm font-semibold text-green-700 mb-2">Booking QR Code</h3>
+                <template x-if="selectedBooking?.qr_code_url">
+                    <img :src="selectedBooking.qr_code_url" alt="Booking QR Code" class="w-40 h-40 object-contain bg-white rounded-lg border border-gray-200 mb-2" />
+                </template>
+                <template x-if="selectedBooking?.qr_code_url">
+                    <a :href="selectedBooking.qr_code_url" download="booking-qr-code.png"
+                       class="mt-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors">
+                        Download QR Code
+                    </a>
+                </template>
+                <template x-if="!selectedBooking?.qr_code_url">
+                    <span class="text-xs text-red-500">QR code unavailable</span>
+                </template>
+            </div>
             <div class="flex gap-3">
                 <button @click="approveBooking()"
                         :disabled="isLoading || ((selectedBooking?.exceeds_capacity || selectedBooking?.requires_capacity_permission) && !showExceptionInput)"

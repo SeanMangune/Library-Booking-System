@@ -382,22 +382,37 @@ class BookingController extends Controller
 
     public function approvals(Request $request)
     {
-        $query = Booking::with('room')->where('status', 'pending');
+        $roomId = $request->filled('room') && $request->room !== 'all' ? $request->room : null;
 
-        if ($request->filled('room') && $request->room !== 'all') {
-            $query->where('room_id', $request->room);
+        $pendingQuery = Booking::with('room')->where('status', 'pending');
+        $approvedQuery = Booking::with('room')->where('status', 'approved');
+        $rejectedQuery = Booking::with('room')->where('status', 'rejected');
+
+        if ($roomId) {
+            $pendingQuery->where('room_id', $roomId);
+            $approvedQuery->where('room_id', $roomId);
+            $rejectedQuery->where('room_id', $roomId);
         }
 
-        $bookings = $query->orderBy('date')->orderBy('start_time')->paginate(15);
+        $pendingBookings = $pendingQuery->orderBy('date')->orderBy('start_time')->get();
+        $approvedBookings = $approvedQuery->orderBy('date')->orderBy('start_time')->get();
+        $rejectedBookings = $rejectedQuery->orderBy('date')->orderBy('start_time')->get();
+
         $rooms = Room::orderBy('name')->get();
 
         $stats = [
-            'pending' => Booking::where('status', 'pending')->count(),
-            'approved' => Booking::where('status', 'approved')->count(),
-            'rejected' => Booking::where('status', 'rejected')->count(),
+            'pending' => $pendingBookings->count(),
+            'approved' => $approvedBookings->count(),
+            'rejected' => $rejectedBookings->count(),
         ];
 
-        return view('rooms.approvals', compact('bookings', 'rooms', 'stats'));
+        return view('rooms.approvals', [
+            'pendingBookings' => $pendingBookings,
+            'approvedBookings' => $approvedBookings,
+            'rejectedBookings' => $rejectedBookings,
+            'rooms' => $rooms,
+            'stats' => $stats,
+        ]);
     }
 
     /**
