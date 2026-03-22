@@ -346,8 +346,9 @@ class BookingController extends Controller
         $payload['qr_code_url'] = $qrDataUri ?? $fresh->getAttribute('qr_code_url') ?? null;
         $payload['approval_status'] = $fresh->status;
         $payload['qr_status'] = $fresh->booking_status;
-        // Always add plain QR code payload for frontend to use in QR code URL
-        $payload['qr_code_encrypted'] = $fresh->qr_token ?? $fresh->booking_code;
+    // Always add plain QR code payload for frontend to use in QR code URL
+    $payload['qr_code_encrypted'] = $fresh->qr_token ?? $fresh->booking_code;
+    $payload['qr_validity'] = $fresh->qr_validity;
 
         try {
             if ($fresh->user) {

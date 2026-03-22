@@ -29,7 +29,7 @@
             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 xl:h-full xl:flex xl:flex-col xl:min-h-0">
                 <!-- Calendar Navigation -->
                 <div class="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center">
-                    <div class="order-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start lg:order-1">
+                    <div class="order-2 flex items-end justify-center gap-2 sm:justify-start lg:order-1 lg:items-center">
                         <button @click="prevMonth()" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
                             <i class="w-4 h-4 text-gray-600 fa-icon fa-solid fa-chevron-left text-base leading-none"></i>
                         </button>

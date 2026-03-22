@@ -252,20 +252,21 @@
         },
     }" x-init="initSidebarMode()" class="min-h-screen flex">
         <!-- Sidebar -->
-        <aside class="sidebar-shell fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 transform shadow-2xl"
+        <aside class="sidebar-shell fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 transform shadow-xl"
                @mouseenter="handleSidebarMouseEnter()"
                @mouseleave="handleSidebarMouseLeave()"
-               :class="[
-                   canHoverSidebar
-                       ? (sidebarHoverExpand ? 'translate-x-0 w-64' : 'translate-x-0 w-20 sidebar-collapsed')
-                       : (sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64')
-               ]">
+               :class="canHoverSidebar && !sidebarHoverExpand ? 'sidebar-collapsed' : ''"
+               :style="canHoverSidebar
+                   ? { width: sidebarHoverExpand ? '16rem' : '5rem', transform: 'translateX(0)' }
+                   : (sidebarOpen
+                       ? { width: '16rem', transform: 'translateX(0)' }
+                       : { width: '16rem', transform: 'translateX(-100%)' })">
             <!-- Logo -->
             <div class="sidebar-header flex items-center justify-between h-20 px-4 border-b border-white/10 bg-gradient-to-r from-indigo-900/50 to-transparent">
                 <div class="flex items-center gap-3">
                     <div class="relative h-12 w-12 flex items-center justify-center">
                         <span class="absolute inset-0 rounded-full bg-indigo-400/25 blur-md"></span>
-                        <img src="{{ asset('images/smartspace-logo.png') }}" alt="SmartSpace" class="relative h-12 w-12 object-contain drop-shadow-[0_0_20px_rgba(129,140,248,0.55)]" onerror="this.onerror=null;this.src='{{ asset('images/smartspace-mark.svg') }}';">
+                        <img src="{{ asset('images/smartspace-mark.svg') }}" alt="SmartSpace" class="relative h-12 w-12 object-contain drop-shadow-[0_0_20px_rgba(129,140,248,0.55)]" onerror="this.onerror=null;this.src='{{ asset('images/smartspace-logo.svg') }}';">
                     </div>
                     <div class="sidebar-brand">
                         <span class="text-white font-bold text-lg tracking-tight">SmartSpace</span>
@@ -318,7 +319,7 @@
                 <a href="{{ route('reservations.index') }}" 
                    title="Reservations"
                    class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-indigo-200 hover:text-white transition-all duration-200 mb-1 {{ request()->routeIs('reservations.*') ? 'active' : '' }}">
-                    <i class="w-5 h-5 fa-icon fa-solid fa-calendar-days text-xl leading-none"></i>
+                    <i class="w-5 h-5 fa-icon fa-solid fa-file text-xl leading-none"></i>
                     <span class="sidebar-text">Reservations</span>
                 </a>
 
@@ -332,7 +333,8 @@
         </aside>
 
         <!-- Main Content -->
-        <div class="content-shell flex-1" :class="canHoverSidebar ? (sidebarHoverExpand ? 'ml-64' : 'ml-20') : ''">
+           <div class="content-shell flex-1 min-w-0"
+               :style="canHoverSidebar ? { marginLeft: sidebarHoverExpand ? '16rem' : '5rem' } : {}">
             <!-- Top Header -->
             <header class="bg-white border-b border-gray-200 sticky top-0 z-30">
                 <div class="flex items-center justify-between h-20 px-4 sm:px-6">
@@ -514,7 +516,7 @@
             </header>
 
             <!-- Page Content -->
-            <main class="p-4 sm:p-6">
+            <main class="p-4 sm:p-6 min-w-0">
                 @yield('content')
             </main>
         </div>
