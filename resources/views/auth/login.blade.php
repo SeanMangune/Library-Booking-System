@@ -187,7 +187,8 @@
                                         </div>
 
                                         <div x-show="scan.error" x-cloak class="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" x-text="scan.error"></div>
-                                        <div x-show="scan.status" x-cloak class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700" x-text="scan.status"></div>
+                                        <!-- Show progress/status except for redundant fake/invalid messages -->
+                                        <div x-show="scan.status && scan.status !== 'Fake QC ID detected.' && scan.status !== 'Invalid ID detected.'" x-cloak class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700" x-text="scan.status"></div>
                                     </section>
 
                                     <section class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm space-y-4">
