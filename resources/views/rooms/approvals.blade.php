@@ -22,7 +22,8 @@
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <!-- Pending -->
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <a href="{{ route('approvals.index', array_merge(request()->except('page'), ['status' => 'pending'])) }}"
+           class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 block {{ $status === 'pending' ? 'ring-2 ring-blue-400' : '' }}">
             <div class="flex items-center justify-between">
                 <div class="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
                     <i class="w-6 h-6 text-amber-600 fa-icon fa-solid fa-clock text-2xl leading-none"></i>
@@ -30,10 +31,11 @@
                 <span class="text-3xl font-bold text-gray-900">{{ $stats['pending'] }}</span>
             </div>
             <p class="mt-3 text-sm font-medium text-gray-600">Pending Reviews</p>
-        </div>
+        </a>
 
         <!-- Approved -->
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <a href="{{ route('approvals.index', array_merge(request()->except('page'), ['status' => 'approved'])) }}"
+           class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 block {{ $status === 'approved' ? 'ring-2 ring-green-400' : '' }}">
             <div class="flex items-center justify-between">
                 <div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
                     <i class="w-6 h-6 text-green-600 fa-icon fa-solid fa-circle-check text-2xl leading-none"></i>
@@ -41,10 +43,11 @@
                 <span class="text-3xl font-bold text-gray-900">{{ $stats['approved'] }}</span>
             </div>
             <p class="mt-3 text-sm font-medium text-gray-600">Approved</p>
-        </div>
+        </a>
 
         <!-- Rejected -->
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <a href="{{ route('approvals.index', array_merge(request()->except('page'), ['status' => 'rejected'])) }}"
+           class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 block {{ $status === 'rejected' ? 'ring-2 ring-red-400' : '' }}">
             <div class="flex items-center justify-between">
                 <div class="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">
                     <i class="w-6 h-6 text-red-500 fa-icon fa-solid fa-circle-xmark text-2xl leading-none"></i>
@@ -52,7 +55,7 @@
                 <span class="text-3xl font-bold text-gray-900">{{ $stats['rejected'] }}</span>
             </div>
             <p class="mt-3 text-sm font-medium text-gray-600">Rejected</p>
-        </div>
+        </a>
     </div>
 
     <!-- Filter by Room -->

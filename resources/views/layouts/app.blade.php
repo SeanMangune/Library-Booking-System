@@ -182,7 +182,7 @@
         $headerNotificationCount = $pendingApprovalCount + $userUnreadCount;
         $safeNotificationUrl = function (?string $url) use ($isStaff) {
             $value = (string) ($url ?? '#');
-            if ($value === '' || $value === '#') {
+            if ($value === '' || $value === '#' || $value === url('/logout') || $value === route('logout')) {
                 return '#';
             }
 
@@ -190,7 +190,7 @@
                 return $value;
             }
 
-            foreach (['/rooms/approvals', '/rooms/manage', '/reports', '/settings', '/api/users/search'] as $fragment) {
+            foreach (['/rooms/approvals', '/rooms/manage', '/reports', '/settings', '/api/users/search', '/logout'] as $fragment) {
                 if (str_contains($value, $fragment)) {
                     return route('dashboard');
                 }

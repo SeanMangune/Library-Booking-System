@@ -382,7 +382,8 @@ class BookingController extends Controller
 
     public function approvals(Request $request)
     {
-        $query = Booking::with('room')->where('status', 'pending');
+        $status = $request->get('status', 'pending');
+        $query = Booking::with('room')->where('status', $status);
 
         if ($request->filled('room') && $request->room !== 'all') {
             $query->where('room_id', $request->room);
@@ -397,7 +398,7 @@ class BookingController extends Controller
             'rejected' => Booking::where('status', 'rejected')->count(),
         ];
 
-        return view('rooms.approvals', compact('bookings', 'rooms', 'stats'));
+        return view('rooms.approvals', compact('bookings', 'rooms', 'stats', 'status'));
     }
 
     /**
