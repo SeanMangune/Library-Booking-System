@@ -35,12 +35,14 @@ class NotificationController extends Controller
             ->latest()
             ->take(8)
             ->get()
-            ->map(function ($notification): array {
+            ->map(function ($notification) use ($isStaff): array {
+                $url = (string) ($notification->data['url'] ?? '#');
+
                 return [
                     'id' => $notification->id,
                     'title' => $notification->data['title'] ?? 'Notification',
                     'message' => $notification->data['message'] ?? '',
-                    'url' => $notification->data['url'] ?? '#',
+                    'url' => $this->safeNotificationUrl($url, $isStaff),
                     'created_at_human' => optional($notification->created_at)->diffForHumans() ?? '',
                 ];
             })
@@ -98,5 +100,32 @@ class NotificationController extends Controller
         }
 
         return back();
+    }
+
+    private function safeNotificationUrl(string $url, bool $isStaff): string
+    {
+        if ($url === '' || $url === '#') {
+            return '#';
+        }
+
+        if ($isStaff) {
+            return $url;
+        }
+
+        $staffOnlyFragments = [
+            '/rooms/approvals',
+            '/rooms/manage',
+            '/reports',
+            '/settings',
+            '/api/users/search',
+        ];
+
+        foreach ($staffOnlyFragments as $fragment) {
+            if (str_contains($url, $fragment)) {
+                return route('dashboard');
+            }
+        }
+
+        return $url;
     }
 }
