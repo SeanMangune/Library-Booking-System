@@ -34,7 +34,13 @@
                     </div>
                     <div class="rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-white backdrop-blur-sm">
                         <p class="text-xs uppercase tracking-wide text-indigo-100">Detected ID type</p>
-                        <p class="mt-2 text-lg font-bold" x-text="verification?.is_valid ? 'QC Citizen ID' : 'Not verified'"></p>
+                        <p class="mt-2 text-lg font-bold"
+                           x-text="verification?.is_valid
+                               ? 'QC Citizen ID'
+                               : (verification?.rejected_id_type
+                                   ? verification.rejected_id_type
+                                   : (verification === null ? 'Not verified' : 'INVALID'))">
+                        </p>
                     </div>
                     <div class="rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-white backdrop-blur-sm">
                         <p class="text-xs uppercase tracking-wide text-indigo-100">Confidence</p>
@@ -47,9 +53,11 @@
 
         <div class="p-6 lg:p-8 space-y-6">
             @if(session('status'))
-                <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                    {{ session('status') }}
-                </div>
+                @if(session('status'))
+                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" x-show="!errorMessage">
+                        {{ session('status') }}
+                    </div>
+                @endif
             @endif
 
             @if($errors->any())
@@ -109,6 +117,8 @@
                                     </div>
 
                                     <div x-show="errorMessage" x-cloak class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" x-text="errorMessage"></div>
+                                    <!-- Remove green alert for fake/invalid ID detected -->
+                                    <template x-if="false"></template>
 
                                     <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                                         <div class="flex items-center justify-between gap-3">
@@ -1916,6 +1926,15 @@ function qcidRegistrationApp() {
 
                 if (!payload.success) {
                     this.verification = null;
+                    // Clear all form fields to prevent showing previous user data
+                    this.form.full_name = '';
+                    this.form.qcid_number = '';
+                    this.form.sex = '';
+                    this.form.civil_status = '';
+                    this.form.date_of_birth = '';
+                    this.form.date_issued = '';
+                    this.form.valid_until = '';
+                    this.form.address = '';
                     let rejectMsg = payload.message || 'The uploaded image is not recognized as a QC ID.';
                     if (rawVerification?.rejected_id_type) {
                         rejectMsg = `This appears to be a ${payload.verification.rejected_id_type}. Only Quezon City Citizen IDs (QC IDs) are accepted.`;
