@@ -180,6 +180,24 @@
             : collect();
         $userUnreadCount = $userUnreadNotifications->count();
         $headerNotificationCount = $pendingApprovalCount + $userUnreadCount;
+        $safeNotificationUrl = function (?string $url) use ($isStaff) {
+            $value = (string) ($url ?? '#');
+            if ($value === '' || $value === '#') {
+                return '#';
+            }
+
+            if ($isStaff) {
+                return $value;
+            }
+
+            foreach (['/rooms/approvals', '/rooms/manage', '/reports', '/settings', '/api/users/search'] as $fragment) {
+                if (str_contains($value, $fragment)) {
+                    return route('dashboard');
+                }
+            }
+
+            return $value;
+        };
         $initials = $currentUser
             ? collect(preg_split('/\s+/', trim($currentUser->name)))->filter()->take(2)->map(fn ($p) => mb_strtoupper(mb_substr($p, 0, 1)))->implode('')
             : 'U';
@@ -356,8 +374,9 @@
                         <div x-data="{ notifOpen: false }"
                              id="header-notification-root"
                              data-user-id="{{ $currentUser?->id }}"
+                             data-is-staff="{{ $isStaff ? '1' : '0' }}"
                              data-unread-url="{{ route('notifications.unread') }}"
-                             data-approvals-url="{{ route('approvals.index') }}"
+                             data-approvals-url="{{ $isStaff ? route('approvals.index') : route('dashboard') }}"
                              class="relative">
                             <button @click="notifOpen = !notifOpen" class="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
                                 <i class="w-6 h-6 fa-icon fa-solid fa-bell text-2xl leading-none"></i>
@@ -410,7 +429,7 @@
                                     <div class="px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50 border-b border-gray-100">Your Unread</div>
                                     <div data-role="user-unread-list">
                                         @forelse($userUnreadNotifications as $notification)
-                                        <a href="{{ $notification->data['url'] ?? '#' }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
+                                        <a href="{{ $safeNotificationUrl($notification->data['url'] ?? '#') }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
                                             <p class="text-sm font-medium text-gray-900">{{ $notification->data['title'] ?? 'Notification' }}</p>
                                             <p class="text-xs text-gray-600 mt-1">{{ $notification->data['message'] ?? '' }}</p>
                                             <p class="text-xs text-gray-400 mt-1">{{ $notification->created_at->diffForHumans() }}</p>

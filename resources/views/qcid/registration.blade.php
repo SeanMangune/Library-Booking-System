@@ -18,22 +18,23 @@
 @endphp
 <div x-data="qcidRegistrationApp()" x-init="init()" class="max-w-7xl mx-auto space-y-6">
     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div class="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 px-6 py-7">
+        <div class="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 px-6 py-7 border-b border-white/10">
             <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                 <div class="max-w-3xl">
-                    <div class="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-50">
+                    <div class="inline-flex items-center gap-2 rounded-full bg-indigo-400/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-indigo-100 border border-indigo-300/20">
                         User verification portal
                     </div>
                     <h1 class="mt-4 text-3xl font-extrabold tracking-tight text-white">Register your QC ID for account verification</h1>
-                    <p class="mt-2 text-sm text-indigo-100/95">Upload your Quezon City Citizen ID, review the detected details, and submit your registration for verification. Only QC IDs are accepted.</p>
+                    <p class="mt-2 text-sm text-indigo-100">Upload your Quezon City Citizen ID, review the detected details, and submit your registration for verification. Only QC IDs are accepted.</p>
                 </div>
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:min-w-[420px]">
-                    <div class="rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-white backdrop-blur-sm">
+                    <div class="rounded-2xl border border-indigo-300/20 bg-indigo-500/10 px-4 py-4 text-white backdrop-blur-sm">
                         <p class="text-xs uppercase tracking-wide text-indigo-100">Current status</p>
                         <p class="mt-2 text-lg font-bold" x-text="statusLabel"></p>
                     </div>
-                    <div class="rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-white backdrop-blur-sm">
+                    <div class="rounded-2xl border border-indigo-300/20 bg-indigo-500/10 px-4 py-4 text-white backdrop-blur-sm">
                         <p class="text-xs uppercase tracking-wide text-indigo-100">Detected ID type</p>
+<<<<<<< HEAD
                         <p class="mt-2 text-lg font-bold"
                            x-text="verification?.is_valid
                                ? 'QC Citizen ID'
@@ -42,7 +43,7 @@
                                    : (verification === null ? 'Not verified' : 'INVALID'))">
                         </p>
                     </div>
-                    <div class="rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-white backdrop-blur-sm">
+                    <div class="rounded-2xl border border-indigo-300/20 bg-indigo-500/10 px-4 py-4 text-white backdrop-blur-sm">
                         <p class="text-xs uppercase tracking-wide text-indigo-100">Confidence</p>
                         <p class="mt-2 text-lg font-bold" x-text="overallConfidenceLabel"></p>
                         <p class="mt-1 text-[11px] text-indigo-100/90" x-text="overallConfidenceHint"></p>
@@ -85,7 +86,9 @@
                             </div>
 
                             <div class="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-                                <div class="rounded-2xl border-2 border-dashed border-indigo-200 bg-white p-5">
+                                <div class="rounded-2xl border-2 border-dashed border-indigo-200 bg-white p-5"
+                                     @dragover.prevent
+                                     @drop.prevent="handleDrop($event)">
                                     <label for="qcid_image" class="flex cursor-pointer flex-col items-center justify-center text-center">
                                         <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600">
                                             <i class="h-8 w-8 fa-icon fa-solid fa-cloud-arrow-up text-3xl leading-none"></i>
@@ -93,7 +96,7 @@
                                         <p class="mt-4 text-sm font-semibold text-gray-900">Drop your QC ID image here or click to browse</p>
                                         <p class="mt-1 text-xs text-gray-500">Accepted: JPG, PNG, WEBP up to 25 MB</p>
                                     </label>
-                                    <input id="qcid_image" name="qcid_image" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" class="sr-only" @change="handleFile($event)" required>
+                                    <input id="qcid_image" name="qcid_image" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" class="sr-only" @click="$event.target.value=''" @change="handleFile($event)" required>
 
                                     <template x-if="imagePreview">
                                         <div class="mt-5 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
@@ -127,8 +130,8 @@
                                                 <p class="text-xs text-gray-500">Detected details from the uploaded card.</p>
                                             </div>
                                             <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
-                                                  :class="verification?.is_valid ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
-                                                  x-text="verification?.is_valid ? 'QC ID verified' : 'Waiting for upload'"></span>
+                                                  :class="verification?.id_assessment === 'Verified' ? 'bg-emerald-100 text-emerald-700' : (verification?.id_assessment === 'Fake QC ID' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700')"
+                                                  x-text="verification?.id_assessment || 'Waiting for upload'"></span>
                                         </div>
 
                                         <dl class="mt-4 space-y-3 text-sm">
@@ -227,7 +230,7 @@
 
                             <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-gray-100 pt-5">
                                 <p class="text-sm text-gray-500">Submitting will set your QC ID registration status to pending review.</p>
-                                <button type="submit" :disabled="!verification?.is_valid || isProcessing" class="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/25 transition-all hover:from-indigo-700 hover:to-violet-700 disabled:cursor-not-allowed disabled:opacity-60">
+                                <button type="submit" :disabled="verification?.id_assessment !== 'Verified' || isProcessing" class="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/25 transition-all hover:from-indigo-700 hover:to-violet-700 disabled:cursor-not-allowed disabled:opacity-60">
                                     <i class="w-4 h-4 fa-icon fa-solid fa-check text-base leading-none"></i>
                                     Submit QC ID registration
                                 </button>
@@ -535,6 +538,21 @@ function qcidRegistrationApp() {
 
         async handleFile(event) {
             const file = event.target?.files?.[0];
+            await this.startAutoScan(file);
+        },
+
+        async handleDrop(event) {
+            const file = event?.dataTransfer?.files?.[0];
+            const input = document.getElementById('qcid_image');
+
+            if (input && event?.dataTransfer?.files?.length) {
+                input.files = event.dataTransfer.files;
+            }
+
+            await this.startAutoScan(file);
+        },
+
+        async startAutoScan(file) {
             this.errorMessage = '';
             this.progress = 0;
 
@@ -548,6 +566,7 @@ function qcidRegistrationApp() {
             }
 
             this.imagePreview = URL.createObjectURL(file);
+            this.statusMessage = 'Upload complete. Starting automatic scan...';
             await this.processFile(file);
         },
 
@@ -1846,20 +1865,22 @@ function qcidRegistrationApp() {
                 this.form.ocr_text = extractedText;
                 this.statusMessage = 'Validating QC ID markers…';
 
+                const formData = new FormData();
+                formData.append('ocr_text', extractedText);
+                formData.append('user_name', this.form.full_name || '');
+                formData.append('qcid_image', file);
+
                 const response = await fetch('/rooms/qc-id/verify', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
                         'Accept': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
                     },
-                    body: JSON.stringify({
-                        ocr_text: extractedText,
-                        user_name: this.form.full_name,
-                    }),
+                    body: formData,
                 });
 
                 const payload = await response.json();
+                this.form.ocr_text = payload.ocr_text || extractedText;
 
                 const rawVerification = payload.verification || null;
                 const idEvaluation = this.evaluateIdExtraction(
@@ -1936,7 +1957,9 @@ function qcidRegistrationApp() {
                     this.form.valid_until = '';
                     this.form.address = '';
                     let rejectMsg = payload.message || 'The uploaded image is not recognized as a QC ID.';
-                    if (rawVerification?.rejected_id_type) {
+                    if (rawVerification?.id_assessment === 'Fake QC ID') {
+                        rejectMsg = 'Fake QC ID detected. Please upload a genuine Quezon City Citizen ID.';
+                    } else if (rawVerification?.rejected_id_type) {
                         rejectMsg = `This appears to be a ${payload.verification.rejected_id_type}. Only Quezon City Citizen IDs (QC IDs) are accepted.`;
                     }
                     console.log('[QC ID OCR] Verification rejected:', rawVerification);
@@ -1960,7 +1983,9 @@ function qcidRegistrationApp() {
 
                 this.currentStatus = 'pending';
                 this.progress = 100;
-                this.statusMessage = 'QC ID verified successfully.';
+                this.statusMessage = mergedVerification?.id_assessment === 'Verified'
+                    ? 'QC ID verified successfully.'
+                    : (mergedVerification?.id_assessment || 'QC ID scanned.');
                 this.maybeOpenAutoConfidenceModal();
             } catch (error) {
                 console.error('QC ID processing failed:', error);

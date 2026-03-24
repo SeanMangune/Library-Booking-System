@@ -107,21 +107,27 @@ class QcIdOcrVerifier
         // Always check for non-QC IDs. If detected AND no strong
         // QC-specific marker is present, force rejection.
         $rejectedIdType = $this->detectNonQcId($normalized);
+        $hasStrongQcMarker = in_array('qc_citizen_card', $markerKeys)
+            || in_array('kasama_pag_unlad', $markerKeys);
         if ($rejectedIdType !== null) {
-            $hasStrongQcMarker = in_array('qc_citizen_card', $markerKeys)
-                || in_array('kasama_pag_unlad', $markerKeys);
-
             if (! $hasStrongQcMarker) {
                 $looksLikeQcId = false;
                 $confidenceScore = 0;
             } else {
                 // Strong QC markers present – false positive, ignore
-                $rejectedIdType = null;
+                // Keep the non-QC signal for fake QC ID checks.
             }
         }
 
+        $idAssessment = 'INVALID';
+        $fakeReason = null;
+        if ($looksLikeQcId) {
+            $fakeReason = $this->detectFakeQcId($normalized, $fields, $matchedMarkers, $rejectedIdType);
+            $idAssessment = $fakeReason !== null ? 'Fake QC ID' : 'Verified';
+        }
+
         return [
-            'is_valid' => $looksLikeQcId,
+            'is_valid' => $idAssessment === 'Verified',
             'confidence_score' => $confidenceScore,
             'matched_markers' => array_column($matchedMarkers, 'label'),
             'marker_count' => count($matchedMarkers),
@@ -135,8 +141,43 @@ class QcIdOcrVerifier
             'id_number' => $fields['id_number'] ?? null,
             'name_matches' => $nameMatches,
             'rejected_id_type' => $rejectedIdType,
+            'id_assessment' => $idAssessment,
+            'fake_reason' => $fakeReason,
             'normalized_text' => $normalized,
         ];
+    }
+
+    /**
+     * @param  list<array{key: string, label: string}>  $matchedMarkers
+     * @param  array<string, string|null>  $fields
+     */
+    private function detectFakeQcId(
+        string $normalized,
+        array $fields,
+        array $matchedMarkers,
+        ?string $rejectedIdType
+    ): ?string {
+        if (preg_match('/\b(FAKE|SAMPLE|SPECIMEN|NOT\s+VALID|FOR\s+DISPLAY\s+ONLY|DEMO)\b/', $normalized) === 1) {
+            return 'Image text contains fake/sample markers.';
+        }
+
+        $markerKeys = array_column($matchedMarkers, 'key');
+        $hasStrongQcMarker = in_array('qc_citizen_card', $markerKeys, true)
+            || in_array('kasama_pag_unlad', $markerKeys, true);
+
+        if ($hasStrongQcMarker && $rejectedIdType !== null) {
+            return "QC markers exist but non-QC ID markers were also detected ({$rejectedIdType}).";
+        }
+
+        $idNumber = $fields['id_number'] ?? null;
+        if ($idNumber !== null) {
+            $digits = preg_replace('/\D/', '', $idNumber) ?? '';
+            if ($digits !== '' && preg_match('/^(\d)\1{13}$/', $digits) === 1) {
+                return 'QC ID number pattern is suspicious.';
+            }
+        }
+
+        return null;
     }
 
     // ────────────────────────────────────────────────────────────────────
