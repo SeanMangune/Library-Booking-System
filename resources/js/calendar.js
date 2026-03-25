@@ -149,8 +149,9 @@ function formatBookingDateLabel(dateValue) {
 
 function buildBookingDateOptions(daysAhead = BOOKING_DATE_RANGE_DAYS) {
     const options = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Always get the local date at the time of function call
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // local midnight
 
     for (let dayOffset = 0; dayOffset <= daysAhead; dayOffset += 1) {
         const date = new Date(today);
@@ -163,7 +164,9 @@ function buildBookingDateOptions(daysAhead = BOOKING_DATE_RANGE_DAYS) {
         });
     }
 
-    return options;
+    // Remove any past dates (shouldn't be present, but extra safety)
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    return options.filter(opt => opt.value >= todayStr);
 }
 
 function ensureBookingDateOption(options, dateValue) {
@@ -434,7 +437,7 @@ export function createRoomCalendarApp(config = {}) {
         isStaffUser: Boolean(config.isStaffUser),
         rooms: Array.isArray(config.rooms) ? config.rooms : [],
         bookingTimeSlots: BOOKING_TIME_SLOTS,
-        bookingDateOptions: buildBookingDateOptions(config.bookingDateRangeDays),
+        bookingDateOptions: buildBookingDateOptions(),
         qcIdFile: null,
         qcIdPreviewUrl: '',
         qcIdIsProcessing: false,
@@ -994,11 +997,18 @@ export function createRoomCalendarApp(config = {}) {
         openBookingModal(date = null) {
             this.clearTimeConflictSuggestions();
 
-            if (date) {
-                this.ensureBookingDateOption(date);
-                this.bookingForm.date = date;
+            // Always rebuild bookingDateOptions from today for every modal open
+            this.bookingDateOptions = buildBookingDateOptions();
+
+            // Prevent selecting a past date, even if pre-filled
+            const todayStr = new Date().toISOString().split('T')[0];
+            let formDate = date || this.bookingForm.date;
+            if (formDate && formDate < todayStr) {
+                this.bookingForm.date = todayStr;
+            } else if (formDate && this.bookingDateOptions.some(opt => opt.value === formDate)) {
+                this.bookingForm.date = formDate;
             } else {
-                this.ensureBookingDateOption(this.bookingForm.date);
+                this.bookingForm.date = todayStr;
             }
 
             applyBookingTimeSlot(this.bookingForm, this.bookingForm.time_slot);
@@ -1309,7 +1319,7 @@ export function createDashboardApp(config = {}) {
         isStaffUser: Boolean(config.isStaffUser),
         rooms: Array.isArray(config.rooms) ? config.rooms : [],
         bookingTimeSlots: BOOKING_TIME_SLOTS,
-        bookingDateOptions: buildBookingDateOptions(config.bookingDateRangeDays),
+        bookingDateOptions: buildBookingDateOptions(),
         qcIdFile: null,
         qcIdPreviewUrl: '',
         qcIdIsProcessing: false,
@@ -2046,8 +2056,22 @@ export function createDashboardApp(config = {}) {
 
         openBookingModal(date = null) {
             this.clearTimeConflictSuggestions();
+            // Always rebuild bookingDateOptions from today for every modal open
+            this.bookingDateOptions = buildBookingDateOptions();
+
             this.bookingForm = createDashboardBookingForm(config, date);
-            this.ensureBookingDateOption(this.bookingForm.date);
+
+            // Prevent selecting a past date, even if pre-filled
+            const todayStr = new Date().toISOString().split('T')[0];
+            let formDate = date || this.bookingForm.date;
+            if (formDate && formDate < todayStr) {
+                this.bookingForm.date = todayStr;
+            } else if (formDate && this.bookingDateOptions.some(opt => opt.value === formDate)) {
+                this.bookingForm.date = formDate;
+            } else {
+                this.bookingForm.date = todayStr;
+            }
+
             applyBookingTimeSlot(this.bookingForm, this.bookingForm.time_slot);
 
             this.qcIdError = '';

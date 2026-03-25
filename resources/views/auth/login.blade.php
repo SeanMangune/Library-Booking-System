@@ -113,13 +113,8 @@
                         </form>
 
                         <button type="button" @click="signupOpen = true" class="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition-colors shadow-lg shadow-teal-700/20">
-                            Sign Up (Quick Modal)
+                            Sign Up
                         </button>
-
-                        <div class="mt-4 text-center">
-                            <span class="text-gray-600 text-sm">Or&nbsp;</span>
-                            <a href="{{ route('register') }}" class="text-indigo-600 hover:underline text-sm font-semibold">Go to Registration Page</a>
-                        </div>
                     </div>
                         </div>
                     </div>
@@ -419,27 +414,11 @@
 
 </script>
 
-@section('bladejs')
-<script>
-window.signupOldInput = {};
-window.signupOldInput.name = {!! json_encode(old('name', '')) !!};
-window.signupOldInput.user_type = {!! json_encode(old('user_type', '')) !!};
-window.signupOldInput.employee_category = {!! json_encode(old('employee_category', '')) !!};
-window.signupOldInput.course = {!! json_encode(old('course', '')) !!};
-window.signupOldInput.qcid_number = {!! json_encode(old('qcid_number', '')) !!};
-window.signupOldInput.sex = {!! json_encode(old('sex', '')) !!};
-window.signupOldInput.civil_status = {!! json_encode(old('civil_status', '')) !!};
-window.signupOldInput.date_of_birth = {!! json_encode(old('date_of_birth', '')) !!};
-window.signupOldInput.date_issued = {!! json_encode(old('date_issued', '')) !!};
-window.signupOldInput.valid_until = {!! json_encode(old('valid_until', '')) !!};
-window.signupOldInput.address = {!! json_encode(old('address', '')) !!};
-window.signupOldInput.ocr_text = {!! json_encode(old('ocr_text', '')) !!};
-window.signupQcidVerifyUrl = {!! json_encode(route('signup.qcid.verify')) !!};
-</script>
-@endsection
 </script>
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script type="text/javascript">
+// Blade: Hide signupOldInput and signupQcidVerifyUrl from page output
 window.signupOldInput = {
     name: @json(old('name', '')),
     user_type: @json(old('user_type', '')),

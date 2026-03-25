@@ -141,7 +141,8 @@
                 </div>
 
                 <!-- Modal Body -->
-                <form @submit.prevent="submitBooking()" class="flex flex-col min-h-0">
+                <form method="POST" enctype="multipart/form-data" @submit.prevent="submitBooking()" class="flex flex-col min-h-0">
+                    @csrf
                     <div class="p-6 flex-1 min-h-0 overflow-y-auto">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Left Column -->
@@ -171,31 +172,11 @@
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                 </div>
 
-                                <div class="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-3" x-init="$watch('verifiedRegistrationQcidNumber', v => window.verifiedRegistrationQcidNumber = v); window.verifiedRegistrationQcidNumber = verifiedRegistrationQcidNumber;">
-                                    <div x-show="hasVerifiedRegistration" x-cloak class="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                                        <p class="text-sm font-semibold text-emerald-800">QC ID Verified</p>
-                                        <dl class="grid grid-cols-1 gap-2 text-xs text-emerald-900 sm:grid-cols-2 mt-2">
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Cardholder Name</dt>
-                                                <dd x-text="verifiedRegistrationName || bookingForm.user_name || '—'"></dd>
-                                            </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">QC ID Number</dt>
-                                                <dd x-text="verifiedRegistrationQcidNumber || $store.calendarApp?.verifiedRegistrationQcidNumber || '—'"></dd>
-                                            </div>
-                                        </dl>
-                                        @php
-                                            $qcidImageUrl = null;
-                                            if (isset($verifiedRegistration) && $verifiedRegistration->qcid_image_path) {
-                                                $qcidImageUrl = Storage::disk('public')->url($verifiedRegistration->qcid_image_path);
-                                            }
-                                        @endphp
-                                        @if($qcidImageUrl)
-                                            <div class="mt-3">
-                                                <img src="{{ $qcidImageUrl }}" alt="QC ID Photo" class="w-full max-w-xs rounded border border-gray-300 shadow-sm">
-                                            </div>
-                                        @endif
-                                    </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        Upload QC ID <span class="text-red-500">*</span>
+                                    </label>
+                                    <input type="file" name="qcid_image" accept="image/*" required class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                 </div>
 
                                 <!-- <div>
