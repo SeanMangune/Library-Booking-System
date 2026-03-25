@@ -147,9 +147,19 @@
                     </div>
                 </div>
                 
-                <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                    Pending
-                </span>
+                @if($booking->status === 'approved')
+                    <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        Approved
+                    </span>
+                @elseif($booking->status === 'rejected')
+                    <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                        Rejected
+                    </span>
+                @else
+                    <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                        Pending
+                    </span>
+                @endif
             </div>
             
             <!-- Details Grid -->
