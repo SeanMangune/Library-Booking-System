@@ -30,9 +30,8 @@
     </div>
 
     <div>
-        <span class="status-badge" style="background: {{ $badgeBackground }}; color: {{ $badgeText }};">
-            {{ ucfirst($lifecycleStatus) }}
-        </span>
+        @php $badgeStyle = 'background: ' . $badgeBackground . '; color: ' . $badgeText . ';'; @endphp
+        {!! '<span class="status-badge" style="' . $badgeStyle . '">' . ucfirst($lifecycleStatus) . '</span>' !!}
     </div>
 </div>
 
@@ -145,8 +144,12 @@
                         <div class="mt-2">
                             @php $status = $booking->booking_status ?? 'upcoming'; @endphp
                             <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold"
-                                  style="background: {{ $status === 'valid' ? '#ECFDF5' : ($status === 'expired' ? '#FEF2F2' : '#FFFBEB') }}; color: {{ $status === 'valid' ? '#047857' : ($status === 'expired' ? '#B91C1C' : '#B45309') }};">
-                                {{ ucfirst($status) }}
+                                                                @php
+                                                                        $qrBg = $status === 'valid' ? '#ECFDF5' : ($status === 'expired' ? '#FEF2F2' : '#FFFBEB');
+                                                                        $qrColor = $status === 'valid' ? '#047857' : ($status === 'expired' ? '#B91C1C' : '#B45309');
+                                                                        $qrStyle = 'background: ' . $qrBg . '; color: ' . $qrColor . ';';
+                                                                @endphp
+                                                                {!! '<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold" style="' . $qrStyle . '">' . ucfirst($status) . '</span>' !!}
                             </span>
                             <p class="mt-2 text-xs text-gray-500">Approval: {{ ucfirst($approvalStatus) }}</p>
                         </div>
@@ -201,4 +204,67 @@
     @endif
 </div>
 
-@endsection
+/* Main header container */
+.verify-header{
+    background: linear-gradient(to right, #059669, #14b8a6); /* emerald-600 → teal-500 */
+    padding: 1.25rem 1.5rem; /* px-6 py-5 */
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Left flex group */
+.verify-left{
+    display: flex;
+    align-items: center;
+    gap: 1rem; /* gap-4 */
+}
+
+/* Icon box */
+.verify-icon-box{
+    width: 40px;   /* w-10 */
+    height: 40px;
+    background: rgba(255,255,255,0.2); /* bg-white/20 */
+    border-radius: 8px; /* rounded-lg */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Icon */
+.verify-icon{
+    width: 20px; /* w-5 */
+    height: 20px;
+    color: #ffffff;
+}
+
+/* Title */
+.verify-title{
+    font-size: 1.125rem; /* text-lg */
+    font-weight: 600;    /* font-semibold */
+    margin: 0;
+}
+
+/* Subtitle */
+.verify-subtitle{
+    font-size: 0.875rem; /* text-sm */
+    color: rgba(255,255,255,0.8); /* text-white/80 */
+    margin: 0;
+}
+
+/* Token monospace */
+.verify-token{
+    font-family: monospace;
+}
+
+/* Status badge */
+.status-badge{
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.75rem; /* px-3 py-1.5 */
+    border-radius: 9999px; /* rounded-full */
+    font-size: 0.875rem;
+    font-weight: 600;
+    /* background and color are set inline for dynamic values */
+}

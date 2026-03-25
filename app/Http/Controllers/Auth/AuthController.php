@@ -77,10 +77,10 @@ class AuthController extends Controller
             'admin_password' => ['required'],
         ]);
 
-        $remember = $request->boolean('remember');
 
         $username = trim((string) $validated['admin_username']);
         $password = (string) $validated['admin_password'];
+        $remember = $request->boolean('remember');
 
         if ($username !== 'admin' || $password !== 'admin123') {
             return back()
@@ -364,6 +364,7 @@ class AuthController extends Controller
             'provider_id' => $providerId,
         ])->save();
     }
+
 
     private function usersTableHasColumns(array $columns): bool
     {

@@ -157,9 +157,34 @@
                         </p>
                     </div>
                 </div>
-                <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold {{ $statusColor }}">
-                    {{ ucfirst($booking->status) }}
-                </span>
+                @if($booking->status === 'approved')
+                    <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        Approved
+                    </span>
+                @elseif($booking->status === 'rejected')
+                    <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                        Rejected
+                    </span>
+                @else
+                    <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                        Pending
+                    </span>
+                @endif
+                
+                @if($booking->status === 'approved')
+                    <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        Approved
+                    </span>
+                @elseif($booking->status === 'rejected')
+                    <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                        Rejected
+                    </span>
+                @else
+                    <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                        Pending
+                    </span>
+                @endif
+>>>>>>> 970e2da92b451106cc28bc469a23cd126fd97fc2
             </div>
             <!-- Details Grid -->
             <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">

@@ -534,20 +534,22 @@
     })->values();
 @endphp
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script type="application/json" id="room-calendar-config">
+{!! json_encode([
+    'selectedRoom' => $selectedRoom,
+    'hasVerifiedRegistration' => $hasVerifiedRegistration,
+    'verifiedRegistrationName' => $verifiedRegistration?->full_name,
+    'isStaffUser' => auth()->user()?->isStaff() ?? false,
+    'rooms' => $roomOptions,
+    'defaultRoomId' => $selectedRoom?->id,
+    'defaultDate' => now()->format('Y-m-d'),
+    'eventsUrl' => route('calendar.events'),
+    'verifyQcIdUrl' => route('qcid.verify'),
+    'storeBookingUrl' => route('reservations.store'),
+]) !!}
+</script>
 <script>
-window.roomCalendarConfig = {
-    selectedRoom: @json($selectedRoom),
-    hasVerifiedRegistration: @json($hasVerifiedRegistration),
-    verifiedRegistrationName: @json($verifiedRegistration?->full_name),
-    verifiedRegistrationQcidNumber: @json($verifiedRegistrationQcidNumber),
-    isStaffUser: @json(auth()->user()?->isStaff() ?? false),
-    rooms: @json($roomOptions),
-    defaultRoomId: @json($selectedRoom?->id),
-    defaultDate: '{{ now()->format("Y-m-d") }}',
-    eventsUrl: '{{ route("calendar.events") }}',
-    verifyQcIdUrl: '{{ route("qcid.verify") }}',
-    storeBookingUrl: '{{ route("reservations.store") }}',
-};
+window.roomCalendarConfig = JSON.parse(document.getElementById('room-calendar-config').textContent);
 </script>
 @endpush
 @endsection

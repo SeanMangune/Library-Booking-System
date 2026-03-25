@@ -59,7 +59,15 @@ class BookingController extends Controller
         $bookings = $query->orderByDesc('date')->orderBy('start_time')->paginate(15);
         $rooms = Room::orderBy('name')->get();
 
-        return view('rooms.reservations', compact('bookings', 'rooms'));
+        // Fetch verified QC ID registration for autofill
+        $qcIdRegistration = null;
+        if ($user) {
+            $qcIdRegistration = \App\Models\QcIdRegistration::where('user_id', $user->id)
+                ->where('verification_status', 'verified')
+                ->first();
+        }
+
+        return view('rooms.reservations', compact('bookings', 'rooms', 'qcIdRegistration'));
     }
 
     public function store(Request $request, QcIdOcrVerifier $qcIdOcrVerifier)
