@@ -498,7 +498,7 @@
                                 <form x-ref="logoutForm" method="POST" action="{{ route('logout') }}" class="px-2">
                                     @csrf
                                     <button type="button" class="w-full flex items-center gap-3 px-2 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors rounded-lg"
-                                        @click="if(confirm('Are you sure you want to sign out?')) $refs.logoutForm.submit()">
+                                        @click="logoutOpen = true">
                                         <i class="w-4 h-4 fa-icon fa-solid fa-right-from-bracket text-base leading-none"></i>
                                         Sign Out
                                     </button>

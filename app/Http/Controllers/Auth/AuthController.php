@@ -29,20 +29,20 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+
+
         $validated = $request->validate([
             'login' => ['required', 'string', 'max:255'],
             'password' => ['required'],
         ]);
 
         $remember = $request->boolean('remember');
-
         $identifier = trim((string) $validated['login']);
         $password = (string) $validated['password'];
 
         $candidate = User::query()
             ->where(function ($query) use ($identifier) {
                 $query->where('email', $identifier);
-
                 if (Schema::hasColumn('users', 'username')) {
                     $query->orWhere('username', $identifier);
                 }
@@ -50,15 +50,23 @@ class AuthController extends Controller
             ->first();
 
         if (! $candidate || ! Hash::check($password, $candidate->password)) {
+            $this->incrementLoginAttempts($request);
+            $attempts = $this->limiter()->attempts($this->throttleKey($request));
+            $errorMsg = 'Invalid username/email or password.';
+            if ($attempts >= 3 && $attempts < $maxAttempts) {
+                $errorMsg .= ' Attempt ' . $attempts . ' of ' . $maxAttempts . '.';
+            }
+            if ($attempts >= $maxAttempts) {
+                $errorMsg = 'Account locked due to too many failed login attempts. Please try again in 1 minute.';
+            }
             return back()
-                ->withErrors(['login' => 'Invalid username/email or password.'])
+                ->withErrors(['login' => $errorMsg])
                 ->onlyInput('login');
         }
 
+        // Login throttling is now handled by middleware in Laravel 12
         Auth::login($candidate, $remember);
-
         $request->session()->regenerate();
-
         return $this->redirectFor($candidate);
     }
 
@@ -105,7 +113,15 @@ class AuthController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => [
+                'required',
+                'string',
+                'min:8',
+                'confirmed',
+                'regex:/^(?=.*[A-Z])(?=.*\d).{8,}$/', // At least 1 capital, 1 number, min 8 chars
+            ],
+        ], [
+            'password.regex' => 'Password must be at least 8 characters, contain at least one uppercase letter and one number.'
         ]);
 
         $user = User::create([

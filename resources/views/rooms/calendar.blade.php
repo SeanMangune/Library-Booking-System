@@ -10,7 +10,7 @@
 @endsection
 
 @section('content')
-<div x-data="calendarApp()" x-init="init()" class="lg:h-[calc(100dvh-9rem)] lg:overflow-hidden">
+<div x-data="calendarApp(window.roomCalendarConfig)" x-init="init()" class="lg:h-[calc(100dvh-9rem)] lg:overflow-hidden">
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:h-full lg:min-h-0">
         <!-- Main Calendar -->
         <div class="lg:col-span-3 lg:min-h-0 lg:flex lg:flex-col">
@@ -166,77 +166,35 @@
                                         Book for User <span class="text-red-500">*</span>
                                     </label>
                                     <input type="text" x-model="bookingForm.user_name" required
+                                           :value="verifiedRegistrationName || bookingForm.user_name || ''"
                                            placeholder="Enter user name..."
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                 </div>
 
-                                <div class="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-3">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                                            QC ID Verification <span class="text-red-500">*</span>
-                                        </label>
-                                        <p x-show="!hasVerifiedRegistration" class="text-xs text-gray-500">Upload a clear photo of a Quezon City Citizen ID. The system will read the card using OCR and reject non-QC IDs.</p>
-                                        <p x-show="hasVerifiedRegistration" x-cloak class="text-xs text-emerald-700">QC ID already verified from your QC ID Registration.</p>
-                                    </div>
-
-                                    <input x-show="!hasVerifiedRegistration" x-cloak type="file"
-                                           accept="image/png,image/jpeg,image/jpg,image/webp"
-                                           @change="handleQcIdUpload($event)"
-                                           class="block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-teal-700">
-
+                                <div class="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-3" x-init="$watch('verifiedRegistrationQcidNumber', v => window.verifiedRegistrationQcidNumber = v); window.verifiedRegistrationQcidNumber = verifiedRegistrationQcidNumber;">
                                     <div x-show="hasVerifiedRegistration" x-cloak class="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                                         <p class="text-sm font-semibold text-emerald-800">QC ID Verified</p>
-                                        <p class="text-xs text-emerald-700 mt-1">Bookings will use your approved QC ID registration status.</p>
-                                    </div>
-
-                                    <div x-show="qcIdPreviewUrl" x-cloak class="rounded-lg overflow-hidden border border-gray-200 bg-white">
-                                        <img :src="qcIdPreviewUrl" alt="QC ID preview" class="w-full h-44 object-cover">
-                                    </div>
-
-                                    <div x-show="qcIdIsProcessing" x-cloak class="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-700">
-                                        <div class="flex items-center justify-between gap-3">
-                                            <span x-text="qcIdStatusMessage || 'Reading QC ID…'"></span>
-                                            <span class="font-semibold" x-text="Math.round(qcIdProgress || 0) + '%' "></span>
-                                        </div>
-                                    </div>
-
-                                    <div x-show="qcIdError" x-cloak class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" x-text="qcIdError"></div>
-
-                                    <div x-show="qcIdVerification?.is_valid" x-cloak class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
-                                        <div class="flex items-center justify-between gap-3">
+                                        <dl class="grid grid-cols-1 gap-2 text-xs text-emerald-900 sm:grid-cols-2 mt-2">
                                             <div>
-                                                <p class="text-sm font-semibold text-emerald-800">QC ID verified</p>
-                                                <p class="text-xs text-emerald-700" x-text="'Confidence score: ' + (qcIdVerification?.confidence_score ?? 0) + '%' "></p>
-                                            </div>
-                                            <button type="button"
-                                                    @click="reprocessQcId()"
-                                                    class="inline-flex items-center rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors">
-                                                Re-read ID
-                                            </button>
-                                        </div>
-
-                                        <dl class="grid grid-cols-1 gap-2 text-xs text-emerald-900 sm:grid-cols-2">
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Cardholder</dt>
-                                                <dd x-text="qcIdVerification?.cardholder_name || '—'"></dd>
+                                                <dt class="font-medium text-emerald-700">Cardholder Name</dt>
+                                                <dd x-text="verifiedRegistrationName || bookingForm.user_name || '—'"></dd>
                                             </div>
                                             <div>
-                                                <dt class="font-medium text-emerald-700">Birth Date</dt>
-                                                <dd x-text="qcIdVerification?.date_of_birth || '—'"></dd>
-                                            </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Date Issued</dt>
-                                                <dd x-text="qcIdVerification?.date_issued || '—'"></dd>
-                                            </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Valid Until</dt>
-                                                <dd x-text="qcIdVerification?.valid_until || '—'"></dd>
-                                            </div>
-                                            <div class="sm:col-span-2">
-                                                <dt class="font-medium text-emerald-700">Address</dt>
-                                                <dd x-text="qcIdVerification?.address || '—'"></dd>
+                                                <dt class="font-medium text-emerald-700">QC ID Number</dt>
+                                                <dd x-text="verifiedRegistrationQcidNumber || $store.calendarApp?.verifiedRegistrationQcidNumber || '—'"></dd>
                                             </div>
                                         </dl>
+                                        @php
+                                            $qcidImageUrl = null;
+                                            if (isset($verifiedRegistration) && $verifiedRegistration->qcid_image_path) {
+                                                $qcidImageUrl = Storage::disk('public')->url($verifiedRegistration->qcid_image_path);
+                                            }
+                                        @endphp
+                                        @if($qcidImageUrl)
+                                            <div class="mt-3">
+                                                <img src="{{ $qcidImageUrl }}" alt="QC ID Photo" class="w-full max-w-xs rounded border border-gray-300 shadow-sm">
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
 
@@ -559,9 +517,11 @@
 @endpush
 
 @push('scripts')
+@vite(['resources/css/app.css', 'resources/js/app.js'])
 @php
-    $verifiedRegistration = auth()->user()?->qcidRegistration;
-    $hasVerifiedRegistration = $verifiedRegistration && $verifiedRegistration->verification_status === 'verified';
+    $verifiedRegistration = auth()->user()?->qcidRegistration()->where('verification_status', 'verified')->first();
+    $hasVerifiedRegistration = $verifiedRegistration !== null;
+    $verifiedRegistrationQcidNumber = $verifiedRegistration?->qcid_number;
 
     $roomOptions = $rooms->map(function ($room) {
         return [
@@ -579,6 +539,7 @@ window.roomCalendarConfig = {
     selectedRoom: @json($selectedRoom),
     hasVerifiedRegistration: @json($hasVerifiedRegistration),
     verifiedRegistrationName: @json($verifiedRegistration?->full_name),
+    verifiedRegistrationQcidNumber: @json($verifiedRegistrationQcidNumber),
     isStaffUser: @json(auth()->user()?->isStaff() ?? false),
     rooms: @json($roomOptions),
     defaultRoomId: @json($selectedRoom?->id),

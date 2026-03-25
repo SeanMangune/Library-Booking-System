@@ -30,21 +30,21 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
-        <form method="GET" action="{{ route('reports.index') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-md p-4 mb-6">
+        <form method="GET" action="{{ route('reports.index') }}" class="flex flex-col gap-4 md:grid md:grid-cols-4 md:gap-4 items-end">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">From</label>
                 <input type="date" name="date_from" value="{{ $filters['date_from'] }}"
-                       class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                       class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">To</label>
                 <input type="date" name="date_to" value="{{ $filters['date_to'] }}"
-                       class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                       class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Room</label>
-                <select name="room_id" class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                <select name="room_id" class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
                     <option value="">All rooms</option>
                     @foreach($rooms as $room)
                         <option value="{{ $room->id }}" @selected($filters['room_id'] === (string) $room->id)>{{ $room->name }}</option>
@@ -53,15 +53,21 @@
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select name="status" class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                <select name="status" class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
                     <option value="">All statuses</option>
                     @foreach(['approved', 'pending', 'rejected', 'cancelled'] as $status)
                         <option value="{{ $status }}" @selected($filters['status'] === $status)>{{ ucfirst($status) }}</option>
                     @endforeach
                 </select>
             </div>
-            <div class="md:col-span-4 flex justify-end">
-                <button type="submit" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors">
+            <div class="md:col-span-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2 w-full">
+                <div class="flex flex-wrap gap-2">
+                    <a href="#room-breakdown" class="px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-100 to-indigo-200 text-indigo-700 font-semibold border border-indigo-300 shadow-sm hover:from-indigo-200 hover:to-indigo-300 transition">Room Breakdown</a>
+                    <a href="#top-requesters" class="px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-100 to-indigo-200 text-indigo-700 font-semibold border border-indigo-300 shadow-sm hover:from-indigo-200 hover:to-indigo-300 transition">Top Requesters</a>
+                    <a href="#daily-activity" class="px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-100 to-indigo-200 text-indigo-700 font-semibold border border-indigo-300 shadow-sm hover:from-indigo-200 hover:to-indigo-300 transition">Daily Activity</a>
+                    <a href="#detailed-bookings" class="px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-100 to-indigo-200 text-indigo-700 font-semibold border border-indigo-300 shadow-sm hover:from-indigo-200 hover:to-indigo-300 transition">Detailed Booking List</a>
+                </div>
+                <button type="submit" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white text-base font-bold shadow-lg transition">
                     Apply filters
                 </button>
             </div>
@@ -96,8 +102,9 @@
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div class="px-5 py-4 border-b border-gray-200 bg-gray-50">
+        <div id="room-breakdown" class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
+                <i class="fa-solid fa-door-open text-indigo-500"></i>
                 <h2 class="text-base font-bold text-gray-900">Room Breakdown</h2>
             </div>
             <div class="overflow-x-auto">
@@ -128,8 +135,9 @@
             </div>
         </div>
 
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div class="px-5 py-4 border-b border-gray-200 bg-gray-50">
+        <div id="top-requesters" class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
+                <i class="fa-solid fa-user-group text-indigo-500"></i>
                 <h2 class="text-base font-bold text-gray-900">Top Requesters</h2>
             </div>
             <div class="divide-y divide-gray-200">
@@ -145,8 +153,9 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-200 bg-gray-50">
+    <div id="daily-activity" class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
+            <i class="fa-solid fa-calendar-day text-indigo-500"></i>
             <h2 class="text-base font-bold text-gray-900">Daily Activity</h2>
         </div>
         <div class="overflow-x-auto">
@@ -177,8 +186,9 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-200 bg-gray-50">
+    <div id="detailed-bookings" class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-indigo-500"></i>
             <h2 class="text-base font-bold text-gray-900">Detailed Booking List</h2>
         </div>
         <div class="overflow-x-auto">
@@ -224,6 +234,19 @@
         @endif
     </div>
 </div>
+
+    <!-- Floating Back to Top Button -->
+    <button
+        x-data="{ show: false }"
+        x-init="window.addEventListener('scroll', () => { show = window.scrollY > 300 })"
+        x-show="show"
+        @click="window.scrollTo({top: 0, behavior: 'smooth'})"
+        class="fixed bottom-8 right-8 z-50 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-3 shadow-lg transition"
+        style="display: none;"
+        title="Back to Top"
+    >
+        <i class="fa-solid fa-arrow-up"></i>
+    </button>
 
 @push('styles')
 <style>

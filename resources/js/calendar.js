@@ -402,11 +402,11 @@ function createRoomBookingForm(config, dateOverride = null) {
         start_time: defaultSlot.start_time,
         end_time: defaultSlot.end_time,
         attendees: 1,
-        user_name: '',
+        user_name: config.userName || '',
         user_email: '',
         description: '',
         qc_id_ocr_text: '',
-        qc_id_cardholder_name: '',
+        qc_id_cardholder_name: config.verifiedRegistrationName || '',
     };
 }
 
@@ -430,6 +430,7 @@ export function createRoomCalendarApp(config = {}) {
         isSubmitting: false,
         hasVerifiedRegistration: Boolean(config.hasVerifiedRegistration),
         verifiedRegistrationName: config.verifiedRegistrationName || '',
+        verifiedRegistrationQcidNumber: config.verifiedRegistrationQcidNumber || '',
         isStaffUser: Boolean(config.isStaffUser),
         rooms: Array.isArray(config.rooms) ? config.rooms : [],
         bookingTimeSlots: BOOKING_TIME_SLOTS,
@@ -448,6 +449,27 @@ export function createRoomCalendarApp(config = {}) {
         bookingForm: createRoomBookingForm(config),
 
         init() {
+            // Autofill user_name and QC ID if available
+            if (this.hasVerifiedRegistration) {
+                if (config.userName) {
+                    this.bookingForm.user_name = config.userName;
+                }
+                if (config.verifiedRegistrationName) {
+                    this.bookingForm.qc_id_cardholder_name = config.verifiedRegistrationName;
+                }
+                // Mark QC ID as verified in the form state
+                this.qcIdVerification = {
+                    is_valid: true,
+                    cardholder_name: config.verifiedRegistrationName || config.userName || '',
+                    confidence_score: 100,
+                    source: 'registration',
+                };
+                this.qcIdError = '';
+            } else {
+                if (this.bookingForm && config.userName) {
+                    this.bookingForm.user_name = config.userName;
+                }
+            }
             this.$nextTick(() => {
                 this.initCalendar();
             });

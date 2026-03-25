@@ -10,6 +10,31 @@
 @endsection
 
 @section('content')
+@push('styles')
+    <link rel="stylesheet" href="/vendor/flatpickr/flatpickr.min.css">
+@endpush
+@push('scripts')
+    <script src="/vendor/flatpickr/flatpickr.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (document.querySelector('.flatpickr-date')) {
+                flatpickr('.flatpickr-date', {
+                    dateFormat: 'Y-m-d',
+                    minDate: 'today',
+                });
+            }
+            if (document.querySelector('.flatpickr-time')) {
+                flatpickr('.flatpickr-time', {
+                    enableTime: true,
+                    noCalendar: true,
+                    dateFormat: 'h:i K',
+                    time_24hr: false,
+                    minuteIncrement: 15,
+                });
+            }
+        });
+    </script>
+@endpush
 @php
     $currentUser = auth()->user();
     $canViewAllReservations = $currentUser?->isAdmin() || $currentUser?->isSuperAdmin();
@@ -25,7 +50,7 @@
 
     <!-- Filters -->
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
-        <form method="GET" action="{{ route('reservations.index') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <form method="GET" action="{{ route('reservations.index') }}" class="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select name="status" onchange="this.form.submit()"
@@ -46,6 +71,14 @@
                     <option value="{{ $room->id }}" {{ request('room') == $room->id ? 'selected' : '' }}>{{ $room->name }}</option>
                     @endforeach
                 </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <input type="text" name="date" value="{{ request('date') }}" placeholder="Select date" class="flatpickr-date w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" autocomplete="off">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                <input type="text" name="time" value="{{ request('time') }}" placeholder="Select time" class="flatpickr-time w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" autocomplete="off">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Time Period</label>

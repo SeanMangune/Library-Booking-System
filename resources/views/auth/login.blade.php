@@ -17,16 +17,30 @@
             </div>
         </div>
 
-        @if ($errors->any())
+        {{-- Only show login errors for login attempts --}}
+        @if ($errors->has('login'))
             <div class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4">
-                <p class="text-sm font-semibold text-red-800">Please fix the following:</p>
-                <ul class="mt-2 list-disc pl-5 text-sm text-red-700 space-y-1">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
+                <p class="text-sm font-semibold text-red-800">{{ $errors->first('login') }}</p>
             </div>
         @endif
+
+        {{-- Signup error modal --}}
+        <div x-data="{ showSignupError: false }" x-init="@if($errors->any() && !$errors->has('login')) showSignupError = true @endif" x-show="showSignupError" x-cloak style="z-index: 1000; position: fixed; inset: 0;">
+            <div class="absolute inset-0 backdrop-blur-sm z-10"></div>
+            <div class="absolute inset-0 flex items-center justify-center z-20">
+                <div class="bg-white rounded-xl shadow-xl p-8 max-w-md w-full">
+                    <h2 class="text-lg font-bold text-red-700 mb-2">Please fix the following:</h2>
+                    <ul class="list-disc pl-5 text-sm text-red-700 space-y-1 mb-4">
+                        @foreach ($errors->all() as $error)
+                            @if ($error !== $errors->first('login'))
+                                <li>{{ $error }}</li>
+                            @endif
+                        @endforeach
+                    </ul>
+                    <button @click="showSignupError = false" class="mt-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold">Close</button>
+                </div>
+            </div>
+        </div>
 
         @php
             $signupFields = [
@@ -287,11 +301,24 @@
                                                 <textarea name="address" rows="2" x-model="signup.address"
                                                           class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">{{ old('address') }}</textarea>
                                             </div>
-                                            <div>
+                                            <div x-data="{
+                                                pwd: '',
+                                                get hasMin() { return this.pwd.length >= 8 },
+                                                get hasUpper() { return /[A-Z]/.test(this.pwd) },
+                                                get hasNumber() { return /\d/.test(this.pwd) },
+                                                get strength() {
+                                                    let s = 0;
+                                                    if (this.hasMin) s++;
+                                                    if (this.hasUpper) s++;
+                                                    if (this.hasNumber) s++;
+                                                    return s;
+                                                }
+                                            }">
                                                 <label class="block text-sm font-semibold text-slate-700">Password</label>
                                                 <div class="relative mt-1">
                                                     <input name="password" :type="showSignupPassword ? 'text' : 'password'" required autocomplete="new-password"
-                                                           class="w-full rounded-xl border border-slate-200 px-3 py-2.5 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                           class="w-full rounded-xl border border-slate-200 px-3 py-2.5 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                           x-model="pwd">
                                                     <button type="button"
                                                             @click="showSignupPassword = !showSignupPassword"
                                                             :aria-label="showSignupPassword ? 'Hide password' : 'Show password'"
@@ -299,6 +326,34 @@
                                                         <i x-show="!showSignupPassword" x-cloak class="w-5 h-5 fa-icon fa-regular fa-eye text-lg leading-none"></i>
                                                         <i x-show="showSignupPassword" x-cloak class="w-5 h-5 fa-icon fa-regular fa-eye-slash text-lg leading-none"></i>
                                                     </button>
+                                                </div>
+                                                <div class="mt-2 space-y-1">
+                                                    <div class="flex items-center gap-2 text-xs" :class="hasMin ? 'text-emerald-700' : 'text-slate-500'">
+                                                        <i class="fa-solid fa-circle-check" x-show="hasMin"></i>
+                                                        <i class="fa-regular fa-circle" x-show="!hasMin"></i>
+                                                        At least 8 characters
+                                                    </div>
+                                                    <div class="flex items-center gap-2 text-xs" :class="hasUpper ? 'text-emerald-700' : 'text-slate-500'">
+                                                        <i class="fa-solid fa-circle-check" x-show="hasUpper"></i>
+                                                        <i class="fa-regular fa-circle" x-show="!hasUpper"></i>
+                                                        At least one uppercase letter
+                                                    </div>
+                                                    <div class="flex items-center gap-2 text-xs" :class="hasNumber ? 'text-emerald-700' : 'text-slate-500'">
+                                                        <i class="fa-solid fa-circle-check" x-show="hasNumber"></i>
+                                                        <i class="fa-regular fa-circle" x-show="!hasNumber"></i>
+                                                        At least one number
+                                                    </div>
+                                                    <div class="mt-1">
+                                                        <span class="text-xs font-semibold" :class="{
+                                                            'text-rose-600': strength === 1,
+                                                            'text-amber-600': strength === 2,
+                                                            'text-emerald-700': strength === 3
+                                                        }">
+                                                            <template x-if="strength === 1">Weak</template>
+                                                            <template x-if="strength === 2">Medium</template>
+                                                            <template x-if="strength === 3">Strong</template>
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div>

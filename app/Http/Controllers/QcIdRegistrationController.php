@@ -108,12 +108,13 @@ class QcIdRegistrationController extends Controller
                 ? $this->normalizeAddress($validated['address'])
                 : $verifiedAddress,
             'ocr_text' => $validated['ocr_text'],
-            'verification_status' => 'pending',
+            // Automatically verify if OCR is valid at registration
+            'verification_status' => $verification['is_valid'] ? 'verified' : 'pending',
             'verification_notes' => null,
             'qcid_image_path' => $path,
             'verified_data' => $verification,
             'submitted_at' => now(),
-            'reviewed_at' => null,
+            'reviewed_at' => $verification['is_valid'] ? now() : null,
         ]);
         $registration->save();
 
