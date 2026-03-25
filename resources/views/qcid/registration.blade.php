@@ -341,17 +341,38 @@
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script type="application/json" id="qcid-vars">
+{!! json_encode([
+    'verification' => $registration?->verified_data,
+    'imagePreview' => $registration?->qcid_image_path ? asset('storage/' . $registration->qcid_image_path) : null,
+    'currentStatus' => $registration?->verification_status ?? 'not_submitted',
+    'isStaffUser' => $isStaffUser,
+    'form_full_name' => old('full_name', $registration?->full_name ?? $user->name),
+    'form_email' => $initialRegistrationEmail,
+    'form_contact_number' => old('contact_number', $registration?->contact_number ?? ''),
+    'form_qcid_number' => old('qcid_number', $registration?->qcid_number ?? ''),
+    'form_sex' => old('sex', $registration?->sex ?? ''),
+    'form_civil_status' => old('civil_status', $registration?->civil_status ?? ''),
+    'form_date_of_birth' => old('date_of_birth', optional($registration?->date_of_birth)->format('Y-m-d')),
+    'form_date_issued' => old('date_issued', optional($registration?->date_issued)->format('Y-m-d')),
+    'form_valid_until' => old('valid_until', optional($registration?->valid_until)->format('Y-m-d')),
+    'form_address' => old('address', $registration?->address ?? ''),
+    'form_ocr_text' => old('ocr_text', $registration?->ocr_text ?? ''),
+]) !!}
+</script>
 <script>
+const qcidVars = JSON.parse(document.getElementById('qcid-vars').textContent);
 function qcidRegistrationApp() {
+    // ...existing code...
     return {
-        verification: @json($registration?->verified_data),
-        imagePreview: @json($registration?->qcid_image_path ? asset('storage/' . $registration->qcid_image_path) : null),
+        verification: verification,
+        imagePreview: imagePreview,
         isProcessing: false,
         progress: 0,
         statusMessage: '',
         errorMessage: '',
-        currentStatus: @json($registration?->verification_status ?? 'not_submitted'),
-        isStaffUser: @json($isStaffUser),
+        currentStatus: currentStatus,
+        isStaffUser: isStaffUser,
         showConfidenceModal: false,
         hasShownAutoConfidenceModal: false,
         confidenceField: 'qcid_number',
@@ -373,17 +394,17 @@ function qcidRegistrationApp() {
             },
         },
         form: {
-            full_name: @json(old('full_name', $registration?->full_name ?? $user->name)),
-            email: @json($initialRegistrationEmail),
-            contact_number: @json(old('contact_number', $registration?->contact_number ?? '')),
-            qcid_number: @json(old('qcid_number', $registration?->qcid_number ?? '')),
-            sex: @json(old('sex', $registration?->sex ?? '')),
-            civil_status: @json(old('civil_status', $registration?->civil_status ?? '')),
-            date_of_birth: @json(old('date_of_birth', optional($registration?->date_of_birth)->format('Y-m-d'))),
-            date_issued: @json(old('date_issued', optional($registration?->date_issued)->format('Y-m-d'))),
-            valid_until: @json(old('valid_until', optional($registration?->valid_until)->format('Y-m-d'))),
-            address: @json(old('address', $registration?->address ?? '')),
-            ocr_text: @json(old('ocr_text', $registration?->ocr_text ?? '')),
+            full_name: form_full_name,
+            email: form_email,
+            contact_number: form_contact_number,
+            qcid_number: form_qcid_number,
+            sex: form_sex,
+            civil_status: form_civil_status,
+            date_of_birth: form_date_of_birth,
+            date_issued: form_date_issued,
+            valid_until: form_valid_until,
+            address: form_address,
+            ocr_text: form_ocr_text,
         },
 
         init() {

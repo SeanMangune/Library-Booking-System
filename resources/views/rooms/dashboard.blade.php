@@ -681,19 +681,22 @@
     })->values();
 @endphp
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script type="application/json" id="dashboard-calendar-config">
+{!! json_encode([
+    'hasVerifiedRegistration' => $hasVerifiedRegistration,
+    'verifiedRegistrationName' => $verifiedRegistration?->full_name,
+    'isStaffUser' => auth()->user()?->isStaff() ?? false,
+    'rooms' => $roomOptions,
+    'defaultDate' => now()->format('Y-m-d'),
+    'initialCalendarData' => $calendarData,
+    'monthDataUrl' => route('calendar.month'),
+    'eventsUrl' => route('calendar.events'),
+    'verifyQcIdUrl' => route('qcid.verify'),
+    'storeBookingUrl' => route('reservations.store'),
+]) !!}
+</script>
 <script>
-window.dashboardCalendarConfig = {
-    hasVerifiedRegistration: @json($hasVerifiedRegistration),
-    verifiedRegistrationName: @json($verifiedRegistration?->full_name),
-    isStaffUser: @json(auth()->user()?->isStaff() ?? false),
-    rooms: @json($roomOptions),
-    defaultDate: '{{ now()->format("Y-m-d") }}',
-    initialCalendarData: @json($calendarData),
-    monthDataUrl: '{{ route("calendar.month") }}',
-    eventsUrl: '{{ route("calendar.events") }}',
-    verifyQcIdUrl: '{{ route("qcid.verify") }}',
-    storeBookingUrl: '{{ route("reservations.store") }}',
-};
+window.dashboardCalendarConfig = JSON.parse(document.getElementById('dashboard-calendar-config').textContent);
 </script>
 @endpush
 @endsection
