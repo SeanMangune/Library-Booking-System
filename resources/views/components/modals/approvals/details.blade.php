@@ -172,7 +172,7 @@
             <template x-if="selectedBooking?.status === 'approved'">
                 <div class="w-full text-center">
                     <h3 class="text-sm font-semibold text-gray-700 mb-3">Booking QR Code</h3>
-                    <div class="inline-block p-4 bg-white border-2 border-gray-200 rounded-xl shadow-sm mb-3">
+                    <div class="inline-block p-4 bg-white border-2 border-gray-200 rounded-xl shadow-sm mb-0">
                         <template x-if="selectedBooking?.qr_code_url">
                             <img :src="selectedBooking.qr_code_url" alt="Booking QR Code" class="w-48 h-48 mx-auto object-contain">
                         </template>
@@ -186,58 +186,24 @@
                             </div>
                         </template>
                     </div>
-                    <span class="inline-flex items-center px-3 py-1 mt-3 rounded-full text-xs font-semibold"
-                        :class="{
-                            'bg-emerald-100 text-emerald-700': (selectedBooking?.booking_status || selectedBooking?.qr_status) === 'valid',
-                            'bg-red-100 text-red-700': (selectedBooking?.booking_status || selectedBooking?.qr_status) === 'expired',
-                            'bg-amber-100 text-amber-700': (selectedBooking?.booking_status || selectedBooking?.qr_status || 'upcoming') === 'upcoming'
-                        }"
-                        x-text="((selectedBooking?.booking_status || selectedBooking?.qr_status || 'upcoming').toString().charAt(0).toUpperCase() + (selectedBooking?.booking_status || selectedBooking?.qr_status || 'upcoming').toString().slice(1))">
-                    </span>
+                    <div class="mt-4">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold"
+                            :class="{
+                                'bg-emerald-100 text-emerald-700': (selectedBooking?.booking_status || selectedBooking?.qr_status) === 'valid',
+                                'bg-red-100 text-red-700': (selectedBooking?.booking_status || selectedBooking?.qr_status) === 'expired',
+                                'bg-amber-100 text-amber-700': (selectedBooking?.booking_status || selectedBooking?.qr_status || 'upcoming') === 'upcoming'
+                            }"
+                            x-text="((selectedBooking?.booking_status || selectedBooking?.qr_status || 'upcoming').toString().charAt(0).toUpperCase() + (selectedBooking?.booking_status || selectedBooking?.qr_status || 'upcoming').toString().slice(1))">
+                        </span>
+                    </div>
                 </div>
             </template>
-
             <template x-if="selectedBooking?.status === 'rejected'">
                 <div class="w-full text-center">
                     <h3 class="text-sm font-semibold text-gray-700 mb-3">This booking was rejected.</h3>
                 </div>
             </template>
-                    </>
-                </template>
-                <template x-if="selectedBooking?.status === 'approved'">
-                    <div class="w-full text-center">
-                        <h3 class="text-sm font-semibold text-gray-700 mb-3">Booking QR Code</h3>
-                        <div class="inline-block p-4 bg-white border-2 border-gray-200 rounded-xl shadow-sm mb-3">
-                            <template x-if="selectedBooking?.qr_code_url">
-                                <img :src="selectedBooking.qr_code_url" alt="Booking QR Code" class="w-48 h-48 mx-auto object-contain">
-                            </template>
-                            <template x-if="!selectedBooking?.qr_code_url">
-                                <div class="w-48 h-48 flex items-center justify-center bg-gray-100 rounded-lg">
-                                    <div class="text-center">
-                                        <i class="w-12 h-12 text-gray-400 mx-auto mb-2 fa-icon fa-solid fa-qrcode text-5xl leading-none"></i>
-                                        <p class="text-sm text-gray-500">QR Code</p>
-                                        <p class="text-xs text-gray-400">Not available</p>
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
-                        <span class="inline-flex items-center px-3 py-1 mt-3 rounded-full text-xs font-semibold"
-                              :class="{
-                                  'bg-emerald-100 text-emerald-700': (selectedBooking?.booking_status || selectedBooking?.qr_status) === 'valid',
-                                  'bg-red-100 text-red-700': (selectedBooking?.booking_status || selectedBooking?.qr_status) === 'expired',
-                                  'bg-amber-100 text-amber-700': (selectedBooking?.booking_status || selectedBooking?.qr_status || 'upcoming') === 'upcoming'
-                              }"
-                              x-text="((selectedBooking?.booking_status || selectedBooking?.qr_status || 'upcoming').toString().charAt(0).toUpperCase() + (selectedBooking?.booking_status || selectedBooking?.qr_status || 'upcoming').toString().slice(1))">
-                        </span>
-                    </div>
-                </template>
-                <template x-if="selectedBooking?.status === 'rejected'">
-                    <div class="w-full text-center">
-                        <h3 class="text-sm font-semibold text-gray-700 mb-3">This booking was rejected.</h3>
-                    </div>
-                </template>
             </div>
->>>>>>> 970e2da92b451106cc28bc469a23cd126fd97fc2
         </div>
     </div>
     <button type="button" class="modal-backdrop fixed inset-0 bg-black/40 transition-opacity" @click="closeModal()">close</button>

@@ -865,13 +865,15 @@ export function createRoomCalendarApp(config = {}) {
                 const payload = await response.json();
                 const verification = payload.verification || null;
 
+
+                // Only autofill if valid
                 this.qcIdVerification = verification;
-                if (verification?.cardholder_name) {
+                if (verification?.is_valid && verification?.cardholder_name) {
                     this.bookingForm.qc_id_cardholder_name = verification.cardholder_name;
                     this.bookingForm.user_name = verification.cardholder_name;
                 }
 
-                if (!payload.success) {
+                if (!payload.success || !verification?.is_valid) {
                     this.qcIdError = payload.message || 'The uploaded image is not recognized as a QC ID.';
                     return;
                 }

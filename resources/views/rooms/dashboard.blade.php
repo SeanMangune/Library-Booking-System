@@ -460,11 +460,61 @@
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                 </div>
 
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Upload QC ID <span class="text-red-500">*</span>
+                                <div class="rounded-xl border border-gray-200 bg-gray-50/80 p-4">
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">
+                                        QC ID Verification <span class="text-red-500">*</span>
                                     </label>
-                                    <input type="file" name="qcid_image" accept="image/*" required class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                    <p class="text-xs text-gray-600 mb-2">Upload a clear photo of a Quezon City Citizen ID. The system will read the card using OCR and reject non-QC IDs.</p>
+                                    <input type="file" name="qcid_image" accept="image/*" required
+                                        class="block w-full text-sm text-gray-700 border border-gray-300 rounded-lg cursor-pointer focus:ring-2 focus:ring-teal-500 focus:border-teal-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+                                        @change="handleQcIdUpload($event)">
+
+                                    <template x-if="qcIdPreviewUrl">
+                                        <div class="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
+                                            <img :src="qcIdPreviewUrl" alt="QC ID preview" class="h-48 w-full object-cover">
+                                        </div>
+                                    </template>
+
+                                    <div x-show="qcIdIsProcessing" x-cloak class="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-4 mt-4">
+                                        <div class="flex items-center justify-between gap-4">
+                                            <div>
+                                                <p class="text-sm font-semibold text-teal-800" x-text="qcIdStatusMessage || 'Reading QC ID…'"></p>
+                                                <p class="text-xs text-teal-700 mt-1">OCR is extracting text and checking the QC ID layout.</p>
+                                            </div>
+                                            <div class="text-lg font-extrabold text-teal-700" x-text="Math.round(qcIdProgress) + '%' "></div>
+                                        </div>
+                                        <div class="mt-3 h-2 rounded-full bg-teal-100 overflow-hidden">
+                                            <div class="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-200" :style="`width: ${Math.round(qcIdProgress)}%`"></div>
+                                        </div>
+                                    </div>
+
+                                    <div x-show="qcIdError" x-cloak class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 mt-4" x-text="qcIdError"></div>
+
+                                    <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm mt-4">
+                                        <div class="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p class="text-sm font-semibold text-gray-900">Verification snapshot</p>
+                                                <p class="text-xs text-gray-500">Detected details from the uploaded card.</p>
+                                            </div>
+                                            <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
+                                                :class="qcIdVerification?.is_valid ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
+                                                x-text="qcIdVerification?.is_valid ? 'QC ID verified' : 'Waiting for upload'"></span>
+                                        </div>
+                                        <dl class="mt-4 space-y-3 text-sm">
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">Cardholder</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.cardholder_name || '—'"></dd>
+                                            </div>
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">ID number</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.id_number || '—'"></dd>
+                                            </div>
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">Validity</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.valid_until || '—'"></dd>
+                                            </div>
+                                        </dl>
+                                    </div>
                                 </div>
 
                                 <!-- <div>
