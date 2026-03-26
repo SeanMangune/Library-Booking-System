@@ -23,8 +23,8 @@
                     minDate: 'today',
                 });
             }
-            if (document.querySelector('.flatpickr-time')) {
-                flatpickr('.flatpickr-time', {
+            if (document.querySelector('.js-flatpickr-time')) {
+                flatpickr('.js-flatpickr-time', {
                     enableTime: true,
                     noCalendar: true,
                     dateFormat: 'h:i K',
@@ -78,7 +78,7 @@
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Time</label>
-                <input type="text" name="time" value="{{ request('time') }}" placeholder="Select time" class="flatpickr-time w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" autocomplete="off">
+                <input type="text" name="time" value="{{ request('time') }}" placeholder="Select time" class="js-flatpickr-time w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" autocomplete="off">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Time Period</label>

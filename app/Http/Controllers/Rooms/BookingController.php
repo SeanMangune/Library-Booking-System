@@ -10,6 +10,7 @@ use App\Notifications\BookingApprovedNotification;
 use App\Services\QcIdOcrVerifier;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
@@ -20,7 +21,8 @@ class BookingController extends Controller
         $user = $request->user();
         $canViewAll = $user?->isAdmin() || $user?->isSuperAdmin();
 
-        $query = Booking::with('room');
+        $query = Booking::with('room')
+            ->whereHas('room', fn ($roomQuery) => $roomQuery->visible());
 
         if (! $canViewAll && $user) {
             $query->where(function ($scoped) use ($user) {
@@ -57,7 +59,7 @@ class BookingController extends Controller
         }
 
         $bookings = $query->orderByDesc('date')->orderBy('start_time')->paginate(15);
-        $rooms = Room::orderBy('name')->get();
+        $rooms = Room::query()->visible()->orderBy('name')->get();
 
         // Fetch verified QC ID registration for autofill
         $qcIdRegistration = null;
@@ -102,6 +104,14 @@ class BookingController extends Controller
         ]);
 
         $room = Room::findOrFail($validated['room_id']);
+
+        if ($room->isExcludedRoom()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This room is no longer available for booking.',
+            ], 422);
+        }
+
         $requestedAttendees = (int) $validated['attendees'];
 
         if ($room->exceedsBookingLimitFor($requestedAttendees, $actingUser)) {
@@ -172,27 +182,6 @@ class BookingController extends Controller
             $validated['user_id'] = $actingUser->id;
         }
 
-        // Check for time conflicts
-        $hasConflict = Booking::where('room_id', $validated['room_id'])
-            ->where('date', $validated['date'])
-            ->where('status', 'approved')
-            ->where(function($query) use ($validated) {
-                $query->whereBetween('start_time', [$validated['start_time'], $validated['end_time']])
-                    ->orWhereBetween('end_time', [$validated['start_time'], $validated['end_time']])
-                    ->orWhere(function($q) use ($validated) {
-                        $q->where('start_time', '<=', $validated['start_time'])
-                          ->where('end_time', '>=', $validated['end_time']);
-                    });
-            })
-            ->exists();
-
-        if ($hasConflict) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This time slot conflicts with an existing booking'
-            ], 422);
-        }
-
         // Set initial status based on room settings
         $validated['status'] = ($room->requires_approval || $requiresCapacityPermission) ? 'pending' : 'approved';
         $validated['time'] = Carbon::parse($validated['start_time'])->format('g:i A');
@@ -205,7 +194,41 @@ class BookingController extends Controller
         $minutes = $durationMinutes % 60;
         $validated['duration'] = $minutes > 0 ? "{$hours}h {$minutes}m" : "{$hours}h";
 
-        $booking = Booking::create($validated);
+        $activeConflictStatuses = ['pending', 'approved'];
+
+        $booking = DB::transaction(function () use ($room, $validated, $activeConflictStatuses) {
+            // Serialize submissions targeting the same room so near-simultaneous requests
+            // cannot both pass the conflict check and create duplicate slot bookings.
+            Room::query()->whereKey($room->id)->lockForUpdate()->first();
+
+            $hasConflict = Booking::query()
+                ->where('room_id', $validated['room_id'])
+                ->where('date', $validated['date'])
+                ->whereIn('status', $activeConflictStatuses)
+                ->where(function ($query) use ($validated) {
+                    $query->whereBetween('start_time', [$validated['start_time'], $validated['end_time']])
+                        ->orWhereBetween('end_time', [$validated['start_time'], $validated['end_time']])
+                        ->orWhere(function ($q) use ($validated) {
+                            $q->where('start_time', '<=', $validated['start_time'])
+                                ->where('end_time', '>=', $validated['end_time']);
+                        });
+                })
+                ->lockForUpdate()
+                ->exists();
+
+            if ($hasConflict) {
+                return null;
+            }
+
+            return Booking::create($validated);
+        }, 3);
+
+        if (! $booking) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This time slot conflicts with an existing booking',
+            ], 422);
+        }
 
         return response()->json([
             'success' => true,
@@ -391,14 +414,16 @@ class BookingController extends Controller
     public function approvals(Request $request)
     {
         $status = $request->get('status', 'pending');
-        $query = Booking::with('room')->where('status', $status);
+        $query = Booking::with('room')
+            ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
+            ->where('status', $status);
 
         if ($request->filled('room') && $request->room !== 'all') {
             $query->where('room_id', $request->room);
         }
 
         $bookings = $query->orderBy('date')->orderBy('start_time')->paginate(15);
-        $rooms = Room::orderBy('name')->get();
+        $rooms = Room::query()->visible()->orderBy('name')->get();
 
         $stats = [
             'pending' => Booking::where('status', 'pending')->count(),

@@ -128,7 +128,7 @@
 
     <!-- Add/Edit Room Modal -->
     <div x-show="showModal" x-cloak class="modal p-4" :class="{ 'modal-open': showModal }" @keydown.escape.window="closeModal()">
-            <div class="modal-box w-11/12 max-w-lg p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
+            <div class="modal-box w-[95vw] max-w-4xl p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
                 <!-- Modal Header -->
                 <div class="bg-gradient-to-r from-amber-500 to-yellow-500 px-6 py-4 rounded-t-2xl">
                     <div class="flex items-center justify-between">
@@ -155,7 +155,7 @@
                         Room Information
                     </h3>
                     
-                    <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div class="col-span-1">
                             <label class="block text-sm font-medium text-gray-700 mb-1">
                                 Room Name <span class="text-red-500">*</span>
@@ -165,7 +165,7 @@
                                     <i class="w-4 h-4 fa-icon fa-solid fa-tag text-base leading-none"></i>
                                 </span>
                                 <input type="text" x-model="roomForm.name" required
-                                       placeholder="e.g., Conference Room A"
+                                        placeholder="e.g., Collaborative Room A"
                                        class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm">
                             </div>
                         </div>
@@ -210,7 +210,7 @@
                         Initial Status
                     </h3>
 
-                    <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">
                                 Status <span class="text-red-500">*</span>
@@ -235,7 +235,9 @@
                                     <i class="w-4 h-4 fa-icon fa-solid fa-calendar-days text-base leading-none"></i>
                                 </span>
                                 <input type="datetime-local" x-model="roomForm.status_start_at"
-                                       class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm bg-gray-50">
+                                        :disabled="roomForm.status === 'operational'"
+                                        :class="roomForm.status === 'operational' ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'"
+                                        class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm">
                             </div>
                         </div>
                         <div>
@@ -245,7 +247,9 @@
                                     <i class="w-4 h-4 fa-icon fa-solid fa-calendar-days text-base leading-none"></i>
                                 </span>
                                 <input type="datetime-local" x-model="roomForm.status_end_at"
-                                       class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm bg-gray-50">
+                                       :disabled="roomForm.status === 'operational'"
+                                       :class="roomForm.status === 'operational' ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'"
+                                       class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm">
                             </div>
                         </div>
                     </div>

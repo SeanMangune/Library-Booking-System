@@ -97,33 +97,9 @@
                                     </div>
                                     <div class="space-y-1">
                                         <template x-for="event in day.events.slice(0, 2)" :key="event.id">
-                                            <div class="relative group">
-                                                   <div class="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded truncate cursor-pointer hover:bg-green-200 transition-colors"
-                                                     @click.stop="openViewBookingModal(event)"
-                                                     x-text="event.formatted_time?.split(' - ')[0] + ' ' + event.title"></div>
-                                                <div class="absolute left-0 bottom-full mb-2 z-50 hidden group-hover:block w-64 bg-gray-900 text-white text-xs rounded-lg shadow-xl p-3 pointer-events-none">
-                                                    <div class="font-semibold text-sm mb-2" x-text="event.title || event.room_name"></div>
-                                                    <div class="space-y-1.5 text-gray-300">
-                                                        <div class="flex items-center gap-2">
-                                                            <i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-building text-sm leading-none"></i>
-                                                            <span x-text="event.room_name"></span>
-                                                        </div>
-                                                        <div class="flex items-center gap-2">
-                                                            <i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-clock text-sm leading-none"></i>
-                                                            <span x-text="event.formatted_time"></span>
-                                                        </div>
-                                                        <div class="flex items-center gap-2">
-                                                            <i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-user text-sm leading-none"></i>
-                                                            <span x-text="event.user_name"></span>
-                                                        </div>
-                                                        <div class="flex items-center gap-2">
-                                                            <i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-users text-sm leading-none"></i>
-                                                            <span x-text="event.attendees + ' attendees'"></span>
-                                                        </div>
-                                                    </div>
-                                                    <div class="absolute left-4 top-full w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-gray-900"></div>
-                                                </div>
-                                            </div>
+                                            <div class="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded truncate cursor-pointer hover:bg-green-200 transition-colors"
+                                                 @click.stop="openViewBookingModal(event)"
+                                                 x-text="event.formatted_time?.split(' - ')[0] + ' ' + event.title"></div>
                                         </template>
                                         <template x-if="day.events.length > 2">
                                             <button @click.stop="openDayEventsModal(day)"

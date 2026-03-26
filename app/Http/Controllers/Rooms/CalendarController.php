@@ -13,8 +13,10 @@ class CalendarController extends Controller
 {
     public function index(Request $request)
     {
-        $rooms = Room::orderBy('name')->get();
-        $selectedRoom = $request->room_id ? Room::find($request->room_id) : $rooms->first();
+        $rooms = Room::query()->visible()->orderBy('name')->get();
+        $selectedRoom = $request->room_id
+            ? $rooms->firstWhere('id', (int) $request->room_id)
+            : $rooms->first();
 
         $user = $request->user();
         $verifiedRegistration = null;
@@ -31,6 +33,7 @@ class CalendarController extends Controller
     {
         try {
             $query = Booking::with('room')
+                ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
                 ->where('status', 'approved');
 
             if ($request->filled('room_id')) {
@@ -101,6 +104,7 @@ class CalendarController extends Controller
             $date = $request->get('date', today()->format('Y-m-d'));
 
             $query = Booking::with('room')
+                ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
                 ->where('status', 'approved')
                 ->whereDate('date', $date);
 
@@ -154,6 +158,7 @@ class CalendarController extends Controller
             $endOfMonth = Carbon::createFromDate($year, $month, 1)->endOfMonth();
 
             $query = Booking::with('room')
+                ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
                 ->where('status', 'approved')
                 ->whereBetween('date', [$startOfMonth, $endOfMonth]);
 

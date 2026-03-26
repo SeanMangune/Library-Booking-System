@@ -9,6 +9,16 @@ use Illuminate\Support\Str;
 
 class Room extends Model
 {
+    private const EXCLUDED_ROOM_SLUGS = [
+        'conference-room',
+        'library-room',
+    ];
+
+    private const EXCLUDED_ROOM_NAMES = [
+        'conference room',
+        'library room',
+    ];
+
     protected $fillable = [
         'name',
         'slug',
@@ -151,5 +161,24 @@ class Room extends Model
             return $query->where('location', $location);
         }
         return $query;
+    }
+
+    public function scopeVisible($query)
+    {
+        return $query
+            ->where(function ($scoped) {
+                $scoped->whereNull('slug')
+                    ->orWhereNotIn('slug', self::EXCLUDED_ROOM_SLUGS);
+            })
+            ->whereRaw('LOWER(name) NOT IN (?, ?)', self::EXCLUDED_ROOM_NAMES);
+    }
+
+    public function isExcludedRoom(): bool
+    {
+        $normalizedName = Str::lower(trim((string) $this->name));
+        $normalizedSlug = Str::lower(trim((string) $this->slug));
+
+        return in_array($normalizedName, self::EXCLUDED_ROOM_NAMES, true)
+            || in_array($normalizedSlug, self::EXCLUDED_ROOM_SLUGS, true);
     }
 }
