@@ -1,5 +1,5 @@
 <div x-show="showSuccessModal" x-cloak class="modal p-4 z-[60]" :class="{ 'modal-open': showSuccessModal }" @keydown.escape.window="closeSuccessModal()">
-    <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-2xl shadow-2xl transform transition-all"
+    <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col transform transition-all"
          x-show="showSuccessModal"
          x-transition:enter="ease-out duration-300"
          x-transition:enter-start="opacity-0 scale-95"
@@ -58,7 +58,7 @@
         }
         </style>
 
-        <div class="p-6">
+        <div class="p-6 flex-1 min-h-0 overflow-y-auto">
             <div class="bg-gray-50 rounded-xl p-4 mb-6">
                 <div class="grid grid-cols-2 gap-4 text-sm">
                     <div>
@@ -97,6 +97,14 @@
                     </template>
                 </div>
                 <p class="text-xs text-gray-500 mt-3">Scan this QR code to verify the booking</p>
+                <span class="inline-flex items-center px-3 py-1 mt-3 rounded-full text-xs font-semibold"
+                      :class="{
+                          'bg-emerald-100 text-emerald-700': (approvedBooking?.booking_status || approvedBooking?.qr_status) === 'valid',
+                          'bg-red-100 text-red-700': (approvedBooking?.booking_status || approvedBooking?.qr_status) === 'expired',
+                          'bg-amber-100 text-amber-700': (approvedBooking?.booking_status || approvedBooking?.qr_status || 'upcoming') === 'upcoming'
+                      }"
+                      x-text="((approvedBooking?.booking_status || approvedBooking?.qr_status || 'upcoming').toString().charAt(0).toUpperCase() + (approvedBooking?.booking_status || approvedBooking?.qr_status || 'upcoming').toString().slice(1))">
+                </span>
             </div>
 
             <div class="flex gap-3">

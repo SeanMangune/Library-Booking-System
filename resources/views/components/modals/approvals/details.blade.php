@@ -1,5 +1,5 @@
 <div x-show="showModal" x-cloak class="modal p-4" :class="{ 'modal-open': showModal }" @keydown.escape.window="closeModal()">
-    <div class="modal-box w-11/12 max-w-lg p-0 bg-white rounded-2xl shadow-2xl" @click.stop>
+    <div class="modal-box w-11/12 max-w-lg p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
         <div class="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4 rounded-t-2xl">
             <div class="flex items-center justify-between">
                 <div>
@@ -12,7 +12,7 @@
             </div>
         </div>
 
-        <div class="p-6">
+        <div class="p-6 flex-1 min-h-0 overflow-y-auto">
             <template x-if="selectedBooking?.requires_capacity_permission">
                 <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl mb-4">
                     <div class="flex items-center gap-2 mb-2">
@@ -148,21 +148,61 @@
                 </div>
             </template>
 
-            <div class="flex gap-3">
-                <button @click="approveBooking()"
-                        :disabled="isLoading || ((selectedBooking?.exceeds_capacity || selectedBooking?.requires_capacity_permission) && !showExceptionInput)"
-                        class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                    <i x-show="!isLoading || actionType !== 'approve'" class="w-5 h-5 fa-icon fa-solid fa-circle-check text-xl leading-none"></i>
-                    <i x-show="isLoading && actionType === 'approve'" class="animate-spin w-5 h-5 fa-icon fa-solid fa-spinner text-xl leading-none"></i>
-                    <span x-text="isLoading && actionType === 'approve' ? 'Approving...' : (showExceptionInput ? 'Approve with Note' : 'Approve')"></span>
-                </button>
-                <button @click="rejectBooking()"
-                        :disabled="isLoading"
-                        class="flex items-center justify-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-all disabled:opacity-50">
-                    <i x-show="!isLoading || actionType !== 'reject'" class="w-5 h-5 fa-icon fa-solid fa-circle-xmark text-xl leading-none"></i>
-                    <i x-show="isLoading && actionType === 'reject'" class="animate-spin w-5 h-5 fa-icon fa-solid fa-spinner text-xl leading-none"></i>
-                    <span x-text="isLoading && actionType === 'reject' ? 'Rejecting...' : 'Reject'"></span>
-                </button>
+            <!-- Show Approve/Reject only if pending -->
+            <template x-if="selectedBooking?.status === 'pending'">
+                <div class="flex gap-3">
+                    <button @click="approveBooking()"
+                            :disabled="isLoading || ((selectedBooking?.exceeds_capacity || selectedBooking?.requires_capacity_permission) && !showExceptionInput)"
+                            class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i x-show="!isLoading || actionType !== 'approve'" class="w-5 h-5 fa-icon fa-solid fa-circle-check text-xl leading-none"></i>
+                        <i x-show="isLoading && actionType === 'approve'" class="animate-spin w-5 h-5 fa-icon fa-solid fa-spinner text-xl leading-none"></i>
+                        <span x-text="isLoading && actionType === 'approve' ? 'Approving...' : (showExceptionInput ? 'Approve with Note' : 'Approve')"></span>
+                    </button>
+                    <button @click="rejectBooking()"
+                            :disabled="isLoading"
+                            class="flex items-center justify-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-all disabled:opacity-50">
+                        <i x-show="!isLoading || actionType !== 'reject'" class="w-5 h-5 fa-icon fa-solid fa-circle-xmark text-xl leading-none"></i>
+                        <i x-show="isLoading && actionType === 'reject'" class="animate-spin w-5 h-5 fa-icon fa-solid fa-spinner text-xl leading-none"></i>
+                        <span x-text="isLoading && actionType === 'reject' ? 'Rejecting...' : 'Reject'"></span>
+                    </button>
+                </div>
+            </template>
+
+            <!-- If already approved, show details and QR code only -->
+            <template x-if="selectedBooking?.status === 'approved'">
+                <div class="w-full text-center">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Booking QR Code</h3>
+                    <div class="inline-block p-4 bg-white border-2 border-gray-200 rounded-xl shadow-sm mb-0">
+                        <template x-if="selectedBooking?.qr_code_url">
+                            <img :src="selectedBooking.qr_code_url" alt="Booking QR Code" class="w-48 h-48 mx-auto object-contain">
+                        </template>
+                        <template x-if="!selectedBooking?.qr_code_url">
+                            <div class="w-48 h-48 flex items-center justify-center bg-gray-100 rounded-lg">
+                                <div class="text-center">
+                                    <i class="w-12 h-12 text-gray-400 mx-auto mb-2 fa-icon fa-solid fa-qrcode text-5xl leading-none"></i>
+                                    <p class="text-sm text-gray-500">QR Code</p>
+                                    <p class="text-xs text-gray-400">Not available</p>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="mt-4">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold"
+                            :class="{
+                                'bg-emerald-100 text-emerald-700': (selectedBooking?.booking_status || selectedBooking?.qr_status) === 'valid',
+                                'bg-red-100 text-red-700': (selectedBooking?.booking_status || selectedBooking?.qr_status) === 'expired',
+                                'bg-amber-100 text-amber-700': (selectedBooking?.booking_status || selectedBooking?.qr_status || 'upcoming') === 'upcoming'
+                            }"
+                            x-text="((selectedBooking?.booking_status || selectedBooking?.qr_status || 'upcoming').toString().charAt(0).toUpperCase() + (selectedBooking?.booking_status || selectedBooking?.qr_status || 'upcoming').toString().slice(1))">
+                        </span>
+                    </div>
+                </div>
+            </template>
+            <template x-if="selectedBooking?.status === 'rejected'">
+                <div class="w-full text-center">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">This booking was rejected.</h3>
+                </div>
+            </template>
             </div>
         </div>
     </div>

@@ -1,59 +1,105 @@
 @extends('layouts.guest')
 
-@section('title', 'Login | SmartSpace')
+@section('title', 'Login - SmartSpace')
 
 @section('content')
-<div class="min-h-screen flex items-center justify-center px-4 py-10">
-    <div class="w-full max-w-5xl">
+<div class="login-shell min-h-screen flex items-center justify-center px-4 py-10 overflow-hidden relative">
+    <div class="pointer-events-none absolute inset-0">
+        <div class="login-led-orb login-led-orb-a"></div>
+        <div class="login-led-orb login-led-orb-b"></div>
+        <div class="login-led-grid"></div>
+    </div>
+
+    <div class="w-full max-w-5xl relative z-10">
         <div class="flex items-center justify-center mb-8">
-            <div class="flex items-center gap-3">
-                <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                    <i class="fa-solid fa-book-open"></i>
-                </div>
-                <div>
-                    <h1 class="text-xl font-extrabold text-gray-900 tracking-tight">SmartSpace</h1>
-                    {{-- <p class="text-sm text-gray-500">Collaborative Room Booking System for QCU Library</p> --}}
+            <div class="login-brand-wrap">
+                <img src="{{ asset('images/smartspace-logo.png') }}" alt="SmartSpace" class="h-40 sm:h-44 md:h-48 w-auto max-w-none login-brand-logo" onerror="this.onerror=null;this.src='{{ asset('images/smartspace-logo.svg') }}';">
+            </div>
+        </div>
+
+        {{-- Only show login errors for login attempts --}}
+        @if ($errors->has('login'))
+            <div class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4">
+                <p class="text-sm font-semibold text-red-800">{{ $errors->first('login') }}</p>
+            </div>
+        @endif
+
+        {{-- Signup error modal --}}
+        <div x-data="{ showSignupError: false }" x-init="@if($errors->any() && !$errors->has('login')) showSignupError = true @endif" x-show="showSignupError" x-cloak style="z-index: 1000; position: fixed; inset: 0;">
+            <div class="absolute inset-0 backdrop-blur-sm z-10"></div>
+            <div class="absolute inset-0 flex items-center justify-center z-20">
+                <div class="bg-white rounded-xl shadow-xl p-8 max-w-md w-full">
+                    <h2 class="text-lg font-bold text-red-700 mb-2">Please fix the following:</h2>
+                    <ul class="list-disc pl-5 text-sm text-red-700 space-y-1 mb-4">
+                        @foreach ($errors->all() as $error)
+                            @if ($error !== $errors->first('login'))
+                                <li>{{ $error }}</li>
+                            @endif
+                        @endforeach
+                    </ul>
+                    <button @click="showSignupError = false" class="mt-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold">Close</button>
                 </div>
             </div>
         </div>
 
-        @if ($errors->any())
-            <div class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4">
-                <p class="text-sm font-semibold text-red-800">Please fix the following:</p>
-                <ul class="mt-2 list-disc pl-5 text-sm text-red-700 space-y-1">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
+        @php
+            $signupFields = [
+                'name',
+                'email',
+                'phone_number',
+                'user_type',
+                'employee_category',
+                'course',
+                'qcid_number',
+                'sex',
+                'civil_status',
+                'date_of_birth',
+                'date_issued',
+                'valid_until',
+                'address',
+                'ocr_text',
+                'qcid_image',
+                'password',
+                'password_confirmation',
+            ];
 
-        <div
-            x-data="{ adminOpen: {{ $errors->has('admin_username') ? 'true' : 'false' }}, signupOpen: {{ (old('name') || $errors->has('name') || $errors->has('password') || $errors->has('password_confirmation')) ? 'true' : 'false' }} }"
-            x-on:toggle-admin-login.window="adminOpen = !adminOpen; if (adminOpen) { signupOpen = false; } $nextTick(() => adminOpen && $refs.adminUsername && $refs.adminUsername.focus())"
-        >
-            <div class="flex justify-center" x-show="!adminOpen" x-cloak>
+            $hasSignupOldInput = collect($signupFields)
+                ->contains(fn ($field) => filled(old($field)));
+
+            $openSignupOnLoad = $hasSignupOldInput || $errors->hasAny($signupFields);
+        @endphp
+
+        <div x-data="signupLoginApp({{ $openSignupOnLoad ? 'true' : 'false' }})">
+            <div class="flex justify-center">
                 <!-- User Login -->
                 <div class="w-full max-w-xl">
-                    <div class="relative group">
-                        <div aria-hidden="true" class="pointer-events-none absolute -inset-x-10 -bottom-10 h-16 bg-gradient-to-r from-indigo-500 via-purple-500 to-teal-500 blur-3xl opacity-30 transition-opacity duration-300 group-hover:opacity-60"></div>
-                        <div class="bg-gradient-to-b from-white to-slate-50 rounded-3xl border border-gray-200 shadow-sm overflow-hidden transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-2xl">
+                    <div class="relative group login-card-wrap">
+                        <div aria-hidden="true" class="pointer-events-none absolute -inset-x-12 -bottom-14 h-24 bg-gradient-to-r from-cyan-400 via-indigo-500 to-teal-400 blur-3xl opacity-45 transition-opacity duration-300 group-hover:opacity-80"></div>
+                        <div class="login-neon-card bg-gradient-to-b from-white/95 to-slate-50/95 backdrop-blur rounded-3xl border border-white/70 shadow-[0_24px_80px_-24px_rgba(15,23,42,0.55)] overflow-hidden transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_32px_90px_-28px_rgba(30,41,59,0.65)]">
                     <div class="px-6 py-5 border-b border-gray-100 bg-white/60">
-                        <h2 class="text-lg font-bold text-gray-900">User Login</h2>
-                        <p class="text-sm text-gray-500 mt-1">Login with Google or with your email.</p>
+                        <h2 class="text-lg font-bold text-gray-900">Login</h2>
                     </div>
                     <div class="p-6 space-y-4">
                         <form method="POST" action="{{ route('login.post') }}" class="space-y-3">
                             @csrf
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700">Email</label>
-                                <input name="email" type="email" value="{{ old('email') }}" required autocomplete="email"
+                                <label class="block text-sm font-semibold text-gray-700">Email or Username</label>
+                                <input name="login" type="text" value="{{ old('login') }}" required autocomplete="username"
                                        class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700">Password</label>
-                                <input name="password" type="password" required autocomplete="current-password"
-                                       class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <div class="relative mt-1">
+                                    <input name="password" :type="showLoginPassword ? 'text' : 'password'" required autocomplete="current-password"
+                                           class="w-full rounded-xl border border-gray-200 px-3 py-2.5 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <button type="button"
+                                            @click="showLoginPassword = !showLoginPassword"
+                                            :aria-label="showLoginPassword ? 'Hide password' : 'Show password'"
+                                            class="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700">
+                                        <i x-show="!showLoginPassword" x-cloak class="w-5 h-5 fa-icon fa-regular fa-eye text-lg leading-none"></i>
+                                        <i x-show="showLoginPassword" x-cloak class="w-5 h-5 fa-icon fa-regular fa-eye-slash text-lg leading-none"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div class="flex items-center">
                                 <label class="inline-flex items-center gap-2 text-sm text-gray-600">
@@ -66,28 +112,20 @@
                             </button>
                         </form>
 
-                        <button type="button" @click="signupOpen = true" class="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition-colors">
+                        <button type="button" @click="signupOpen = true" class="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition-colors shadow-lg shadow-teal-700/20">
                             Sign Up
                         </button>
 
-                        <a href="{{ route('google.redirect') }}" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-sm font-semibold text-gray-800 transition-colors">
-                            <span class="w-5 h-5 inline-flex items-center justify-center rounded-full border border-gray-300 bg-white text-xs font-extrabold text-gray-900">G</span>
-                            Continue with Google
-                        </a>
-
-                        <div id="installPromptContainer" class="hidden">
-                            <button id="installBtn" type="button" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors">
-                                <span>Install App</span>
+                        <!-- Install App Button (PWA) -->
+                        <div x-data="pwaInstallPrompt()" x-show="showInstall" x-cloak class="mt-4">
+                            <button type="button"
+                                    @click="installPwa"
+                                    class="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors shadow-lg">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                                Install App
                             </button>
                         </div>
 
-                        <p id="desktopInstallHint" class="hidden rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700">
-                            Use your browser install menu, or open SmartSpace on your phone to install.
-                        </p>
-
-                        <div id="iosInstallHint" class="hidden rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm text-blue-800">
-                            Tap Share -> Add to Home Screen
-                        </div>
                     </div>
                         </div>
                     </div>
@@ -95,212 +133,324 @@
             </div>
 
             <!-- Sign Up Modal -->
-            <div x-show="signupOpen" x-cloak class="modal p-4" :class="{ 'modal-open': signupOpen }" @keydown.escape.window="signupOpen = false">
-                <div class="modal-box w-11/12 max-w-xl p-0 bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden" @click.stop>
-                    <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-                        <div>
-                            <h3 class="text-lg font-bold text-gray-900">Create Account</h3>
-                            <p class="text-sm text-gray-500 mt-1">Sign up with your email.</p>
+            <div x-show="signupOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto px-4 py-8">
+                <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="signupOpen = false"></div>
+                <div class="relative mx-auto w-full max-w-6xl overflow-hidden rounded-3xl border border-indigo-100 bg-slate-50 shadow-[0_30px_100px_-30px_rgba(30,41,59,0.75)]">
+                    <div class="signup-hero px-6 py-6 sm:px-8 bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 border-b border-indigo-200/20">
+                        <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                            <div>
+                                <p class="inline-flex rounded-full bg-indigo-400/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-indigo-100 border border-indigo-300/20">User Verification Portal</p>
+                                <h3 class="mt-3 text-3xl font-extrabold tracking-tight text-white">Create your SmartSpace account</h3>
+                                <p class="mt-2 max-w-2xl text-sm text-indigo-100">Upload your Quezon City Citizen ID, review captured details, and finish signup in one guided flow.</p>
+                            </div>
+                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:w-[430px]">
+                                <div class="rounded-2xl border border-indigo-300/20 bg-indigo-500/10 px-3 py-3 backdrop-blur-sm">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-indigo-100">Current status</p>
+                                    <p class="mt-1 text-lg font-bold text-white" x-text="scan.isVerified ? 'Ready to submit' : (scan.idAssessment === 'Fake QC ID' ? 'Fake QC ID' : (scan.idAssessment === 'INVALID' ? 'Invalid ID' : 'Not submitted'))"></p>
+                                </div>
+                                <div class="rounded-2xl border border-indigo-300/20 bg-indigo-500/10 px-3 py-3 backdrop-blur-sm">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-indigo-100">Detected ID</p>
+                                    <p class="mt-1 text-lg font-bold text-white" x-text="scan.idAssessment || (signup.ocr_text ? 'Scanning...' : 'Not verified')"></p>
+                                </div>
+                                <div class="rounded-2xl border border-indigo-300/20 bg-indigo-500/10 px-3 py-3 backdrop-blur-sm">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-indigo-100">Confidence</p>
+                                    <p class="mt-1 text-lg font-bold text-white" x-text="scan.confidenceLabel || '—'"></p>
+                                </div>
+                            </div>
                         </div>
-                        <button type="button" @click="signupOpen = false" class="px-3 py-2 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-100">
-                            Close
-                        </button>
                     </div>
-                    <div class="p-6">
-                        <form method="POST" action="{{ route('register.post') }}" class="space-y-3">
+
+                    <div class="max-h-[calc(92vh-120px)] overflow-y-auto signup-scroll-area p-5 sm:p-6">
+                        <form method="POST" action="{{ route('register.post') }}" enctype="multipart/form-data" class="space-y-5">
                             @csrf
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700">Name</label>
-                                <input name="name" type="text" value="{{ old('name') }}" required autocomplete="name"
-                                       class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <input type="hidden" name="ocr_text" x-model="signup.ocr_text">
+
+                            <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
+                                <div class="space-y-5 lg:col-span-2">
+                                    <section class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+                                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                            <div>
+                                                <h4 class="text-xl font-bold text-slate-900">Upload QC ID</h4>
+                                                <p class="text-sm text-slate-500">Use a clear image for OCR scanning and auto-fill.</p>
+                                            </div>
+                                            <button type="button"
+                                                    @click="scanSignupQcId()"
+                                                    :disabled="scan.isProcessing"
+                                                    class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
+                                                    x-text="scan.isProcessing ? 'Scanning...' : 'Re-read QC ID'"></button>
+                                        </div>
+
+                                        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                            <div class="rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/40 p-4">
+                                                <input type="file"
+                                                       name="qcid_image"
+                                                       accept="image/png,image/jpeg,image/jpg,image/webp"
+                                                       @click="$event.target.value=''"
+                                                       @change="onSignupQcImageChange($event)"
+                                                       required
+                                                       class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-teal-700">
+                                                <p class="mt-3 text-xs text-slate-500">Accepted: JPG, PNG, WEBP up to 25 MB</p>
+
+                                                <div x-show="scan.previewUrl" x-cloak class="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                                                    <img :src="scan.previewUrl" alt="QC ID preview" class="h-40 w-full object-cover">
+                                                </div>
+                                            </div>
+
+                                            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                                <div class="flex items-center justify-between">
+                                                    <p class="text-sm font-semibold text-slate-800">Verification snapshot</p>
+                                                    <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700" x-show="!scan.status" x-cloak>Waiting</span>
+                                                    <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700" x-show="scan.status" x-cloak>Captured</span>
+                                                </div>
+                                                <dl class="mt-3 space-y-2 text-sm">
+                                                    <div class="flex items-center justify-between gap-3"><dt class="text-slate-500">Cardholder</dt><dd class="font-medium text-slate-800" x-text="signup.name || '—'"></dd></div>
+                                                    <div class="flex items-center justify-between gap-3"><dt class="text-slate-500">QC ID number</dt><dd class="font-medium text-slate-800" x-text="signup.qcid_number || '—'"></dd></div>
+                                                    <div class="flex items-center justify-between gap-3"><dt class="text-slate-500">Birth date</dt><dd class="font-medium text-slate-800" x-text="signup.date_of_birth || '—'"></dd></div>
+                                                </dl>
+                                            </div>
+                                        </div>
+
+                                        <div x-show="scan.error" x-cloak class="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" x-text="scan.error"></div>
+                                        <!-- Show progress/status except for redundant fake/invalid messages -->
+                                        <div x-show="scan.status && scan.status !== 'Fake QC ID detected.' && scan.status !== 'Invalid ID detected.'" x-cloak class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700" x-text="scan.status"></div>
+                                    </section>
+
+                                    <section class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm space-y-4">
+                                        <h4 class="text-xl font-bold text-slate-900">Registration details</h4>
+                                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                            <div>
+                                                <label class="block text-sm font-semibold text-slate-700">Full Name</label>
+                                                <input name="name" type="text" value="{{ old('name') }}" x-model="signup.name" required autocomplete="name"
+                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-semibold text-slate-700">Email</label>
+                                                <input name="email" type="email" value="{{ old('email') }}" required autocomplete="email"
+                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-semibold text-slate-700">Mobile Number</label>
+                                                <input name="phone_number" type="text" value="{{ old('phone_number') }}" required autocomplete="tel" placeholder="09xxxxxxxxx"
+                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-semibold text-slate-700">QC ID Number</label>
+                                                <input name="qcid_number" type="text" value="{{ old('qcid_number') }}" x-model="signup.qcid_number" required placeholder="### ### ########"
+                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-semibold text-slate-700">Account Type</label>
+                                                <select name="user_type" x-model="signup.user_type" required class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                    <option value="">Select account type</option>
+                                                    <option value="student" @selected(old('user_type') === 'student')>Student</option>
+                                                    <option value="employee" @selected(old('user_type') === 'employee')>Employee</option>
+                                                    <option value="alumni" @selected(old('user_type') === 'alumni')>Alumni</option>
+                                                </select>
+                                            </div>
+                                            <div x-show="signup.user_type === 'employee'" x-cloak>
+                                                <label class="block text-sm font-semibold text-slate-700">Employee Category</label>
+                                                <select name="employee_category" x-model="signup.employee_category" :required="signup.user_type === 'employee'" :disabled="signup.user_type !== 'employee'"
+                                                        class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                    <option value="">Select employee category</option>
+                                                    <option value="professor" @selected(old('employee_category') === 'professor')>Professor / Faculty</option>
+                                                    <option value="academic_staff" @selected(old('employee_category') === 'academic_staff')>Academic Staff</option>
+                                                    <option value="administrative_staff" @selected(old('employee_category') === 'administrative_staff')>Administrative Staff</option>
+                                                    <option value="it_personnel" @selected(old('employee_category') === 'it_personnel')>IT Personnel</option>
+                                                    <option value="registrar_personnel" @selected(old('employee_category') === 'registrar_personnel')>Registrar Personnel</option>
+                                                    <option value="guidance_personnel" @selected(old('employee_category') === 'guidance_personnel')>Guidance Personnel</option>
+                                                    <option value="security_personnel" @selected(old('employee_category') === 'security_personnel')>Security Personnel</option>
+                                                    <option value="maintenance_personnel" @selected(old('employee_category') === 'maintenance_personnel')>Maintenance Personnel</option>
+                                                    <option value="other" @selected(old('employee_category') === 'other')>Other</option>
+                                                </select>
+                                            </div>
+                                            <div x-show="signup.user_type === 'student'" x-cloak>
+                                                <label class="block text-sm font-semibold text-slate-700">Course / Department</label>
+                                                <select name="course" x-model="signup.course" :required="signup.user_type === 'student'" :disabled="signup.user_type !== 'student'"
+                                                        :class="{'border-red-400 bg-red-50': $el.required && !signup.course && signup.user_type === 'student', 'border-slate-200': signup.course || signup.user_type !== 'student'}"
+                                                        class="mt-1 w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                    <option value="">Select course or department</option>
+                                                    <option value="BSIT" @selected(old('course') === 'BSIT')>BSIT</option>
+                                                    <option value="BSIE" @selected(old('course') === 'BSIE')>BSIE</option>
+                                                    <option value="BSENT" @selected(old('course') === 'BSENT')>BSENT</option>
+                                                    <option value="BSCS" @selected(old('course') === 'BSCS')>BSCS</option>
+                                                    <option value="BSCPE" @selected(old('course') === 'BSCPE')>BSCPE</option>
+                                                    <option value="BSED" @selected(old('course') === 'BSED')>BSED</option>
+                                                    <option value="BEED" @selected(old('course') === 'BEED')>BEED</option>
+                                                    <option value="BSOA" @selected(old('course') === 'BSOA')>BSOA</option>
+                                                    <option value="BSA" @selected(old('course') === 'BSA')>BSA</option>
+                                                    <option value="BSBA" @selected(old('course') === 'BSBA')>BSBA</option>
+                                                    <option value="OTHER" @selected(old('course') === 'OTHER')>OTHER</option>
+                                                </select>
+                                                <template x-if="$el.required && !signup.course && signup.user_type === 'student'">
+                                                    <p class="text-xs text-red-600 mt-1">Please select a course or department.</p>
+                                                </template>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-semibold text-slate-700">Sex</label>
+                                                <input name="sex" type="text" value="{{ old('sex') }}" x-model="signup.sex"
+                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-semibold text-slate-700">Civil Status</label>
+                                                <input name="civil_status" type="text" value="{{ old('civil_status') }}" x-model="signup.civil_status"
+                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-semibold text-slate-700">Date of Birth</label>
+                                                <input name="date_of_birth" type="date" value="{{ old('date_of_birth') }}" x-model="signup.date_of_birth"
+                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-semibold text-slate-700">Date Issued</label>
+                                                <input name="date_issued" type="date" value="{{ old('date_issued') }}" x-model="signup.date_issued"
+                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-semibold text-slate-700">Valid Until</label>
+                                                <input name="valid_until" type="date" value="{{ old('valid_until') }}" x-model="signup.valid_until"
+                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            </div>
+                                            <div class="md:col-span-2">
+                                                <label class="block text-sm font-semibold text-slate-700">Address</label>
+                                                <textarea name="address" rows="2" x-model="signup.address"
+                                                          class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">{{ old('address') }}</textarea>
+                                            </div>
+                                            <div x-data="{
+                                                pwd: '',
+                                                get hasMin() { return this.pwd.length >= 8 },
+                                                get hasUpper() { return /[A-Z]/.test(this.pwd) },
+                                                get hasNumber() { return /\d/.test(this.pwd) },
+                                                get strength() {
+                                                    let s = 0;
+                                                    if (this.hasMin) s++;
+                                                    if (this.hasUpper) s++;
+                                                    if (this.hasNumber) s++;
+                                                    return s;
+                                                }
+                                            }">
+                                                <label class="block text-sm font-semibold text-slate-700">Password</label>
+                                                <div class="relative mt-1">
+                                                    <input name="password" :type="showSignupPassword ? 'text' : 'password'" required autocomplete="new-password"
+                                                           class="w-full rounded-xl border border-slate-200 px-3 py-2.5 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                           x-model="pwd">
+                                                    <button type="button"
+                                                            @click="showSignupPassword = !showSignupPassword"
+                                                            :aria-label="showSignupPassword ? 'Hide password' : 'Show password'"
+                                                            class="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700">
+                                                        <i x-show="!showSignupPassword" x-cloak class="w-5 h-5 fa-icon fa-regular fa-eye text-lg leading-none"></i>
+                                                        <i x-show="showSignupPassword" x-cloak class="w-5 h-5 fa-icon fa-regular fa-eye-slash text-lg leading-none"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="mt-2 space-y-1">
+                                                    <div class="flex items-center gap-2 text-xs" :class="hasMin ? 'text-emerald-700' : 'text-slate-500'">
+                                                        <i class="fa-solid fa-circle-check" x-show="hasMin"></i>
+                                                        <i class="fa-regular fa-circle" x-show="!hasMin"></i>
+                                                        At least 8 characters
+                                                    </div>
+                                                    <div class="flex items-center gap-2 text-xs" :class="hasUpper ? 'text-emerald-700' : 'text-slate-500'">
+                                                        <i class="fa-solid fa-circle-check" x-show="hasUpper"></i>
+                                                        <i class="fa-regular fa-circle" x-show="!hasUpper"></i>
+                                                        At least one uppercase letter
+                                                    </div>
+                                                    <div class="flex items-center gap-2 text-xs" :class="hasNumber ? 'text-emerald-700' : 'text-slate-500'">
+                                                        <i class="fa-solid fa-circle-check" x-show="hasNumber"></i>
+                                                        <i class="fa-regular fa-circle" x-show="!hasNumber"></i>
+                                                        At least one number
+                                                    </div>
+                                                    <div class="mt-1">
+                                                        <span class="text-xs font-semibold" :class="{
+                                                            'text-rose-600': strength === 1,
+                                                            'text-amber-600': strength === 2,
+                                                            'text-emerald-700': strength === 3
+                                                        }">
+                                                            <template x-if="strength === 1">Weak</template>
+                                                            <template x-if="strength === 2">Medium</template>
+                                                            <template x-if="strength === 3">Strong</template>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-semibold text-slate-700">Confirm Password</label>
+                                                <div class="relative mt-1">
+                                                    <input name="password_confirmation" :type="showSignupConfirmPassword ? 'text' : 'password'" required autocomplete="new-password"
+                                                           class="w-full rounded-xl border border-slate-200 px-3 py-2.5 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                    <button type="button"
+                                                            @click="showSignupConfirmPassword = !showSignupConfirmPassword"
+                                                            :aria-label="showSignupConfirmPassword ? 'Hide password' : 'Show password'"
+                                                            class="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700">
+                                                        <i x-show="!showSignupConfirmPassword" x-cloak class="w-5 h-5 fa-icon fa-regular fa-eye text-lg leading-none"></i>
+                                                        <i x-show="showSignupConfirmPassword" x-cloak class="w-5 h-5 fa-icon fa-regular fa-eye-slash text-lg leading-none"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-wrap items-center gap-3 pt-2">
+                                            <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700">
+                                                Create Account
+                                            </button>
+                                            <button type="button" @click="signupOpen = false" class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100">
+                                                Close
+                                            </button>
+                                        </div>
+                                    </section>
+                                </div>
+
+                                <aside class="space-y-4">
+                                    <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                                        <h4 class="text-xl font-bold text-slate-900">How verification works</h4>
+                                        <ol class="mt-3 space-y-3 text-sm text-slate-600">
+                                            <li class="flex gap-3"><span class="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 font-bold text-indigo-700">1</span><span>Upload your QC ID image.</span></li>
+                                            <li class="flex gap-3"><span class="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-violet-100 font-bold text-violet-700">2</span><span>Scan and review captured details.</span></li>
+                                            <li class="flex gap-3"><span class="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 font-bold text-emerald-700">3</span><span>Submit your account for instant portal access.</span></li>
+                                        </ol>
+                                    </section>
+
+                                    <section class="rounded-2xl border border-indigo-900/40 bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 p-4 text-white shadow-lg">
+                                        <h4 class="text-xl font-bold">Registration status</h4>
+                                        <p class="text-sm text-indigo-200">Live signup progress</p>
+                                        <dl class="mt-4 space-y-2 text-sm">
+                                            <div class="flex items-center justify-between"><dt class="text-indigo-200">Image</dt><dd class="font-semibold" x-text="scan.previewUrl ? 'Uploaded' : 'Waiting'"></dd></div>
+                                            <div class="flex items-center justify-between"><dt class="text-indigo-200">OCR</dt><dd class="font-semibold" x-text="scan.isVerified ? 'Captured' : (scan.idAssessment ? 'Rejected' : 'Not captured')"></dd></div>
+                                            <div class="flex items-center justify-between"><dt class="text-indigo-200">QC ID number</dt><dd class="font-semibold" x-text="signup.qcid_number || '—'"></dd></div>
+                                            <div class="flex items-center justify-between"><dt class="text-indigo-200">Ready</dt><dd class="font-semibold" x-text="(scan.isVerified && signup.name && signup.qcid_number && signup.ocr_text) ? 'Yes' : 'No'"></dd></div>
+                                        </dl>
+                                    </section>
+                                </aside>
                             </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700">Email</label>
-                                <input name="email" type="email" value="{{ old('email') }}" required autocomplete="email"
-                                       class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700">Password</label>
-                                <input name="password" type="password" required autocomplete="new-password"
-                                       class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700">Confirm Password</label>
-                                <input name="password_confirmation" type="password" required autocomplete="new-password"
-                                       class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                            </div>
-                            <button type="submit" class="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition-colors">
-                                Create Account
-                            </button>
                         </form>
                     </div>
                 </div>
-                <button type="button" class="modal-backdrop fixed inset-0 bg-black/40" @click="signupOpen = false">close</button>
             </div>
 
-            <!-- Admin Login Modal (Ctrl+K) -->
-            <div x-show="adminOpen" x-cloak class="modal p-4" :class="{ 'modal-open': adminOpen }" @keydown.escape.window="adminOpen = false">
-                <div class="modal-box w-11/12 max-w-xl p-0 bg-transparent border-0 shadow-none overflow-visible" @click.stop>
-                    <div class="relative group">
-                        <div aria-hidden="true" class="pointer-events-none absolute -inset-x-10 -bottom-10 h-16 bg-gradient-to-r from-indigo-500 via-purple-500 to-teal-500 blur-3xl opacity-40"></div>
-                        <div class="bg-gradient-to-b from-white to-slate-50 rounded-3xl border border-gray-200 shadow-2xl overflow-hidden">
-                            <div class="px-6 py-5 border-b border-gray-100 bg-white/60 flex items-center justify-between">
-                                <div>
-                                    <h2 class="text-lg font-bold text-gray-900">Admin Login</h2>
-                                    <p class="text-sm text-gray-500 mt-1">Enter your admin username and password.</p>
-                                </div>
-                                <button type="button" @click="adminOpen = false" class="px-3 py-2 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-100">
-                                    Close
-                                </button>
-                            </div>
-
-                            <div class="p-6 space-y-4">
-                                <form method="POST" action="{{ route('admin.login') }}" class="space-y-3">
-                                    @csrf
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-700">Username</label>
-                                        <input x-ref="adminUsername" name="admin_username" type="text" value="{{ old('admin_username') }}" required autocomplete="username"
-                                               class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-700">Password</label>
-                                        <input name="admin_password" type="password" required autocomplete="current-password"
-                                               class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                    </div>
-                                    <div class="flex items-center">
-                                        <label class="inline-flex items-center gap-2 text-sm text-gray-600">
-                                            <input type="checkbox" name="remember" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                                            Remember me
-                                        </label>
-                                    </div>
-                                    <button type="submit" class="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors">
-                                        Login
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <button type="button" class="modal-backdrop fixed inset-0 bg-black/40" @click="adminOpen = false">close</button>
-            </div>
         </div>
     </div>
 </div>
 
+</script>
+
+</script>
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script type="text/javascript">
+// Blade: Hide signupOldInput and signupQcidVerifyUrl from page output
+window.signupOldInput = {
+    name: @json(old('name', '')),
+    user_type: @json(old('user_type', '')),
+    employee_category: @json(old('employee_category', '')),
+    course: @json(old('course', '')),
+    qcid_number: @json(old('qcid_number', '')),
+    sex: @json(old('sex', '')),
+    civil_status: @json(old('civil_status', '')),
+    date_of_birth: @json(old('date_of_birth', '')),
+    date_issued: @json(old('date_issued', '')),
+    valid_until: @json(old('valid_until', '')),
+    address: @json(old('address', '')),
+    ocr_text: @json(old('ocr_text', '')),
+};
+window.signupQcidVerifyUrl = @json(route('signup.qcid.verify'));
+</script>
 <script>
-    let deferredInstallPrompt;
-    const isMobileBrowser = /android|iphone|ipad|ipod|mobile|blackberry|iemobile|opera mini/i.test(window.navigator.userAgent);
-    const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-    const iosInstallHint = document.getElementById('iosInstallHint');
-    const desktopInstallHint = document.getElementById('desktopInstallHint');
-    const installBtn = document.getElementById('installBtn');
-    const installContainer = document.getElementById('installPromptContainer');
-    const installToast = document.getElementById('installToast');
-
-    const showInstallToast = (message) => {
-        if (!installToast) {
-            return;
-        }
-
-        installToast.textContent = message;
-        installToast.classList.remove('hidden', 'opacity-0', 'translate-y-3');
-
-        window.setTimeout(() => {
-            installToast.classList.add('opacity-0', 'translate-y-3');
-            window.setTimeout(() => {
-                installToast.classList.add('hidden');
-            }, 250);
-        }, 2600);
-    };
-
-    const markAppInstalled = () => {
-        try {
-            window.localStorage.setItem('smartspace_pwa_installed', '1');
-        } catch (error) {
-            console.warn('Unable to persist install state', error);
-        }
-    };
-
-    const isAppInstalled = () => {
-        if (isStandalone) {
-            return true;
-        }
-
-        try {
-            return window.localStorage.getItem('smartspace_pwa_installed') === '1';
-        } catch (error) {
-            console.warn('Unable to read install state', error);
-            return false;
-        }
-    };
-
-    const updateInstallUiState = () => {
-        const installed = isAppInstalled();
-        const canShowInstallButton = isMobileBrowser && !installed;
-        const shouldShowDesktopHint = !isMobileBrowser && !installed;
-
-        if (installContainer) {
-            installContainer.classList.toggle('hidden', !canShowInstallButton);
-        }
-
-        if (desktopInstallHint) {
-            desktopInstallHint.classList.toggle('hidden', !shouldShowDesktopHint);
-        }
-    };
-
-    updateInstallUiState();
-
-    if (isIos && !isStandalone && iosInstallHint) {
-        iosInstallHint.classList.remove('hidden');
-    }
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredInstallPrompt = e;
-        updateInstallUiState();
-    });
-
-    installBtn?.addEventListener('click', async () => {
-        if (!deferredInstallPrompt) {
-            if (!isMobileBrowser) {
-                showInstallToast('Use your browser install menu, or open SmartSpace on your phone to install.');
-            } else {
-                showInstallToast('Use your browser install menu to add SmartSpace to home screen.');
-            }
-
-            if (isIos && iosInstallHint) {
-                iosInstallHint.classList.remove('hidden');
-            }
-
-            return;
-        }
-
-        deferredInstallPrompt.prompt();
-        const { outcome } = await deferredInstallPrompt.userChoice;
-
-        if (outcome === 'accepted') {
-            markAppInstalled();
-            updateInstallUiState();
-            showInstallToast('SmartSpace app installed successfully.');
-        }
-
-        deferredInstallPrompt = null;
-    });
-
-    window.addEventListener('appinstalled', () => {
-        deferredInstallPrompt = null;
-        markAppInstalled();
-        updateInstallUiState();
-
-        if (iosInstallHint) {
-            iosInstallHint.classList.add('hidden');
-        }
-
-        showInstallToast('SmartSpace app installed successfully.');
-    });
-
     document.addEventListener('keydown', function (e) {
         const key = (e.key || '').toLowerCase();
         if ((e.ctrlKey || e.metaKey) && key === 'k') {
@@ -309,7 +459,35 @@
         }
     });
 </script>
-
-<div id="installToast" class="hidden fixed left-1/2 bottom-6 z-50 w-[90%] max-w-sm -translate-x-1/2 rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white shadow-lg opacity-0 translate-y-3 transition-all duration-200"></div>
+<script>
+function pwaInstallPrompt() {
+    return {
+        showInstall: false,
+        deferredPrompt: null,
+        isMobile: /android|iphone|ipad|ipod|opera mini|iemobile|mobile/i.test(navigator.userAgent),
+        init() {
+            if (!this.isMobile) return;
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                this.deferredPrompt = e;
+                this.showInstall = true;
+            });
+            window.addEventListener('appinstalled', () => {
+                this.showInstall = false;
+            });
+        },
+        installPwa() {
+            if (this.deferredPrompt) {
+                this.deferredPrompt.prompt();
+                this.deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        this.showInstall = false;
+                    }
+                });
+            }
+        }
+    }
+}
+</script>
 @endpush
 @endsection

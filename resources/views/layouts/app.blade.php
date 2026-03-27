@@ -116,7 +116,7 @@
             transition: opacity 180ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
         }
 
-        @media (min-width: 1024px) {
+        @media (hover: hover) and (pointer: fine) {
             aside.sidebar-collapsed .sidebar-brand,
             aside.sidebar-collapsed .sidebar-section-label,
             aside.sidebar-collapsed .sidebar-text,
@@ -138,14 +138,23 @@
             aside.sidebar-collapsed .sidebar-link {
                 justify-content: center;
                 gap: 0;
-                padding-left: 0.75rem;
-                padding-right: 0.75rem;
+                padding-left: 0;
+                padding-right: 0;
             }
             aside.sidebar-collapsed .sidebar-link .fa-icon {
                 transform: scale(1.08);
+                margin-left: auto;
+                margin-right: auto;
             }
             aside.sidebar-collapsed .sidebar-header {
                 justify-content: center;
+                padding-left: 0;
+                padding-right: 0;
+            }
+            aside.sidebar-collapsed .sidebar-header > .flex {
+                width: 100%;
+                justify-content: center;
+                gap: 0;
             }
             aside:not(.sidebar-collapsed) .sidebar-link:hover .fa-icon {
                 transform: translateX(1px);
@@ -177,17 +186,58 @@
             : collect();
         $userUnreadCount = $userUnreadNotifications->count();
         $headerNotificationCount = $pendingApprovalCount + $userUnreadCount;
+        $safeNotificationUrl = function (?string $url) use ($isStaff) {
+            $value = (string) ($url ?? '#');
+            if ($value === '' || $value === '#' || $value === url('/logout') || $value === route('logout')) {
+                return '#';
+            }
+
+            if ($isStaff) {
+                return $value;
+            }
+
+            foreach (['/rooms/approvals', '/rooms/manage', '/reports', '/settings', '/api/users/search', '/logout'] as $fragment) {
+                if (str_contains($value, $fragment)) {
+                    return route('dashboard');
+                }
+            }
+
+            return $value;
+        };
         $initials = $currentUser
             ? collect(preg_split('/\s+/', trim($currentUser->name)))->filter()->take(2)->map(fn ($p) => mb_strtoupper(mb_substr($p, 0, 1)))->implode('')
             : 'U';
     @endphp
     <div x-data="{
         sidebarOpen: false,
+        canHoverSidebar: false,
         sidebarHoverExpand: false,
         sidebarExpandTimer: null,
         sidebarCollapseTimer: null,
+        syncSidebarMode() {
+            const hoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+            const hasChanged = this.canHoverSidebar !== hoverCapable;
+
+            this.canHoverSidebar = hoverCapable;
+
+            if (this.canHoverSidebar) {
+                this.sidebarOpen = false;
+            }
+
+            if (!this.canHoverSidebar) {
+                this.sidebarHoverExpand = false;
+            }
+
+            if (hasChanged) {
+                window.dispatchEvent(new CustomEvent('layout:sidebar-toggled'));
+            }
+        },
+        initSidebarMode() {
+            this.syncSidebarMode();
+            window.addEventListener('resize', () => this.syncSidebarMode());
+        },
         handleSidebarMouseEnter() {
-            if (!window.matchMedia('(min-width: 1024px)').matches) {
+            if (!this.canHoverSidebar) {
                 return;
             }
 
@@ -206,7 +256,7 @@
             }, 70);
         },
         handleSidebarMouseLeave() {
-            if (!window.matchMedia('(min-width: 1024px)').matches) {
+            if (!this.canHoverSidebar) {
                 return;
             }
 
@@ -224,27 +274,30 @@
                 window.dispatchEvent(new CustomEvent('layout:sidebar-toggled'));
             }, 120);
         },
-    }" class="min-h-screen flex">
+    }" x-init="initSidebarMode()" class="min-h-screen flex">
         <!-- Sidebar -->
-        <aside class="sidebar-shell fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 transform lg:translate-x-0 shadow-2xl"
+        <aside class="sidebar-shell fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 transform shadow-xl"
                @mouseenter="handleSidebarMouseEnter()"
                @mouseleave="handleSidebarMouseLeave()"
-               :class="[
-                   sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-                   sidebarHoverExpand ? 'lg:w-64' : 'lg:w-20 sidebar-collapsed'
-               ]">
+               :class="canHoverSidebar && !sidebarHoverExpand ? 'sidebar-collapsed' : ''"
+               :style="canHoverSidebar
+                   ? { width: sidebarHoverExpand ? '16rem' : '5rem', transform: 'translateX(0)' }
+                   : (sidebarOpen
+                       ? { width: '16rem', transform: 'translateX(0)' }
+                       : { width: '16rem', transform: 'translateX(-100%)' })">
             <!-- Logo -->
             <div class="sidebar-header flex items-center justify-between h-20 px-4 border-b border-white/10 bg-gradient-to-r from-indigo-900/50 to-transparent">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                        <i class="w-6 h-6 text-white fa-icon fa-solid fa-book-open text-2xl leading-none"></i>
+                    <div class="relative h-12 w-12 flex items-center justify-center">
+                        <span class="absolute inset-0 rounded-full bg-indigo-400/25 blur-md"></span>
+                        <img src="{{ asset('images/smartspace-mark.svg') }}" alt="SmartSpace" class="relative h-12 w-12 object-contain drop-shadow-[0_0_20px_rgba(129,140,248,0.55)]" onerror="this.onerror=null;this.src='{{ asset('images/smartspace-logo.svg') }}';">
                     </div>
                     <div class="sidebar-brand">
                         <span class="text-white font-bold text-lg tracking-tight">SmartSpace</span>
-                        {{-- <p class="text-indigo-300 text-xs">Collaborative Room Booking System for QCU Library</p> --}}
+                        <p class="text-indigo-300 text-xs">Reservation System</p>
                     </div>
                 </div>
-                <button @click="sidebarOpen = false" class="lg:hidden text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors">
+                <button @click="sidebarOpen = false" x-show="!canHoverSidebar" x-cloak class="text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors">
                     <i class="w-5 h-5 fa-icon fa-solid fa-xmark text-xl leading-none"></i>
                 </button>
             </div>
@@ -267,13 +320,6 @@
                         <span class="sidebar-text">Manage Rooms</span>
                     </a>
 
-                    <a href="{{ route('reservations.index') }}" 
-                       title="Reservations"
-                       class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-indigo-200 hover:text-white transition-all duration-200 mb-1 {{ request()->routeIs('reservations.*') ? 'active' : '' }}">
-                        <i class="w-5 h-5 fa-icon fa-solid fa-calendar-days text-xl leading-none"></i>
-                        <span class="sidebar-text">Reservations</span>
-                    </a>
-
                     <a href="{{ route('approvals.index') }}" 
                        title="Approvals"
                        class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-indigo-200 hover:text-white transition-all duration-200 mb-1 {{ request()->routeIs('approvals.*') ? 'active' : '' }}">
@@ -294,29 +340,30 @@
                     </a>
                 @endif
 
+                <a href="{{ route('reservations.index') }}" 
+                   title="Reservations"
+                   class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-indigo-200 hover:text-white transition-all duration-200 mb-1 {{ request()->routeIs('reservations.*') ? 'active' : '' }}">
+                    <i class="w-5 h-5 fa-icon fa-solid fa-file text-xl leading-none"></i>
+                    <span class="sidebar-text">Reservations</span>
+                </a>
+
                 <a href="{{ route('calendar.index') }}" 
                    title="Calendar"
                    class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-indigo-200 hover:text-white transition-all duration-200 mb-1 {{ request()->routeIs('calendar.*') ? 'active' : '' }}">
                     <i class="w-5 h-5 fa-icon fa-solid fa-calendar-days text-xl leading-none"></i>
                     <span class="sidebar-text">Calendar</span>
                 </a>
-
-                <a href="{{ route('qcid.registration.show') }}"
-                   title="QC ID Registration"
-                   class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-indigo-200 hover:text-white transition-all duration-200 mb-1 {{ request()->routeIs('qcid.registration.*') ? 'active' : '' }}">
-                    <i class="w-5 h-5 fa-icon fa-solid fa-file-lines text-xl leading-none"></i>
-                    <span class="sidebar-text">QC ID Registration</span>
-                </a>
             </nav>
         </aside>
 
         <!-- Main Content -->
-        <div class="content-shell flex-1" :class="sidebarHoverExpand ? 'lg:ml-64' : 'lg:ml-20'">
+           <div class="content-shell flex-1 min-w-0"
+               :style="canHoverSidebar ? { marginLeft: sidebarHoverExpand ? '16rem' : '5rem' } : {}">
             <!-- Top Header -->
             <header class="bg-white border-b border-gray-200 sticky top-0 z-30">
-                <div class="flex items-center justify-between h-16 px-4 sm:px-6">
+                <div class="flex items-center justify-between h-20 px-4 sm:px-6">
                     <div class="flex items-center gap-4">
-                        <button @click="sidebarOpen = true" class="lg:hidden text-gray-600 hover:text-gray-900">
+                        <button @click="sidebarOpen = true" x-show="!canHoverSidebar" x-cloak class="text-gray-600 hover:text-gray-900">
                             <i class="w-6 h-6 fa-icon fa-solid fa-bars text-2xl leading-none"></i>
                         </button>
                         <!-- Breadcrumb -->
@@ -330,12 +377,17 @@
                     
                     <div class="flex items-center gap-4">
                         <!-- Notifications Dropdown -->
-                        <div x-data="{ notifOpen: false }" class="relative">
+                        <div x-data="{ notifOpen: false }"
+                             id="header-notification-root"
+                             data-user-id="{{ $currentUser?->id }}"
+                             data-is-staff="{{ $isStaff ? '1' : '0' }}"
+                             data-unread-url="{{ route('notifications.unread') }}"
+                             data-approvals-url="{{ $isStaff ? route('approvals.index') : route('dashboard') }}"
+                             class="relative">
                             <button @click="notifOpen = !notifOpen" class="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
                                 <i class="w-6 h-6 fa-icon fa-solid fa-bell text-2xl leading-none"></i>
-                                @if($headerNotificationCount > 0)
-                                <span class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs min-w-[18px] h-[18px] flex items-center justify-center rounded-full font-bold animate-pulse">{{ $headerNotificationCount }}</span>
-                                @endif
+                                <span data-role="header-notification-badge"
+                                      class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs min-w-[18px] h-[18px] flex items-center justify-center rounded-full font-bold animate-pulse {{ $headerNotificationCount > 0 ? '' : 'hidden' }}">{{ $headerNotificationCount }}</span>
                             </button>
                             <div x-show="notifOpen" @click.away="notifOpen = false" x-cloak
                                  x-transition:enter="transition ease-out duration-200"
@@ -348,48 +400,53 @@
                                 <div class="bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-3">
                                     <div class="flex items-center justify-between">
                                         <h3 class="text-white font-semibold">Notifications</h3>
-                                        @if($headerNotificationCount > 0)
-                                        <span class="bg-white/20 text-white text-xs px-2 py-1 rounded-full">{{ $headerNotificationCount }} unread</span>
-                                        @endif
+                                        <span data-role="header-unread-chip"
+                                              class="bg-white/20 text-white text-xs px-2 py-1 rounded-full {{ $headerNotificationCount > 0 ? '' : 'hidden' }}">{{ $headerNotificationCount }} unread</span>
                                     </div>
                                 </div>
 
                                 <div class="max-h-80 overflow-y-auto">
                                     @if($isStaff)
-                                        <div class="px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50 border-b border-gray-100">Pending Approvals</div>
-                                        @forelse($recentPendingApprovals as $notif)
-                                        <a href="{{ route('approvals.index') }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
-                                            <div class="flex items-start gap-3">
-                                                <div class="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
-                                                    <i class="w-5 h-5 text-amber-600 fa-icon fa-solid fa-clock text-xl leading-none"></i>
+                                        <div data-role="pending-approvals-section">
+                                            <div class="px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50 border-b border-gray-100">Pending Approvals</div>
+                                            <div data-role="pending-approvals-list">
+                                                @forelse($recentPendingApprovals as $notif)
+                                                <a href="{{ route('approvals.index') }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
+                                                    <div class="flex items-start gap-3">
+                                                        <div class="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
+                                                            <i class="w-5 h-5 text-amber-600 fa-icon fa-solid fa-clock text-xl leading-none"></i>
+                                                        </div>
+                                                        <div class="flex-1 min-w-0">
+                                                            <p class="text-sm font-medium text-gray-900 truncate">{{ $notif->room->name ?? 'Room' }}</p>
+                                                            <p class="text-xs text-gray-500">{{ $notif->user_name }} requested booking</p>
+                                                            <p class="text-xs text-gray-400 mt-1">{{ $notif->created_at->diffForHumans() }}</p>
+                                                        </div>
+                                                    </div>
+                                                </a>
+                                                @empty
+                                                <div class="px-4 py-3 border-b border-gray-100">
+                                                    <p class="text-sm text-gray-500">No pending approvals right now.</p>
                                                 </div>
-                                                <div class="flex-1 min-w-0">
-                                                    <p class="text-sm font-medium text-gray-900 truncate">{{ $notif->room->name ?? 'Room' }}</p>
-                                                    <p class="text-xs text-gray-500">{{ $notif->user_name }} requested booking</p>
-                                                    <p class="text-xs text-gray-400 mt-1">{{ $notif->created_at->diffForHumans() }}</p>
-                                                </div>
+                                                @endforelse
                                             </div>
-                                        </a>
-                                        @empty
-                                        <div class="px-4 py-3 border-b border-gray-100">
-                                            <p class="text-sm text-gray-500">No pending approvals right now.</p>
                                         </div>
-                                        @endforelse
                                     @endif
 
                                     <div class="px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50 border-b border-gray-100">Your Unread</div>
-                                    @forelse($userUnreadNotifications as $notification)
-                                    <a href="{{ $notification->data['url'] ?? '#' }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
-                                        <p class="text-sm font-medium text-gray-900">{{ $notification->data['title'] ?? 'Notification' }}</p>
-                                        <p class="text-xs text-gray-600 mt-1">{{ $notification->data['message'] ?? '' }}</p>
-                                        <p class="text-xs text-gray-400 mt-1">{{ $notification->created_at->diffForHumans() }}</p>
-                                    </a>
-                                    @empty
-                                    <div class="px-4 py-8 text-center">
-                                        <i class="w-12 h-12 text-gray-300 mx-auto mb-2 fa-icon fa-solid fa-inbox text-5xl leading-none"></i>
-                                        <p class="text-sm text-gray-500">No unread notifications</p>
+                                    <div data-role="user-unread-list">
+                                        @forelse($userUnreadNotifications as $notification)
+                                        <a href="{{ $safeNotificationUrl($notification->data['url'] ?? '#') }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
+                                            <p class="text-sm font-medium text-gray-900">{{ $notification->data['title'] ?? 'Notification' }}</p>
+                                            <p class="text-xs text-gray-600 mt-1">{{ $notification->data['message'] ?? '' }}</p>
+                                            <p class="text-xs text-gray-400 mt-1">{{ $notification->created_at->diffForHumans() }}</p>
+                                        </a>
+                                        @empty
+                                        <div class="px-4 py-8 text-center">
+                                            <i class="w-12 h-12 text-gray-300 mx-auto mb-2 fa-icon fa-solid fa-inbox text-5xl leading-none"></i>
+                                            <p class="text-sm text-gray-500">No unread notifications</p>
+                                        </div>
+                                        @endforelse
                                     </div>
-                                    @endforelse
                                 </div>
 
                                 <div class="bg-gray-50 px-4 py-3 flex items-center justify-between gap-2">
@@ -399,12 +456,12 @@
                                     <span class="text-sm text-gray-500">Up to date</span>
                                     @endif
 
-                                    @if($userUnreadCount > 0)
-                                    <form method="POST" action="{{ route('notifications.mark-all-read') }}">
-                                        @csrf
-                                        <button type="submit" class="text-sm font-medium text-indigo-600 hover:text-indigo-700">Mark all as read</button>
-                                    </form>
-                                    @endif
+                                    <div data-role="mark-all-read-container" class="{{ $userUnreadCount > 0 ? '' : 'hidden' }}">
+                                        <form method="POST" action="{{ route('notifications.mark-all-read') }}" data-role="mark-all-read-form">
+                                            @csrf
+                                            <button type="submit" class="text-sm font-medium text-indigo-600 hover:text-indigo-700">Mark all as read</button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -444,9 +501,10 @@
                                     </a>
                                 @endif
                                 <hr class="my-2">
-                                <form x-ref="logoutForm" method="POST" action="{{ route('logout') }}" class="px-2" @submit.prevent="logoutOpen = true; open = false">
+                                <form x-ref="logoutForm" method="POST" action="{{ route('logout') }}" class="px-2">
                                     @csrf
-                                    <button type="submit" class="w-full flex items-center gap-3 px-2 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors rounded-lg">
+                                    <button type="button" class="w-full flex items-center gap-3 px-2 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors rounded-lg"
+                                        @click="logoutOpen = true">
                                         <i class="w-4 h-4 fa-icon fa-solid fa-right-from-bracket text-base leading-none"></i>
                                         Sign Out
                                     </button>
@@ -458,14 +516,14 @@
                                 <div class="modal-box w-11/12 max-w-md p-0 bg-transparent border-0 shadow-none overflow-visible" @click.stop>
                                     <div class="relative group">
                                         <div aria-hidden="true" class="pointer-events-none absolute -inset-x-10 -bottom-10 h-16 bg-gradient-to-r from-indigo-500 via-purple-500 to-teal-500 blur-3xl opacity-30"></div>
-                                        <div class="bg-gradient-to-b from-white to-slate-50 rounded-3xl border border-gray-200 shadow-2xl overflow-hidden">
+                                        <div class="bg-gradient-to-b from-white to-slate-50 rounded-3xl border border-gray-200 shadow-2xl max-h-[88vh] overflow-hidden flex flex-col">
                                     <div class="px-6 py-5 border-b border-gray-100 bg-white/60 flex items-center justify-between">
                                         <div>
                                             <h3 class="text-lg font-bold text-gray-900">Logout</h3>
                                             <p class="text-sm text-gray-500 mt-1">Are you sure you want to logout?</p>
                                         </div>
                                     </div>
-                                    <div class="p-6 flex items-center justify-end gap-3">
+                                    <div class="p-6 flex items-center justify-end gap-3 flex-1 min-h-0 overflow-y-auto">
                                         <button type="button" @click="logoutOpen = false" class="px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-sm font-semibold text-gray-800 transition-colors">
                                             Cancel
                                         </button>
@@ -484,14 +542,14 @@
             </header>
 
             <!-- Page Content -->
-            <main class="p-4 sm:p-6">
+            <main class="p-4 sm:p-6 min-w-0">
                 @yield('content')
             </main>
         </div>
 
         <!-- Overlay for mobile sidebar -->
-        <div x-show="sidebarOpen" @click="sidebarOpen = false" x-cloak
-               class="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 lg:hidden"></div>
+         <div x-show="sidebarOpen && !canHoverSidebar" @click="sidebarOpen = false" x-cloak
+             class="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"></div>
     </div>
 
     <div id="swUpdateToast" class="hidden fixed left-1/2 bottom-6 z-50 w-[92%] max-w-md -translate-x-1/2 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm shadow-xl">

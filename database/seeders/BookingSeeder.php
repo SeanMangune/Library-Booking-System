@@ -62,26 +62,6 @@ class BookingSeeder extends Seeder
             'description' => 'Large collaborative workspace for team meetings',
         ]);
 
-        $conferenceRoom = Room::create([
-            'name' => 'Conference Room',
-            'slug' => 'conference-room',
-            'capacity' => 20,
-            'location' => '4F Executive',
-            'status' => 'operational',
-            'requires_approval' => true,
-            'description' => 'Main conference room for formal meetings',
-        ]);
-
-        $libraryRoom = Room::create([
-            'name' => 'Library Room',
-            'slug' => 'library-room',
-            'capacity' => 30,
-            'location' => '1F Main',
-            'status' => 'operational',
-            'requires_approval' => true,
-            'description' => 'Main library room for events and large gatherings',
-        ]);
-
         $today = Carbon::today();
 
         // Today's reservations
@@ -117,7 +97,7 @@ class BookingSeeder extends Seeder
 
         // Upcoming reservations
         Booking::create([
-            'room_id' => $conferenceRoom->id,
+            'room_id' => $collaborativeE->id,
             'title' => 'Faculty Meeting',
             'user_name' => 'Juan Dela Cruz',
             'user_email' => 'juan.delacruz@qcu.edu.ph',
@@ -162,7 +142,7 @@ class BookingSeeder extends Seeder
         ]);
 
         Booking::create([
-            'room_id' => $libraryRoom->id,
+            'room_id' => $collaborativeD->id,
             'title' => 'Book Club Meeting',
             'user_name' => 'Carlos Garcia',
             'user_email' => 'carlos.g@qcu.edu.ph',
@@ -191,7 +171,7 @@ class BookingSeeder extends Seeder
 
         // Past approved booking
         Booking::create([
-            'room_id' => $conferenceRoom->id,
+            'room_id' => $collaborativeC->id,
             'title' => 'Department Meeting',
             'user_name' => 'Juan Dela Cruz',
             'user_email' => 'juan.delacruz@qcu.edu.ph',
@@ -234,7 +214,7 @@ class BookingSeeder extends Seeder
         ]);
 
         Booking::create([
-            'room_id' => $libraryRoom->id,
+            'room_id' => $collaborativeB->id,
             'title' => 'Cancelled Event',
             'user_name' => 'Test User',
             'user_email' => 'test@qcu.edu.ph',

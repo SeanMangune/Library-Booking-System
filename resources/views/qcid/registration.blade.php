@@ -34,7 +34,13 @@
                     </div>
                     <div class="rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-white backdrop-blur-sm">
                         <p class="text-xs uppercase tracking-wide text-indigo-100">Detected ID type</p>
-                        <p class="mt-2 text-lg font-bold" x-text="verification?.is_valid ? 'QC Citizen ID' : 'Not verified'"></p>
+                        <p class="mt-2 text-lg font-bold"
+                           x-text="verification?.is_valid
+                               ? 'QC Citizen ID'
+                               : (verification?.rejected_id_type
+                                   ? verification.rejected_id_type
+                                   : (verification === null ? 'Not verified' : 'INVALID'))">
+                        </p>
                     </div>
                     <div class="rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-white backdrop-blur-sm">
                         <p class="text-xs uppercase tracking-wide text-indigo-100">Confidence</p>
@@ -109,6 +115,7 @@
                                     </div>
 
                                     <div x-show="errorMessage" x-cloak class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" x-text="errorMessage"></div>
+                                    <!-- Green alert for fake/invalid ID removed: only red alert will show for both cases -->
 
                                     <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                                         <div class="flex items-center justify-between gap-3">
@@ -300,7 +307,7 @@
          :class="{ 'modal-open': showConfidenceModal }"
          @keydown.escape.window="closeConfidenceModal()">
         <div class="modal-box w-11/12 max-w-md p-0 bg-transparent border-0 shadow-none overflow-visible" @click.stop>
-            <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
+            <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 max-h-[88vh] overflow-y-auto">
                 <div class="relative overflow-hidden rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 p-4">
                 <div class="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-indigo-200/50 blur-2xl"></div>
                 <div class="pointer-events-none absolute -left-10 -bottom-10 h-24 w-24 rounded-full bg-fuchsia-200/40 blur-2xl"></div>
@@ -334,17 +341,38 @@
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script type="application/json" id="qcid-vars">
+{!! json_encode([
+    'verification' => $registration?->verified_data,
+    'imagePreview' => $registration?->qcid_image_path ? asset('storage/' . $registration->qcid_image_path) : null,
+    'currentStatus' => $registration?->verification_status ?? 'not_submitted',
+    'isStaffUser' => $isStaffUser,
+    'form_full_name' => old('full_name', $registration?->full_name ?? $user->name),
+    'form_email' => $initialRegistrationEmail,
+    'form_contact_number' => old('contact_number', $registration?->contact_number ?? ''),
+    'form_qcid_number' => old('qcid_number', $registration?->qcid_number ?? ''),
+    'form_sex' => old('sex', $registration?->sex ?? ''),
+    'form_civil_status' => old('civil_status', $registration?->civil_status ?? ''),
+    'form_date_of_birth' => old('date_of_birth', optional($registration?->date_of_birth)->format('Y-m-d')),
+    'form_date_issued' => old('date_issued', optional($registration?->date_issued)->format('Y-m-d')),
+    'form_valid_until' => old('valid_until', optional($registration?->valid_until)->format('Y-m-d')),
+    'form_address' => old('address', $registration?->address ?? ''),
+    'form_ocr_text' => old('ocr_text', $registration?->ocr_text ?? ''),
+]) !!}
+</script>
 <script>
+const qcidVars = JSON.parse(document.getElementById('qcid-vars').textContent);
 function qcidRegistrationApp() {
+    // ...existing code...
     return {
-        verification: @json($registration?->verified_data),
-        imagePreview: @json($registration?->qcid_image_path ? asset('storage/' . $registration->qcid_image_path) : null),
+        verification: verification,
+        imagePreview: imagePreview,
         isProcessing: false,
         progress: 0,
         statusMessage: '',
         errorMessage: '',
-        currentStatus: @json($registration?->verification_status ?? 'not_submitted'),
-        isStaffUser: @json($isStaffUser),
+        currentStatus: currentStatus,
+        isStaffUser: isStaffUser,
         showConfidenceModal: false,
         hasShownAutoConfidenceModal: false,
         confidenceField: 'qcid_number',
@@ -366,17 +394,17 @@ function qcidRegistrationApp() {
             },
         },
         form: {
-            full_name: @json(old('full_name', $registration?->full_name ?? $user->name)),
-            email: @json($initialRegistrationEmail),
-            contact_number: @json(old('contact_number', $registration?->contact_number ?? '')),
-            qcid_number: @json(old('qcid_number', $registration?->qcid_number ?? '')),
-            sex: @json(old('sex', $registration?->sex ?? '')),
-            civil_status: @json(old('civil_status', $registration?->civil_status ?? '')),
-            date_of_birth: @json(old('date_of_birth', optional($registration?->date_of_birth)->format('Y-m-d'))),
-            date_issued: @json(old('date_issued', optional($registration?->date_issued)->format('Y-m-d'))),
-            valid_until: @json(old('valid_until', optional($registration?->valid_until)->format('Y-m-d'))),
-            address: @json(old('address', $registration?->address ?? '')),
-            ocr_text: @json(old('ocr_text', $registration?->ocr_text ?? '')),
+            full_name: form_full_name,
+            email: form_email,
+            contact_number: form_contact_number,
+            qcid_number: form_qcid_number,
+            sex: form_sex,
+            civil_status: form_civil_status,
+            date_of_birth: form_date_of_birth,
+            date_issued: form_date_issued,
+            valid_until: form_valid_until,
+            address: form_address,
+            ocr_text: form_ocr_text,
         },
 
         init() {
@@ -1916,6 +1944,15 @@ function qcidRegistrationApp() {
 
                 if (!payload.success) {
                     this.verification = null;
+                    // Clear all form fields to prevent showing previous user data
+                    this.form.full_name = '';
+                    this.form.qcid_number = '';
+                    this.form.sex = '';
+                    this.form.civil_status = '';
+                    this.form.date_of_birth = '';
+                    this.form.date_issued = '';
+                    this.form.valid_until = '';
+                    this.form.address = '';
                     let rejectMsg = payload.message || 'The uploaded image is not recognized as a QC ID.';
                     if (rawVerification?.rejected_id_type) {
                         rejectMsg = `This appears to be a ${payload.verification.rejected_id_type}. Only Quezon City Citizen IDs (QC IDs) are accepted.`;

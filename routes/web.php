@@ -9,6 +9,7 @@ use App\Http\Controllers\Rooms\RoomDashboardController;
 use App\Http\Controllers\Rooms\RoomController;
 use App\Http\Controllers\Rooms\BookingController;
 use App\Http\Controllers\Rooms\CalendarController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
@@ -27,8 +28,12 @@ Route::get('/pwa', function () {
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AuthController::class, 'login'])->name('login.post');
+    Route::post('/login', [AuthController::class, 'login'])
+        ->middleware('throttle:5,1') // 5 attempts per minute
+        ->name('login.post');
+    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
     Route::post('/register', [AuthController::class, 'register'])->name('register.post');
+    Route::post('/signup/qc-id/verify', QcIdVerificationController::class)->name('signup.qcid.verify');
 
     Route::get('/auth/google/redirect', [AuthController::class, 'googleRedirect'])->name('google.redirect');
     Route::get('/auth/google/callback', [AuthController::class, 'googleCallback'])->name('google.callback');
@@ -41,6 +46,9 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 // Dashboard (user + admin)
 Route::middleware('auth')->group(function () {
     Route::get('/rooms', [RoomDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/notifications/unread', [NotificationController::class, 'unread'])->name('notifications.unread');
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
+
     Route::get('/qcid-registration', [QcIdRegistrationController::class, 'show'])->name('qcid.registration.show');
     Route::post('/qcid-registration', [QcIdRegistrationController::class, 'store'])->name('qcid.registration.store');
 
@@ -55,6 +63,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/calendar/day', [CalendarController::class, 'dayEvents'])->name('calendar.day');
         Route::get('/calendar/month', [CalendarController::class, 'monthData'])->name('calendar.month');
         Route::post('/qc-id/verify', QcIdVerificationController::class)->name('qcid.verify');
+        Route::get('/room-reservations', [BookingController::class, 'index'])->name('reservations.index');
+        Route::post('/room-reservations/{booking}/cancel', [BookingController::class, 'cancel'])->name('reservations.cancel');
 
         // Booking creation (used by dashboard + calendar modals)
         Route::post('/room-reservations', [BookingController::class, 'store'])->name('reservations.store');
@@ -71,6 +81,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     // Settings
     Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::put('/settings/preferences', [SettingsController::class, 'updatePreferences'])->name('settings.preferences.update');
+
+    Route::post('/settings/staff', [SettingsController::class, 'storeStaff'])->name('settings.staff.store');
     Route::put('/settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password.update');
 
     // Reports
@@ -85,11 +97,9 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         Route::delete('/manage/{room}', [RoomController::class, 'destroy'])->name('rooms.destroy');
 
         // Reservations
-        Route::get('/room-reservations', [BookingController::class, 'index'])->name('reservations.index');
         Route::get('/room-reservations/{booking}', [BookingController::class, 'show'])->name('reservations.show');
         Route::put('/room-reservations/{booking}', [BookingController::class, 'update'])->name('reservations.update');
         Route::delete('/room-reservations/{booking}', [BookingController::class, 'destroy'])->name('reservations.destroy');
-        Route::post('/room-reservations/{booking}/cancel', [BookingController::class, 'cancel'])->name('reservations.cancel');
 
         // Approvals
         Route::get('/approvals', [BookingController::class, 'approvals'])->name('approvals.index');

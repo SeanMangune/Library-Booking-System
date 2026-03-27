@@ -29,22 +29,45 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+
+
         $validated = $request->validate([
-            'email' => ['required', 'email'],
+            'login' => ['required', 'string', 'max:255'],
             'password' => ['required'],
         ]);
 
         $remember = $request->boolean('remember');
+        $identifier = trim((string) $validated['login']);
+        $password = (string) $validated['password'];
 
-        if (! Auth::attempt($validated, $remember)) {
+        $candidate = User::query()
+            ->where(function ($query) use ($identifier) {
+                $query->where('email', $identifier);
+                if (Schema::hasColumn('users', 'username')) {
+                    $query->orWhere('username', $identifier);
+                }
+            })
+            ->first();
+
+        if (! $candidate || ! Hash::check($password, $candidate->password)) {
+            $this->incrementLoginAttempts($request);
+            $attempts = $this->limiter()->attempts($this->throttleKey($request));
+            $errorMsg = 'Invalid username/email or password.';
+            if ($attempts >= 3 && $attempts < $maxAttempts) {
+                $errorMsg .= ' Attempt ' . $attempts . ' of ' . $maxAttempts . '.';
+            }
+            if ($attempts >= $maxAttempts) {
+                $errorMsg = 'Account locked due to too many failed login attempts. Please try again in 1 minute.';
+            }
             return back()
-                ->withErrors(['email' => 'Invalid email or password.'])
-                ->onlyInput('email');
+                ->withErrors(['login' => $errorMsg])
+                ->onlyInput('login');
         }
 
+        // Login throttling is now handled by middleware in Laravel 12
+        Auth::login($candidate, $remember);
         $request->session()->regenerate();
-
-        return $this->redirectFor(Auth::user());
+        return $this->redirectFor($candidate);
     }
 
     public function adminLogin(Request $request)
@@ -54,10 +77,10 @@ class AuthController extends Controller
             'admin_password' => ['required'],
         ]);
 
-        $remember = $request->boolean('remember');
 
         $username = trim((string) $validated['admin_username']);
         $password = (string) $validated['admin_password'];
+        $remember = $request->boolean('remember');
 
         if ($username !== 'admin' || $password !== 'admin123') {
             return back()
@@ -90,7 +113,15 @@ class AuthController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => [
+                'required',
+                'string',
+                'min:8',
+                'confirmed',
+                'regex:/^(?=.*[A-Z])(?=.*\d).{8,}$/', // At least 1 capital, 1 number, min 8 chars
+            ],
+        ], [
+            'password.regex' => 'Password must be at least 8 characters, contain at least one uppercase letter and one number.'
         ]);
 
         $user = User::create([
@@ -333,6 +364,7 @@ class AuthController extends Controller
             'provider_id' => $providerId,
         ])->save();
     }
+
 
     private function usersTableHasColumns(array $columns): bool
     {

@@ -17,6 +17,7 @@ class RoomDashboardController extends Controller
 
         // Collaborative-room bookings from today to the next two weeks.
         $collabRoomBookings = Booking::with('room')
+            ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
             ->where('status', 'approved')
             ->whereBetween('date', [$today, $twoWeeksAhead])
             ->orderBy('date')
@@ -35,7 +36,7 @@ class RoomDashboardController extends Controller
             'today' => Booking::whereDate('date', $today)->where('status', 'approved')->count(),
         ];
 
-        $rooms = Room::operational()->orderBy('name')->get();
+        $rooms = Room::query()->visible()->operational()->orderBy('name')->get();
 
         // Calendar data for current month
         $month = $request->get('month', now()->month);
@@ -56,6 +57,7 @@ class RoomDashboardController extends Controller
         $endOfMonth = Carbon::createFromDate($year, $month, 1)->endOfMonth();
 
         $bookings = Booking::with('room')
+            ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
             ->whereBetween('date', [$startOfMonth, $endOfMonth])
             ->where('status', 'approved')
             ->get();

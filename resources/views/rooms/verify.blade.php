@@ -5,6 +5,15 @@
 @section('content')
 <div class="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
     @if($booking)
+    @php
+        $lifecycleStatus = $booking->booking_status ?? 'upcoming';
+        $approvalStatus = $booking->status ?? 'unknown';
+        [$badgeBackground, $badgeText] = match ($lifecycleStatus) {
+            'valid' => ['#ECFDF5', '#047857'],
+            'expired' => ['#FEF2F2', '#B91C1C'],
+            default => ['#FFFBEB', '#B45309'],
+        };
+    @endphp
     <div class="bg-white shadow rounded-2xl overflow-hidden border border-gray-100">
         <div class="verify-header">
     <div class="verify-left">
@@ -21,9 +30,8 @@
     </div>
 
     <div>
-        <span class="status-badge">
-            {{ ucfirst($booking->status ?? 'unknown') }}
-        </span>
+        @php $badgeStyle = 'background: ' . $badgeBackground . '; color: ' . $badgeText . ';'; @endphp
+        {!! '<span class="status-badge" style="' . $badgeStyle . '">' . ucfirst($lifecycleStatus) . '</span>' !!}
     </div>
 </div>
 
@@ -90,8 +98,8 @@
     border-radius: 9999px; /* rounded-full */
     font-size: 0.875rem;
     font-weight: 600;
-    background: rgba(255,255,255,0.12);
-    color: #D1FAE5; /* your updated color */
+    background: #ecfdf5;
+    color: #065f46;
 }
 </style>
 
@@ -132,13 +140,18 @@
                     </div>
 
                     <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
-                        <p class="text-xs text-gray-500 uppercase tracking-wide">Status</p>
+                        <p class="text-xs text-gray-500 uppercase tracking-wide">QR Status</p>
                         <div class="mt-2">
-                            @php $status = $booking->status ?? 'unknown'; @endphp
+                            @php $status = $booking->booking_status ?? 'upcoming'; @endphp
                             <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold"
-                                  style="background: {{ $status === 'approved' ? '#ECFDF5' : '#FEF3C7' }}; color: {{ $status === 'approved' ? '#065F46' : '#92400E' }};">
-                                {{ ucfirst($status) }}
+                                                                @php
+                                                                        $qrBg = $status === 'valid' ? '#ECFDF5' : ($status === 'expired' ? '#FEF2F2' : '#FFFBEB');
+                                                                        $qrColor = $status === 'valid' ? '#047857' : ($status === 'expired' ? '#B91C1C' : '#B45309');
+                                                                        $qrStyle = 'background: ' . $qrBg . '; color: ' . $qrColor . ';';
+                                                                @endphp
+                                                                {!! '<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold" style="' . $qrStyle . '">' . ucfirst($status) . '</span>' !!}
                             </span>
+                            <p class="mt-2 text-xs text-gray-500">Approval: {{ ucfirst($approvalStatus) }}</p>
                         </div>
                     </div>
                 </div>
@@ -191,4 +204,67 @@
     @endif
 </div>
 
-@endsection
+/* Main header container */
+.verify-header{
+    background: linear-gradient(to right, #059669, #14b8a6); /* emerald-600 → teal-500 */
+    padding: 1.25rem 1.5rem; /* px-6 py-5 */
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Left flex group */
+.verify-left{
+    display: flex;
+    align-items: center;
+    gap: 1rem; /* gap-4 */
+}
+
+/* Icon box */
+.verify-icon-box{
+    width: 40px;   /* w-10 */
+    height: 40px;
+    background: rgba(255,255,255,0.2); /* bg-white/20 */
+    border-radius: 8px; /* rounded-lg */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Icon */
+.verify-icon{
+    width: 20px; /* w-5 */
+    height: 20px;
+    color: #ffffff;
+}
+
+/* Title */
+.verify-title{
+    font-size: 1.125rem; /* text-lg */
+    font-weight: 600;    /* font-semibold */
+    margin: 0;
+}
+
+/* Subtitle */
+.verify-subtitle{
+    font-size: 0.875rem; /* text-sm */
+    color: rgba(255,255,255,0.8); /* text-white/80 */
+    margin: 0;
+}
+
+/* Token monospace */
+.verify-token{
+    font-family: monospace;
+}
+
+/* Status badge */
+.status-badge{
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.75rem; /* px-3 py-1.5 */
+    border-radius: 9999px; /* rounded-full */
+    font-size: 0.875rem;
+    font-weight: 600;
+    /* background and color are set inline for dynamic values */
+}

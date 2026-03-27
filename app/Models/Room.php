@@ -4,10 +4,21 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class Room extends Model
 {
+    private const EXCLUDED_ROOM_SLUGS = [
+        'conference-room',
+        'library-room',
+    ];
+
+    private const EXCLUDED_ROOM_NAMES = [
+        'conference room',
+        'library room',
+    ];
+
     protected $fillable = [
         'name',
         'slug',
@@ -25,6 +36,21 @@ class Room extends Model
         'status_start_at' => 'datetime',
         'status_end_at' => 'datetime',
     ];
+
+    public function setRequiresApprovalAttribute($value): void
+    {
+        $normalized = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        $boolValue = $normalized ?? false;
+
+        // PostgreSQL rejects integer bindings for boolean columns in this flow.
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            $this->attributes['requires_approval'] = $boolValue ? 'true' : 'false';
+
+            return;
+        }
+
+        $this->attributes['requires_approval'] = $boolValue;
+    }
 
     public function bookings(): HasMany
     {
@@ -135,5 +161,24 @@ class Room extends Model
             return $query->where('location', $location);
         }
         return $query;
+    }
+
+    public function scopeVisible($query)
+    {
+        return $query
+            ->where(function ($scoped) {
+                $scoped->whereNull('slug')
+                    ->orWhereNotIn('slug', self::EXCLUDED_ROOM_SLUGS);
+            })
+            ->whereRaw('LOWER(name) NOT IN (?, ?)', self::EXCLUDED_ROOM_NAMES);
+    }
+
+    public function isExcludedRoom(): bool
+    {
+        $normalizedName = Str::lower(trim((string) $this->name));
+        $normalizedSlug = Str::lower(trim((string) $this->slug));
+
+        return in_array($normalizedName, self::EXCLUDED_ROOM_NAMES, true)
+            || in_array($normalizedSlug, self::EXCLUDED_ROOM_SLUGS, true);
     }
 }

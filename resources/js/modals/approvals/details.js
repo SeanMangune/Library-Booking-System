@@ -43,25 +43,36 @@ export function createApprovalDetailsModalState() {
                     }),
                 });
 
-                const data = await response.json();
+                const contentType = response.headers.get('content-type') || '';
+                const data = contentType.includes('application/json')
+                    ? await response.json()
+                    : null;
 
-                if (data.success) {
-                    const booking = data.booking || { ...this.selectedBooking };
-
-                    if (!booking.qr_code_url && booking.qr_token) {
-                        booking.qr_code_url = `/bookings/qr/${booking.qr_token}`;
-                    }
-
-                    this.approvedBooking = booking;
-                    this.qrImageFailed = false;
-                    this.showModal = false;
-                    this.showSuccessModal = true;
-                } else {
-                    window.notifyApp?.('error', data.message || 'Failed to approve booking');
+                if (!response.ok || !data?.success) {
+                    const fallbackMessage = response.status
+                        ? `Failed to approve booking (HTTP ${response.status})`
+                        : 'Failed to approve booking';
+                    window.notifyApp?.('error', data?.message || fallbackMessage);
+                    return;
                 }
+
+                const booking = data.booking || { ...this.selectedBooking };
+
+                if (!booking.qr_code_url && booking.qr_token) {
+                    booking.qr_code_url = `/bookings/qr/${booking.qr_token}`;
+                }
+
+                if (!booking.booking_status && booking.qr_status) {
+                    booking.booking_status = booking.qr_status;
+                }
+
+                this.approvedBooking = booking;
+                this.qrImageFailed = false;
+                this.showModal = false;
+                this.showSuccessModal = true;
             } catch (error) {
                 console.error('Error:', error);
-                window.notifyApp?.('error', 'An error occurred');
+                window.notifyApp?.('error', error?.message || 'An error occurred while approving the booking');
             } finally {
                 this.isLoading = false;
                 this.actionType = null;
@@ -85,17 +96,24 @@ export function createApprovalDetailsModalState() {
                     },
                 });
 
-                const data = await response.json();
+                const contentType = response.headers.get('content-type') || '';
+                const data = contentType.includes('application/json')
+                    ? await response.json()
+                    : null;
 
-                if (data.success) {
-                    this.showModal = false;
-                    this.showRejectModal = true;
-                } else {
-                    window.notifyApp?.('error', data.message || 'Failed to reject booking');
+                if (!response.ok || !data?.success) {
+                    const fallbackMessage = response.status
+                        ? `Failed to reject booking (HTTP ${response.status})`
+                        : 'Failed to reject booking';
+                    window.notifyApp?.('error', data?.message || fallbackMessage);
+                    return;
                 }
+
+                this.showModal = false;
+                this.showRejectModal = true;
             } catch (error) {
                 console.error('Error:', error);
-                window.notifyApp?.('error', 'An error occurred');
+                window.notifyApp?.('error', error?.message || 'An error occurred while rejecting the booking');
             } finally {
                 this.isLoading = false;
                 this.actionType = null;

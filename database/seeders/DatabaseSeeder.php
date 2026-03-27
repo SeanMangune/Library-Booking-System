@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 class DatabaseSeeder extends Seeder
 {
@@ -16,27 +17,56 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $supportsUsername = Schema::hasColumn('users', 'username');
 
-        $adminEmail = env('ADMIN_EMAIL');
-        $adminPassword = env('ADMIN_PASSWORD');
+        $accounts = [
+            [
+                'name' => 'Test User 1',
+                'username' => 'testuser1',
+                'email' => 'test@example.com',
+                'password' => 'password',
+                'role' => User::ROLE_USER,
+            ],
+            [
+                'name' => 'Test User 2',
+                'username' => 'testuser2',
+                'email' => 'test2@example.com',
+                'password' => 'password',
+                'role' => User::ROLE_USER,
+            ],
+            [
+                'name' => 'Admin',
+                'username' => 'admin',
+                'email' => 'admin@smartspace.local',
+                'password' => 'Admin123!',
+                'role' => User::ROLE_ADMIN,
+            ],
+            [
+                'name' => 'Super Admin',
+                'username' => 'superadmin',
+                'email' => 'superadmin@smartspace.local',
+                'password' => 'SuperAdmin123!',
+                'role' => User::ROLE_ADMIN,
+            ],
+        ];
 
-        if (is_string($adminEmail) && $adminEmail !== '' && is_string($adminPassword) && $adminPassword !== '') {
+        foreach ($accounts as $account) {
+            $attributes = [
+                'name' => $account['name'],
+                'password' => Hash::make($account['password']),
+                'role' => $account['role'],
+                'email_verified_at' => now(),
+            ];
+
+            if ($supportsUsername) {
+                $attributes['username'] = $account['username'];
+            }
+
             User::updateOrCreate(
-                ['email' => $adminEmail],
-                [
-                    'name' => env('ADMIN_NAME', 'Admin'),
-                    'password' => Hash::make($adminPassword),
-                    'role' => 'admin',
-                ]
+                ['email' => $account['email']],
+                $attributes,
             );
         }
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-            'role' => 'user',
-        ]);
 
         $this->call([
             BookingSeeder::class,

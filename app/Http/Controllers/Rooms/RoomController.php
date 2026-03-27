@@ -12,7 +12,7 @@ class RoomController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Room::query();
+        $query = Room::query()->visible();
 
         // Apply filters
         if ($request->filled('status') && $request->status !== 'all') {
@@ -32,8 +32,8 @@ class RoomController extends Controller
         }
 
         $rooms = $query->orderBy('name')->get();
-        $locations = Room::distinct()->pluck('location')->filter()->values();
-        $capacities = Room::distinct()->pluck('capacity')->sort()->values();
+        $locations = Room::query()->visible()->distinct()->pluck('location')->filter()->values();
+        $capacities = Room::query()->visible()->distinct()->pluck('capacity')->sort()->values();
 
         return view('rooms.manage', compact('rooms', 'locations', 'capacities'));
     }

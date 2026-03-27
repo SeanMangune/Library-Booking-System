@@ -18,7 +18,9 @@ class ReportsController extends Controller
             'status' => (string) $request->input('status', ''),
         ];
 
-        $baseQuery = Booking::query()->with('room');
+        $baseQuery = Booking::query()
+            ->with('room')
+            ->whereHas('room', fn ($roomQuery) => $roomQuery->visible());
 
         if ($filters['date_from'] !== '') {
             $baseQuery->whereDate('date', '>=', $filters['date_from']);
@@ -97,7 +99,7 @@ class ReportsController extends Controller
             ->take(5)
             ->values();
 
-        $rooms = Room::query()->orderBy('name')->get();
+        $rooms = Room::query()->visible()->orderBy('name')->get();
 
         return view('reports.index', compact(
             'bookings',

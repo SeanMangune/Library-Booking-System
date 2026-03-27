@@ -35,6 +35,11 @@
                 <!-- Left Column: Stats + Bookings -->
                 <div class="lg:col-span-2 space-y-6">
                     <!-- Stats Cards -->
+                    @php
+                        $pendingWidth = ($stats['pending'] > 0 ? min(100, $stats['pending'] * 20) : 0) . '%';
+                        $approvedWidth = ($stats['approved'] > 0 ? min(100, $stats['approved'] * 20) : 0) . '%';
+                        $rejectedWidth = ($stats['rejected'] > 0 ? min(100, $stats['rejected'] * 20) : 0) . '%';
+                    @endphp
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <!-- Pending -->
                         <div class="group bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:border-amber-200 transition-all duration-300 cursor-pointer"
@@ -47,7 +52,8 @@
                             </div>
                             <p class="mt-3 text-sm font-medium text-gray-600">Pending Reviews</p>
                             <div class="mt-2 h-1 bg-gray-100 rounded-full overflow-hidden">
-                                <div class="h-full bg-gradient-to-r from-amber-400 to-orange-400 rounded-full" style="width: {{ $stats['pending'] > 0 ? min(100, $stats['pending'] * 20) : 0 }}%"></div>
+                                @php $pendingWidth = ($stats['pending'] > 0 ? min(100, $stats['pending'] * 20) : 0) . '%'; @endphp
+                                {!! '<div class="h-full bg-gradient-to-r from-amber-400 to-orange-400 rounded-full" style="width: ' . $pendingWidth . '"></div>' !!}
                             </div>
                         </div>
 
@@ -62,7 +68,8 @@
                             </div>
                             <p class="mt-3 text-sm font-medium text-gray-600">Approved</p>
                             <div class="mt-2 h-1 bg-gray-100 rounded-full overflow-hidden">
-                                <div class="h-full bg-gradient-to-r from-emerald-400 to-green-400 rounded-full" style="width: {{ $stats['approved'] > 0 ? min(100, $stats['approved'] * 20) : 0 }}%"></div>
+                                @php $approvedWidth = ($stats['approved'] > 0 ? min(100, $stats['approved'] * 20) : 0) . '%'; @endphp
+                                {!! '<div class="h-full bg-gradient-to-r from-emerald-400 to-green-400 rounded-full" style="width: ' . $approvedWidth . '"></div>' !!}
                             </div>
                         </div>
 
@@ -77,7 +84,8 @@
                             </div>
                             <p class="mt-3 text-sm font-medium text-gray-600">Rejected</p>
                             <div class="mt-2 h-1 bg-gray-100 rounded-full overflow-hidden">
-                                <div class="h-full bg-gradient-to-r from-red-400 to-rose-400 rounded-full" style="width: {{ $stats['rejected'] > 0 ? min(100, $stats['rejected'] * 20) : 0 }}%"></div>
+                                @php $rejectedWidth = ($stats['rejected'] > 0 ? min(100, $stats['rejected'] * 20) : 0) . '%'; @endphp
+                                {!! '<div class="h-full bg-gradient-to-r from-red-400 to-rose-400 rounded-full" style="width: ' . $rejectedWidth . '"></div>' !!}
                             </div>
                         </div>
                     </div>
@@ -314,7 +322,7 @@
                      x-transition:leave="transition ease-in duration-200"
                      x-transition:leave-start="opacity-100 scale-100"
                      x-transition:leave-end="opacity-0 scale-95"
-                     class="modal-box w-11/12 max-w-lg p-0 bg-white rounded-2xl shadow-2xl overflow-hidden"
+                     class="modal-box w-11/12 max-w-lg p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col"
                      @click.stop>
                     
                     <!-- Purple Header -->
@@ -331,7 +339,7 @@
                         </div>
                     </div>
                     
-                    <div class="p-6">
+                    <div class="p-6 flex-1 min-h-0 overflow-y-auto">
                         <!-- Status Badge (for non-pending) -->
                         <div x-show="selectedBooking?.status !== 'pending'" class="mb-4">
                             <span class="px-3 py-1 rounded-full text-xs font-semibold"
@@ -490,18 +498,26 @@
                 <button type="button" class="modal-backdrop fixed inset-0 bg-black/40" @click="closeModal()">close</button>
     </div>
 
+    <script type="application/json" id="dashboard-data">
+        {!! json_encode([
+            'tab' => $tab ?? request()->get('tab', 'all'),
+            'stats' => $stats,
+            'bookings' => $bookings,
+        ]) !!}
+    </script>
     <script>
-        function bookingDashboard() {
-            return {
+    function bookingDashboard() {
+        // Parse data from JSON script block
+        const data = JSON.parse(document.getElementById('dashboard-data').textContent);
+        return {
                 showModal: false,
                 selectedBooking: null,
-                activeTab: '{{ $tab ?? request()->get('tab', 'all') }}',
+                activeTab: data.tab,
                 isLoading: false,
                 actionType: null,
                 allowCapacityException: false,
                 showExceptionInput: false,
                 exceptionReason: '',
-                
                 // Calendar
                 currentMonth: new Date().getMonth(),
                 currentYear: new Date().getFullYear(),
@@ -509,7 +525,6 @@
                 calendarData: {},
                 monthNames: ['January', 'February', 'March', 'April', 'May', 'June', 
                              'July', 'August', 'September', 'October', 'November', 'December'],
-                
                 // Computed
                 get calendarDays() {
                     const days = [];

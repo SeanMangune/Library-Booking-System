@@ -6,18 +6,33 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\QcIdRegistration;
 use App\Models\Room;
-use App\Models\User;
 use App\Notifications\BookingApprovedNotification;
 use App\Services\QcIdOcrVerifier;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
 class BookingController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Booking::with('room');
+        $user = $request->user();
+        $canViewAll = $user?->isAdmin() || $user?->isSuperAdmin();
+
+        $query = Booking::with('room')
+            ->whereHas('room', fn ($roomQuery) => $roomQuery->visible());
+
+        if (! $canViewAll && $user) {
+            $query->where(function ($scoped) use ($user) {
+                $scoped->where('user_id', $user->id);
+
+                if (! empty($user->email)) {
+                    $scoped->orWhere('user_email', $user->email);
+                }
+            });
+        }
 
         // Apply filters
         if ($request->filled('status') && $request->status !== 'all') {
@@ -44,9 +59,17 @@ class BookingController extends Controller
         }
 
         $bookings = $query->orderByDesc('date')->orderBy('start_time')->paginate(15);
-        $rooms = Room::orderBy('name')->get();
+        $rooms = Room::query()->visible()->orderBy('name')->get();
 
-        return view('rooms.reservations', compact('bookings', 'rooms'));
+        // Fetch verified QC ID registration for autofill
+        $qcIdRegistration = null;
+        if ($user) {
+            $qcIdRegistration = \App\Models\QcIdRegistration::where('user_id', $user->id)
+                ->where('verification_status', 'verified')
+                ->first();
+        }
+
+        return view('rooms.reservations', compact('bookings', 'rooms', 'qcIdRegistration'));
     }
 
     public function store(Request $request, QcIdOcrVerifier $qcIdOcrVerifier)
@@ -81,6 +104,14 @@ class BookingController extends Controller
         ]);
 
         $room = Room::findOrFail($validated['room_id']);
+
+        if ($room->isExcludedRoom()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This room is no longer available for booking.',
+            ], 422);
+        }
+
         $requestedAttendees = (int) $validated['attendees'];
 
         if ($room->exceedsBookingLimitFor($requestedAttendees, $actingUser)) {
@@ -151,27 +182,6 @@ class BookingController extends Controller
             $validated['user_id'] = $actingUser->id;
         }
 
-        // Check for time conflicts
-        $hasConflict = Booking::where('room_id', $validated['room_id'])
-            ->where('date', $validated['date'])
-            ->where('status', 'approved')
-            ->where(function($query) use ($validated) {
-                $query->whereBetween('start_time', [$validated['start_time'], $validated['end_time']])
-                    ->orWhereBetween('end_time', [$validated['start_time'], $validated['end_time']])
-                    ->orWhere(function($q) use ($validated) {
-                        $q->where('start_time', '<=', $validated['start_time'])
-                          ->where('end_time', '>=', $validated['end_time']);
-                    });
-            })
-            ->exists();
-
-        if ($hasConflict) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This time slot conflicts with an existing booking'
-            ], 422);
-        }
-
         // Set initial status based on room settings
         $validated['status'] = ($room->requires_approval || $requiresCapacityPermission) ? 'pending' : 'approved';
         $validated['time'] = Carbon::parse($validated['start_time'])->format('g:i A');
@@ -184,7 +194,41 @@ class BookingController extends Controller
         $minutes = $durationMinutes % 60;
         $validated['duration'] = $minutes > 0 ? "{$hours}h {$minutes}m" : "{$hours}h";
 
-        $booking = Booking::create($validated);
+        $activeConflictStatuses = ['pending', 'approved'];
+
+        $booking = DB::transaction(function () use ($room, $validated, $activeConflictStatuses) {
+            // Serialize submissions targeting the same room so near-simultaneous requests
+            // cannot both pass the conflict check and create duplicate slot bookings.
+            Room::query()->whereKey($room->id)->lockForUpdate()->first();
+
+            $hasConflict = Booking::query()
+                ->where('room_id', $validated['room_id'])
+                ->where('date', $validated['date'])
+                ->whereIn('status', $activeConflictStatuses)
+                ->where(function ($query) use ($validated) {
+                    $query->whereBetween('start_time', [$validated['start_time'], $validated['end_time']])
+                        ->orWhereBetween('end_time', [$validated['start_time'], $validated['end_time']])
+                        ->orWhere(function ($q) use ($validated) {
+                            $q->where('start_time', '<=', $validated['start_time'])
+                                ->where('end_time', '>=', $validated['end_time']);
+                        });
+                })
+                ->lockForUpdate()
+                ->exists();
+
+            if ($hasConflict) {
+                return null;
+            }
+
+            return Booking::create($validated);
+        }, 3);
+
+        if (! $booking) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This time slot conflicts with an existing booking',
+            ], 422);
+        }
 
         return response()->json([
             'success' => true,
@@ -238,8 +282,23 @@ class BookingController extends Controller
         return response()->json(['success' => true, 'message' => 'Booking deleted successfully']);
     }
 
-    public function cancel(Booking $booking)
+    public function cancel(Request $request, Booking $booking)
     {
+        $user = $request->user();
+        $canManageAll = $user?->isAdmin() || $user?->isSuperAdmin();
+        $isOwner = $user
+            && (
+                ((int) ($booking->user_id ?? 0) === (int) $user->id)
+                || (! empty($user->email) && $booking->user_email === $user->email)
+            );
+
+        if (! $canManageAll && ! $isOwner) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not allowed to cancel this booking.',
+            ], 403);
+        }
+
         $booking->update(['status' => 'cancelled']);
 
         return response()->json(['success' => true, 'message' => 'Booking cancelled successfully']);
@@ -273,6 +332,9 @@ class BookingController extends Controller
                 }
             }
         }
+
+        // Keep the lifecycle status in sync for the latest date/time before generating QR payloads.
+        $booking->syncBookingStatus();
 
         // Keep legacy QR file generation (if service installed)
         try {
@@ -313,11 +375,23 @@ class BookingController extends Controller
         // Prefer inline PNG data (Endroid) when available, otherwise use stored/public URL
         $payload['qr_code_data'] = $qrDataUri;
         $payload['qr_code_url'] = $qrDataUri ?? $fresh->getAttribute('qr_code_url') ?? null;
+        $payload['approval_status'] = $fresh->status;
+        $payload['qr_status'] = $fresh->booking_status;
+        $payload['qr_validity'] = $fresh->qr_validity;
 
-        if ($fresh->user) {
-            $fresh->user->notify(new BookingApprovedNotification($fresh));
-        } elseif (! empty($fresh->user_email)) {
-            Notification::route('mail', $fresh->user_email)->notify(new BookingApprovedNotification($fresh));
+        try {
+            if ($fresh->user) {
+                $fresh->user->notify(new BookingApprovedNotification($fresh));
+            } elseif (! empty($fresh->user_email)) {
+                Notification::route('mail', $fresh->user_email)->notify(new BookingApprovedNotification($fresh));
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Booking approval notification failed.', [
+                'booking_id' => $fresh->id,
+                'user_id' => $fresh->user?->id,
+                'user_email' => $fresh->user_email,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         return response()->json([
@@ -339,14 +413,17 @@ class BookingController extends Controller
 
     public function approvals(Request $request)
     {
-        $query = Booking::with('room')->where('status', 'pending');
+        $status = $request->get('status', 'pending');
+        $query = Booking::with('room')
+            ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
+            ->where('status', $status);
 
         if ($request->filled('room') && $request->room !== 'all') {
             $query->where('room_id', $request->room);
         }
 
         $bookings = $query->orderBy('date')->orderBy('start_time')->paginate(15);
-        $rooms = Room::orderBy('name')->get();
+        $rooms = Room::query()->visible()->orderBy('name')->get();
 
         $stats = [
             'pending' => Booking::where('status', 'pending')->count(),
@@ -354,7 +431,7 @@ class BookingController extends Controller
             'rejected' => Booking::where('status', 'rejected')->count(),
         ];
 
-        return view('rooms.approvals', compact('bookings', 'rooms', 'stats'));
+        return view('rooms.approvals', compact('bookings', 'rooms', 'stats', 'status'));
     }
 
     /**
@@ -369,6 +446,9 @@ class BookingController extends Controller
         if (! $booking) {
             return response('Not found', 404);
         }
+
+        // Every QR render re-evaluates the booking lifecycle status (upcoming/valid/expired).
+        $booking->syncBookingStatus();
 
         // Build a public verification URL directly (route name may not exist in all installs)
         $verifyUrl = url('/verify?token=' . $token);
@@ -428,6 +508,8 @@ class BookingController extends Controller
         if (! $booking) {
             return view('rooms.verify', ['booking' => null, 'token' => $token]);
         }
+
+        $booking->syncBookingStatus();
 
         return view('rooms.verify', ['booking' => $booking, 'token' => $token]);
     }

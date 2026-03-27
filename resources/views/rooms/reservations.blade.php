@@ -10,18 +10,47 @@
 @endsection
 
 @section('content')
+@push('styles')
+    <link rel="stylesheet" href="/vendor/flatpickr/flatpickr.min.css">
+@endpush
+@push('scripts')
+    <script src="/vendor/flatpickr/flatpickr.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (document.querySelector('.flatpickr-date')) {
+                flatpickr('.flatpickr-date', {
+                    dateFormat: 'Y-m-d',
+                    minDate: 'today',
+                });
+            }
+            if (document.querySelector('.js-flatpickr-time')) {
+                flatpickr('.js-flatpickr-time', {
+                    enableTime: true,
+                    noCalendar: true,
+                    dateFormat: 'h:i K',
+                    time_24hr: false,
+                    minuteIncrement: 15,
+                });
+            }
+        });
+    </script>
+@endpush
+@php
+    $currentUser = auth()->user();
+    $canViewAllReservations = $currentUser?->isAdmin() || $currentUser?->isSuperAdmin();
+@endphp
 <div x-data="reservationsApp()">
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">All Reservations</h1>
-            <p class="text-sm text-gray-500 mt-1">View and manage all room reservations</p>
+            <h1 class="text-2xl font-bold text-gray-900">{{ $canViewAllReservations ? 'All Reservations' : 'My Reservations' }}</h1>
+            <p class="text-sm text-gray-500 mt-1">{{ $canViewAllReservations ? 'View and manage all room reservations' : 'View and manage your room reservations' }}</p>
         </div>
     </div>
 
     <!-- Filters -->
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
-        <form method="GET" action="{{ route('reservations.index') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <form method="GET" action="{{ route('reservations.index') }}" class="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select name="status" onchange="this.form.submit()"
@@ -42,6 +71,14 @@
                     <option value="{{ $room->id }}" {{ request('room') == $room->id ? 'selected' : '' }}>{{ $room->name }}</option>
                     @endforeach
                 </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <input type="text" name="date" value="{{ request('date') }}" placeholder="Select date" class="flatpickr-date w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" autocomplete="off">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                <input type="text" name="time" value="{{ request('time') }}" placeholder="Select time" class="js-flatpickr-time w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" autocomplete="off">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Time Period</label>
@@ -173,7 +210,7 @@
 
     <!-- View Booking Modal -->
     <div x-show="showViewModal" x-cloak class="modal p-4" :class="{ 'modal-open': showViewModal }" @keydown.escape.window="closeViewModal()">
-            <div class="modal-box w-11/12 max-w-lg p-0 bg-white rounded-2xl shadow-2xl" @click.stop>
+            <div class="modal-box w-11/12 max-w-lg p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
                 <!-- Modal Header -->
                 <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 rounded-t-2xl">
                     <div class="flex items-center justify-between">
@@ -193,7 +230,7 @@
                 </div>
 
                 <!-- Modal Body -->
-                <div class="p-6">
+                <div class="p-6 flex-1 min-h-0 overflow-y-auto">
                     <!-- Status Badge -->
                     <div class="mb-4">
                         <span class="px-3 py-1 rounded-full text-xs font-semibold"

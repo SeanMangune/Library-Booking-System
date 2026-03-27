@@ -8,7 +8,7 @@
 @endsection
 
 @section('content')
-<div x-data="dashboardApp()" x-init="init()">
+<div x-data="dashboardApp()" x-init="init()" class="flex flex-col xl:h-[calc(100dvh-9rem)] xl:overflow-hidden">
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
@@ -22,14 +22,14 @@
         </button>
     </div>
 
-    <div class="grid grid-cols-1 gap-6 transition-all duration-300"
+    <div class="grid grid-cols-1 gap-6 transition-all duration-300 xl:flex-1 xl:min-h-0"
          :class="bookingsPanelOpen ? 'xl:grid-cols-[minmax(0,1fr)_23rem]' : 'xl:grid-cols-1'">
         <!-- Left Column: Calendar -->
-        <div class="min-w-0">
-            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div class="min-w-0 xl:min-h-0">
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 xl:h-full xl:flex xl:flex-col xl:min-h-0">
                 <!-- Calendar Navigation -->
-                <div class="flex flex-col gap-4 mb-6 xl:flex-row xl:items-center xl:justify-between">
-                    <div class="flex items-center gap-2">
+                <div class="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center">
+                    <div class="order-2 flex items-end justify-center gap-2 sm:justify-start lg:order-1 lg:items-center">
                         <button @click="prevMonth()" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
                             <i class="w-4 h-4 text-gray-600 fa-icon fa-solid fa-chevron-left text-base leading-none"></i>
                         </button>
@@ -41,9 +41,9 @@
                         </button>
                     </div>
 
-                    <h2 class="text-xl font-semibold text-gray-900 text-center" x-text="calendarTitle"></h2>
+                    <h2 class="order-1 text-center text-xl font-semibold text-gray-900 lg:order-2 lg:px-4" x-text="calendarTitle"></h2>
 
-                    <div class="flex flex-wrap items-center justify-end gap-2">
+                    <div class="order-3 flex flex-wrap items-center justify-center gap-2 sm:justify-end lg:order-3">
                         <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
                             <button @click="changeDashboardView('dayGridMonth')"
                                     class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
@@ -64,7 +64,7 @@
 
                         <button type="button"
                                 @click="toggleBookingsPanel()"
-                                class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                            class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors whitespace-nowrap"
                                 :title="bookingsPanelOpen ? 'Collapse bookings panel' : 'Expand bookings panel'">
                             <i class="w-4 h-4 fa-icon fa-solid text-base leading-none"
                                :class="bookingsPanelOpen ? 'fa-angles-right' : 'fa-angles-left'"></i>
@@ -73,7 +73,7 @@
                     </div>
                 </div>
 
-                <div class="border border-gray-200 rounded-lg overflow-hidden" x-show="calendarView === 'dayGridMonth'">
+                <div class="border border-gray-200 rounded-lg overflow-auto xl:flex-1 xl:min-h-0" x-show="calendarView === 'dayGridMonth'">
                     <div class="grid grid-cols-7 bg-gray-50 border-b border-gray-200">
                         <template x-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="day">
                             <div class="py-3 text-center text-sm font-semibold text-gray-600" x-text="day"></div>
@@ -97,33 +97,9 @@
                                     </div>
                                     <div class="space-y-1">
                                         <template x-for="event in day.events.slice(0, 2)" :key="event.id">
-                                            <div class="relative group">
-                                                   <div class="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded truncate cursor-pointer hover:bg-green-200 transition-colors"
-                                                     @click.stop="openViewBookingModal(event)"
-                                                     x-text="event.formatted_time?.split(' - ')[0] + ' ' + event.title"></div>
-                                                <div class="absolute left-0 bottom-full mb-2 z-50 hidden group-hover:block w-64 bg-gray-900 text-white text-xs rounded-lg shadow-xl p-3 pointer-events-none">
-                                                    <div class="font-semibold text-sm mb-2" x-text="event.title || event.room_name"></div>
-                                                    <div class="space-y-1.5 text-gray-300">
-                                                        <div class="flex items-center gap-2">
-                                                            <i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-building text-sm leading-none"></i>
-                                                            <span x-text="event.room_name"></span>
-                                                        </div>
-                                                        <div class="flex items-center gap-2">
-                                                            <i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-clock text-sm leading-none"></i>
-                                                            <span x-text="event.formatted_time"></span>
-                                                        </div>
-                                                        <div class="flex items-center gap-2">
-                                                            <i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-user text-sm leading-none"></i>
-                                                            <span x-text="event.user_name"></span>
-                                                        </div>
-                                                        <div class="flex items-center gap-2">
-                                                            <i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-users text-sm leading-none"></i>
-                                                            <span x-text="event.attendees + ' attendees'"></span>
-                                                        </div>
-                                                    </div>
-                                                    <div class="absolute left-4 top-full w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-gray-900"></div>
-                                                </div>
-                                            </div>
+                                            <div class="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded truncate cursor-pointer hover:bg-green-200 transition-colors"
+                                                 @click.stop="openViewBookingModal(event)"
+                                                 x-text="event.formatted_time?.split(' - ')[0] + ' ' + event.title"></div>
                                         </template>
                                         <template x-if="day.events.length > 2">
                                             <button @click.stop="openDayEventsModal(day)"
@@ -137,8 +113,8 @@
                     </div>
                 </div>
 
-                <div class="border border-gray-200 rounded-lg overflow-hidden p-3" x-show="calendarView !== 'dayGridMonth'" x-cloak>
-                    <div id="dashboard-calendar" class="fc-custom-dashboard"></div>
+                <div class="h-[68vh] xl:h-auto border border-gray-200 rounded-lg p-3 overflow-auto xl:flex-1 xl:min-h-0" x-show="calendarView !== 'dayGridMonth'" x-cloak>
+                    <div id="dashboard-calendar" class="fc-custom-dashboard h-full"></div>
                 </div>
             </div>
         </div>
@@ -147,8 +123,8 @@
         <aside x-show="bookingsPanelOpen"
                x-cloak
                x-transition
-               class="min-w-0">
-            <div class="bg-white rounded-xl border border-gray-200 shadow-sm h-full">
+                    class="min-w-0 xl:min-h-0">
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm h-full xl:flex xl:flex-col xl:min-h-0">
                 <div class="px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3">
                     <div>
                         <h2 class="text-lg font-semibold text-gray-900">Collab Room Bookings</h2>
@@ -161,7 +137,7 @@
                         <i class="w-4 h-4 fa-icon fa-solid fa-xmark text-base leading-none"></i>
                     </button>
                 </div>
-                <div class="p-4 max-h-[34rem] xl:max-h-[calc(100vh-18rem)] overflow-y-auto">
+                <div class="p-4 max-h-[34rem] xl:max-h-none xl:flex-1 xl:min-h-0 overflow-y-auto">
                     @forelse($collabRoomBookings as $booking)
                     <div class="py-3 px-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer {{ $loop->last ? '' : 'border-b border-gray-200' }}"
                          @click="viewBooking({{ json_encode([
@@ -205,7 +181,7 @@
 
     <!-- View Booking Details Modal -->
     <div x-show="showViewModal" x-cloak class="modal p-4" :class="{ 'modal-open': showViewModal }" @keydown.escape.window="showViewModal = false">
-            <div class="modal-box w-11/12 max-w-lg p-0 bg-white rounded-2xl shadow-2xl transform transition-all" 
+            <div class="modal-box w-11/12 max-w-lg p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col transform transition-all" 
                  @click.stop
                  x-show="showViewModal"
                  x-transition:enter="ease-out duration-300"
@@ -233,7 +209,7 @@
                 </div>
 
                 <!-- Modal Body -->
-                <div class="p-6 space-y-4">
+                <div class="p-6 space-y-4 flex-1 min-h-0 overflow-y-auto">
                     <template x-if="selectedBooking">
                         <div class="space-y-4">
                             <!-- Title -->
@@ -329,7 +305,7 @@
 
     <!-- Day Events Modal (for +X more) -->
     <div x-show="showDayEventsModal" x-cloak class="modal p-4" :class="{ 'modal-open': showDayEventsModal }" @keydown.escape.window="showDayEventsModal = false">
-            <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-2xl shadow-2xl transform transition-all" 
+            <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col transform transition-all" 
                  @click.stop
                  x-show="showDayEventsModal"
                  x-transition:enter="ease-out duration-300"
@@ -357,7 +333,7 @@
                 </div>
 
                 <!-- Modal Body -->
-                <div class="p-4 max-h-96 overflow-y-auto">
+                <div class="p-4 flex-1 min-h-0 overflow-y-auto">
                     <div class="space-y-3">
                         <template x-for="event in selectedDay?.events || []" :key="event.id">
                             <div class="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 cursor-pointer transition-colors border border-gray-100"
@@ -429,7 +405,8 @@
                 </div>
 
                 <!-- Modal Body -->
-                <form @submit.prevent="submitBooking()" class="flex flex-col min-h-0">
+                <form method="POST" enctype="multipart/form-data" @submit.prevent="submitBooking()" class="flex flex-col min-h-0">
+                    @csrf
                     <div class="p-6 flex-1 min-h-0 overflow-y-auto">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Left Column -->
@@ -454,75 +431,63 @@
                                         Book for User <span class="text-red-500">*</span>
                                     </label>
                                     <input type="text" x-model="bookingForm.user_name" required
+                                           :value="verifiedRegistrationName || bookingForm.user_name || ''"
                                            placeholder="Enter user name..."
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                 </div>
 
-                                <div class="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-3">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                                            QC ID Verification <span class="text-red-500">*</span>
-                                        </label>
-                                        <p x-show="!hasVerifiedRegistration" class="text-xs text-gray-500">Upload a clear photo of a Quezon City Citizen ID. The system will read the card using OCR and reject non-QC IDs.</p>
-                                        <p x-show="hasVerifiedRegistration" x-cloak class="text-xs text-emerald-700">QC ID already verified from your QC ID Registration.</p>
-                                    </div>
+                                <div class="rounded-xl border border-gray-200 bg-gray-50/80 p-4">
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">
+                                        QC ID Verification <span class="text-red-500">*</span>
+                                    </label>
+                                    <p class="text-xs text-gray-600 mb-2">Upload a clear photo of a Quezon City Citizen ID. The system will read the card using OCR and reject non-QC IDs.</p>
+                                    <input type="file" name="qcid_image" accept="image/*" required
+                                        class="block w-full text-sm text-gray-700 border border-gray-300 rounded-lg cursor-pointer focus:ring-2 focus:ring-teal-500 focus:border-teal-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+                                        @change="handleQcIdUpload($event)">
 
-                                    <input x-show="!hasVerifiedRegistration" x-cloak type="file"
-                                           accept="image/png,image/jpeg,image/jpg,image/webp"
-                                           @change="handleQcIdUpload($event)"
-                                           class="block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-teal-700">
+                                    <template x-if="qcIdPreviewUrl">
+                                        <div class="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
+                                            <img :src="qcIdPreviewUrl" alt="QC ID preview" class="h-48 w-full object-cover">
+                                        </div>
+                                    </template>
 
-                                    <div x-show="hasVerifiedRegistration" x-cloak class="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                                        <p class="text-sm font-semibold text-emerald-800">QC ID Verified</p>
-                                        <p class="text-xs text-emerald-700 mt-1">Bookings will use your approved QC ID registration status.</p>
-                                    </div>
-
-                                    <div x-show="qcIdPreviewUrl" x-cloak class="rounded-lg overflow-hidden border border-gray-200 bg-white">
-                                        <img :src="qcIdPreviewUrl" alt="QC ID preview" class="w-full h-44 object-cover">
-                                    </div>
-
-                                    <div x-show="qcIdIsProcessing" x-cloak class="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-700">
-                                        <div class="flex items-center justify-between gap-3">
-                                            <span x-text="qcIdStatusMessage || 'Reading QC ID…'"></span>
-                                            <span class="font-semibold" x-text="Math.round(qcIdProgress || 0) + '%' "></span>
+                                    <div x-show="qcIdIsProcessing" x-cloak class="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-4 mt-4">
+                                        <div class="flex items-center justify-between gap-4">
+                                            <div>
+                                                <p class="text-sm font-semibold text-teal-800" x-text="qcIdStatusMessage || 'Reading QC ID…'"></p>
+                                                <p class="text-xs text-teal-700 mt-1">OCR is extracting text and checking the QC ID layout.</p>
+                                            </div>
+                                            <div class="text-lg font-extrabold text-teal-700" x-text="Math.round(qcIdProgress) + '%' "></div>
+                                        </div>
+                                        <div class="mt-3 h-2 rounded-full bg-teal-100 overflow-hidden">
+                                            <div class="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-200" :style="`width: ${Math.round(qcIdProgress)}%`"></div>
                                         </div>
                                     </div>
 
-                                    <div x-show="qcIdError" x-cloak class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" x-text="qcIdError"></div>
+                                    <div x-show="qcIdError" x-cloak class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 mt-4" x-text="qcIdError"></div>
 
-                                    <div x-show="qcIdVerification?.is_valid" x-cloak class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
+                                    <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm mt-4">
                                         <div class="flex items-center justify-between gap-3">
                                             <div>
-                                                <p class="text-sm font-semibold text-emerald-800">QC ID verified</p>
-                                                <p class="text-xs text-emerald-700" x-text="'Confidence score: ' + (qcIdVerification?.confidence_score ?? 0) + '%' "></p>
+                                                <p class="text-sm font-semibold text-gray-900">Verification snapshot</p>
+                                                <p class="text-xs text-gray-500">Detected details from the uploaded card.</p>
                                             </div>
-                                            <button type="button"
-                                                    @click="reprocessQcId()"
-                                                    class="inline-flex items-center rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors">
-                                                Re-read ID
-                                            </button>
+                                            <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
+                                                :class="qcIdVerification?.is_valid ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
+                                                x-text="qcIdVerification?.is_valid ? 'QC ID verified' : 'Waiting for upload'"></span>
                                         </div>
-
-                                        <dl class="grid grid-cols-1 gap-2 text-xs text-emerald-900 sm:grid-cols-2">
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Cardholder</dt>
-                                                <dd x-text="qcIdVerification?.cardholder_name || '—'"></dd>
+                                        <dl class="mt-4 space-y-3 text-sm">
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">Cardholder</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.cardholder_name || '—'"></dd>
                                             </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Birth Date</dt>
-                                                <dd x-text="qcIdVerification?.date_of_birth || '—'"></dd>
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">ID number</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.id_number || '—'"></dd>
                                             </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Date Issued</dt>
-                                                <dd x-text="qcIdVerification?.date_issued || '—'"></dd>
-                                            </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Valid Until</dt>
-                                                <dd x-text="qcIdVerification?.valid_until || '—'"></dd>
-                                            </div>
-                                            <div class="sm:col-span-2">
-                                                <dt class="font-medium text-emerald-700">Address</dt>
-                                                <dd x-text="qcIdVerification?.address || '—'"></dd>
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">Validity</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.valid_until || '—'"></dd>
                                             </div>
                                         </dl>
                                     </div>
@@ -681,19 +646,22 @@
     })->values();
 @endphp
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script type="application/json" id="dashboard-calendar-config">
+{!! json_encode([
+    'hasVerifiedRegistration' => $hasVerifiedRegistration,
+    'verifiedRegistrationName' => $verifiedRegistration?->full_name,
+    'isStaffUser' => auth()->user()?->isStaff() ?? false,
+    'rooms' => $roomOptions,
+    'defaultDate' => now()->format('Y-m-d'),
+    'initialCalendarData' => $calendarData,
+    'monthDataUrl' => route('calendar.month'),
+    'eventsUrl' => route('calendar.events'),
+    'verifyQcIdUrl' => route('qcid.verify'),
+    'storeBookingUrl' => route('reservations.store'),
+]) !!}
+</script>
 <script>
-window.dashboardCalendarConfig = {
-    hasVerifiedRegistration: @json($hasVerifiedRegistration),
-    verifiedRegistrationName: @json($verifiedRegistration?->full_name),
-    isStaffUser: @json(auth()->user()?->isStaff() ?? false),
-    rooms: @json($roomOptions),
-    defaultDate: '{{ now()->format("Y-m-d") }}',
-    initialCalendarData: @json($calendarData),
-    monthDataUrl: '{{ route("calendar.month") }}',
-    eventsUrl: '{{ route("calendar.events") }}',
-    verifyQcIdUrl: '{{ route("qcid.verify") }}',
-    storeBookingUrl: '{{ route("reservations.store") }}',
-};
+window.dashboardCalendarConfig = JSON.parse(document.getElementById('dashboard-calendar-config').textContent);
 </script>
 @endpush
 @endsection

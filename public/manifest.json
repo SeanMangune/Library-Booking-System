@@ -21,5 +21,12 @@
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
+  ],
+  "screenshots": [
+    {
+      "src": "/images/screenshots/myapp-home.png.png",
+      "sizes": "540x960",
+      "type": "image/png"
+    }
   ]
 }

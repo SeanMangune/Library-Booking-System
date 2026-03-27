@@ -57,9 +57,11 @@ class QcIdRegistrationController extends Controller
         $verification = $verifier->verify($validated['ocr_text'], $validated['full_name']);
 
         if (! $verification['is_valid']) {
-            $message = ! empty($verification['rejected_id_type'])
-                ? "This appears to be a {$verification['rejected_id_type']}. Only a valid Quezon City Citizen ID is accepted."
-                : 'Only a valid Quezon City Citizen ID is accepted. Please upload a clearer QC ID image.';
+            $message = ($verification['id_assessment'] ?? 'INVALID') === 'Fake QC ID'
+                ? 'Fake QC ID detected. Please upload a genuine Quezon City Citizen ID.'
+                : (! empty($verification['rejected_id_type'])
+                    ? "This appears to be a {$verification['rejected_id_type']}. Only a valid Quezon City Citizen ID is accepted."
+                    : 'Only a valid Quezon City Citizen ID is accepted. Please upload a clearer QC ID image.');
 
             return back()
                 ->withInput()
@@ -106,12 +108,13 @@ class QcIdRegistrationController extends Controller
                 ? $this->normalizeAddress($validated['address'])
                 : $verifiedAddress,
             'ocr_text' => $validated['ocr_text'],
-            'verification_status' => 'pending',
+            // Automatically verify if OCR is valid at registration
+            'verification_status' => $verification['is_valid'] ? 'verified' : 'pending',
             'verification_notes' => null,
             'qcid_image_path' => $path,
             'verified_data' => $verification,
             'submitted_at' => now(),
-            'reviewed_at' => null,
+            'reviewed_at' => $verification['is_valid'] ? now() : null,
         ]);
         $registration->save();
 

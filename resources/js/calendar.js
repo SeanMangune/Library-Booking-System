@@ -149,8 +149,9 @@ function formatBookingDateLabel(dateValue) {
 
 function buildBookingDateOptions(daysAhead = BOOKING_DATE_RANGE_DAYS) {
     const options = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Always get the local date at the time of function call
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // local midnight
 
     for (let dayOffset = 0; dayOffset <= daysAhead; dayOffset += 1) {
         const date = new Date(today);
@@ -163,7 +164,9 @@ function buildBookingDateOptions(daysAhead = BOOKING_DATE_RANGE_DAYS) {
         });
     }
 
-    return options;
+    // Remove any past dates (shouldn't be present, but extra safety)
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    return options.filter(opt => opt.value >= todayStr);
 }
 
 function ensureBookingDateOption(options, dateValue) {
@@ -402,11 +405,11 @@ function createRoomBookingForm(config, dateOverride = null) {
         start_time: defaultSlot.start_time,
         end_time: defaultSlot.end_time,
         attendees: 1,
-        user_name: '',
+        user_name: config.userName || '',
         user_email: '',
         description: '',
         qc_id_ocr_text: '',
-        qc_id_cardholder_name: '',
+        qc_id_cardholder_name: config.verifiedRegistrationName || '',
     };
 }
 
@@ -430,10 +433,11 @@ export function createRoomCalendarApp(config = {}) {
         isSubmitting: false,
         hasVerifiedRegistration: Boolean(config.hasVerifiedRegistration),
         verifiedRegistrationName: config.verifiedRegistrationName || '',
+        verifiedRegistrationQcidNumber: config.verifiedRegistrationQcidNumber || '',
         isStaffUser: Boolean(config.isStaffUser),
         rooms: Array.isArray(config.rooms) ? config.rooms : [],
         bookingTimeSlots: BOOKING_TIME_SLOTS,
-        bookingDateOptions: buildBookingDateOptions(config.bookingDateRangeDays),
+        bookingDateOptions: buildBookingDateOptions(),
         qcIdFile: null,
         qcIdPreviewUrl: '',
         qcIdIsProcessing: false,
@@ -448,6 +452,27 @@ export function createRoomCalendarApp(config = {}) {
         bookingForm: createRoomBookingForm(config),
 
         init() {
+            // Autofill user_name and QC ID if available
+            if (this.hasVerifiedRegistration) {
+                if (config.userName) {
+                    this.bookingForm.user_name = config.userName;
+                }
+                if (config.verifiedRegistrationName) {
+                    this.bookingForm.qc_id_cardholder_name = config.verifiedRegistrationName;
+                }
+                // Mark QC ID as verified in the form state
+                this.qcIdVerification = {
+                    is_valid: true,
+                    cardholder_name: config.verifiedRegistrationName || config.userName || '',
+                    confidence_score: 100,
+                    source: 'registration',
+                };
+                this.qcIdError = '';
+            } else {
+                if (this.bookingForm && config.userName) {
+                    this.bookingForm.user_name = config.userName;
+                }
+            }
             this.$nextTick(() => {
                 this.initCalendar();
             });
@@ -840,13 +865,15 @@ export function createRoomCalendarApp(config = {}) {
                 const payload = await response.json();
                 const verification = payload.verification || null;
 
+
+                // Only autofill if valid
                 this.qcIdVerification = verification;
-                if (verification?.cardholder_name) {
+                if (verification?.is_valid && verification?.cardholder_name) {
                     this.bookingForm.qc_id_cardholder_name = verification.cardholder_name;
                     this.bookingForm.user_name = verification.cardholder_name;
                 }
 
-                if (!payload.success) {
+                if (!payload.success || !verification?.is_valid) {
                     this.qcIdError = payload.message || 'The uploaded image is not recognized as a QC ID.';
                     return;
                 }
@@ -898,35 +925,6 @@ export function createRoomCalendarApp(config = {}) {
                     self.currentView = info.view.type;
                     self.calendarTitle = info.view.title;
                 },
-                eventDidMount(info) {
-                    const props = info.event.extendedProps || {};
-                    const selfRef = self;
-
-                    info.el.removeAttribute('title');
-
-                    const onEnter = () => selfRef.showEventTooltip(info, props);
-                    const onLeave = () => selfRef.hideEventTooltip();
-
-                    info.el.addEventListener('mouseenter', onEnter);
-                    info.el.addEventListener('mouseleave', onLeave);
-                    info.el.addEventListener('focusin', onEnter);
-                    info.el.addEventListener('focusout', onLeave);
-
-                    info.el.__tooltipHandlers = { onEnter, onLeave };
-                },
-                eventWillUnmount(info) {
-                    const handlers = info.el.__tooltipHandlers;
-                    if (handlers) {
-                        info.el.removeEventListener('mouseenter', handlers.onEnter);
-                        info.el.removeEventListener('mouseleave', handlers.onLeave);
-                        info.el.removeEventListener('focusin', handlers.onEnter);
-                        info.el.removeEventListener('focusout', handlers.onLeave);
-                    }
-
-                    if (self.tooltipAnchorEl === info.el) {
-                        self.hideEventTooltip();
-                    }
-                },
             });
 
             this.calendar.render();
@@ -972,11 +970,18 @@ export function createRoomCalendarApp(config = {}) {
         openBookingModal(date = null) {
             this.clearTimeConflictSuggestions();
 
-            if (date) {
-                this.ensureBookingDateOption(date);
-                this.bookingForm.date = date;
+            // Always rebuild bookingDateOptions from today for every modal open
+            this.bookingDateOptions = buildBookingDateOptions();
+
+            // Prevent selecting a past date, even if pre-filled
+            const todayStr = new Date().toISOString().split('T')[0];
+            let formDate = date || this.bookingForm.date;
+            if (formDate && formDate < todayStr) {
+                this.bookingForm.date = todayStr;
+            } else if (formDate && this.bookingDateOptions.some(opt => opt.value === formDate)) {
+                this.bookingForm.date = formDate;
             } else {
-                this.ensureBookingDateOption(this.bookingForm.date);
+                this.bookingForm.date = todayStr;
             }
 
             applyBookingTimeSlot(this.bookingForm, this.bookingForm.time_slot);
@@ -1040,134 +1045,6 @@ export function createRoomCalendarApp(config = {}) {
 
         formatTimeRange(startValue, endValue) {
             return formatRange(startValue, endValue);
-        },
-
-        tooltipEl: null,
-        tooltipAnchorEl: null,
-        tooltipCleanup: null,
-
-        showEventTooltip(info, props) {
-            this.hideEventTooltip();
-
-            const title = info?.event?.title || '';
-            const purpose = props.purpose || title;
-            const roomName = props.room_name || props.room || '';
-            const time = props.formatted_time || '';
-            const userName = props.user_name || props.userName || '';
-            const attendees = props.attendees != null ? String(props.attendees) : '';
-
-            const tooltip = document.createElement('div');
-            tooltip.className = 'fixed z-50 w-72 bg-gray-900 text-white text-xs rounded-lg shadow-xl p-3';
-            tooltip.style.pointerEvents = 'none';
-
-            tooltip.innerHTML = `
-                <div class="font-semibold text-sm mb-2">${this.escapeHtml(purpose || roomName)}</div>
-                <div class="space-y-1.5 text-gray-300">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-building"></i>
-                        <span>${this.escapeHtml(roomName)}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-clock"></i>
-                        <span>${this.escapeHtml(time)}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-user"></i>
-                        <span>${this.escapeHtml(userName)}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-users"></i>
-                        <span>${this.escapeHtml(attendees ? attendees + ' attendees' : '')}</span>
-                    </div>
-                </div>
-                <div data-arrow class="absolute left-6 top-full w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-gray-900"></div>
-            `;
-
-            document.body.appendChild(tooltip);
-
-            const anchor = info?.el;
-            if (!anchor) {
-                tooltip.remove();
-                return;
-            }
-
-            this.tooltipEl = tooltip;
-            this.tooltipAnchorEl = anchor;
-
-            const position = () => {
-                if (!this.tooltipEl || !this.tooltipAnchorEl) {
-                    return;
-                }
-
-                const rect = this.tooltipAnchorEl.getBoundingClientRect();
-                const tipRect = this.tooltipEl.getBoundingClientRect();
-
-                const viewportW = window.innerWidth;
-                const viewportH = window.innerHeight;
-                const padding = 8;
-                const gap = 10;
-
-                let left = rect.left + (rect.width / 2);
-                const half = tipRect.width / 2;
-                left = Math.max(padding + half, Math.min(viewportW - padding - half, left));
-
-                let top = rect.top - tipRect.height - gap;
-                let placeBelow = false;
-
-                if (top < padding) {
-                    top = rect.bottom + gap;
-                    placeBelow = true;
-                }
-
-                if (top + tipRect.height > viewportH - padding) {
-                    top = Math.max(padding, viewportH - padding - tipRect.height);
-                }
-
-                this.tooltipEl.style.left = `${left}px`;
-                this.tooltipEl.style.top = `${top}px`;
-                this.tooltipEl.style.transform = 'translateX(-50%)';
-
-                const arrow = this.tooltipEl.querySelector('[data-arrow]');
-                if (arrow) {
-                    if (placeBelow) {
-                        arrow.className = 'absolute left-6 bottom-full w-0 h-0 border-l-8 border-r-8 border-b-8 border-transparent border-b-gray-900';
-                    } else {
-                        arrow.className = 'absolute left-6 top-full w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-gray-900';
-                    }
-                }
-            };
-
-            position();
-
-            const onScrollOrResize = () => position();
-            window.addEventListener('scroll', onScrollOrResize, true);
-            window.addEventListener('resize', onScrollOrResize);
-            this.tooltipCleanup = () => {
-                window.removeEventListener('scroll', onScrollOrResize, true);
-                window.removeEventListener('resize', onScrollOrResize);
-            };
-        },
-
-        hideEventTooltip() {
-            if (this.tooltipCleanup) {
-                this.tooltipCleanup();
-            }
-            this.tooltipCleanup = null;
-            this.tooltipAnchorEl = null;
-
-            if (this.tooltipEl) {
-                this.tooltipEl.remove();
-            }
-            this.tooltipEl = null;
-        },
-
-        escapeHtml(value) {
-            return String(value ?? '')
-                .replaceAll('&', '&amp;')
-                .replaceAll('<', '&lt;')
-                .replaceAll('>', '&gt;')
-                .replaceAll('"', '&quot;')
-                .replaceAll("'", '&#039;');
         },
 
         async submitBooking() {
@@ -1287,7 +1164,7 @@ export function createDashboardApp(config = {}) {
         isStaffUser: Boolean(config.isStaffUser),
         rooms: Array.isArray(config.rooms) ? config.rooms : [],
         bookingTimeSlots: BOOKING_TIME_SLOTS,
-        bookingDateOptions: buildBookingDateOptions(config.bookingDateRangeDays),
+        bookingDateOptions: buildBookingDateOptions(),
         qcIdFile: null,
         qcIdPreviewUrl: '',
         qcIdIsProcessing: false,
@@ -2024,8 +1901,22 @@ export function createDashboardApp(config = {}) {
 
         openBookingModal(date = null) {
             this.clearTimeConflictSuggestions();
+            // Always rebuild bookingDateOptions from today for every modal open
+            this.bookingDateOptions = buildBookingDateOptions();
+
             this.bookingForm = createDashboardBookingForm(config, date);
-            this.ensureBookingDateOption(this.bookingForm.date);
+
+            // Prevent selecting a past date, even if pre-filled
+            const todayStr = new Date().toISOString().split('T')[0];
+            let formDate = date || this.bookingForm.date;
+            if (formDate && formDate < todayStr) {
+                this.bookingForm.date = todayStr;
+            } else if (formDate && this.bookingDateOptions.some(opt => opt.value === formDate)) {
+                this.bookingForm.date = formDate;
+            } else {
+                this.bookingForm.date = todayStr;
+            }
+
             applyBookingTimeSlot(this.bookingForm, this.bookingForm.time_slot);
 
             this.qcIdError = '';
