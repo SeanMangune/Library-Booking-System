@@ -26,8 +26,7 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->name('register.post');
     Route::post('/signup/qc-id/verify', QcIdVerificationController::class)->name('signup.qcid.verify');
 
-    Route::get('/auth/google/redirect', [AuthController::class, 'googleRedirect'])->name('google.redirect');
-    Route::get('/auth/google/callback', [AuthController::class, 'googleCallback'])->name('google.callback');
+
 
     Route::post('/admin/login', [AuthController::class, 'adminLogin'])->name('admin.login');
 });

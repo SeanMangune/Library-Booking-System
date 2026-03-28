@@ -12,6 +12,10 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\BookingPendingMail;
+use App\Mail\BookingApprovedMail;
+use App\Mail\BookingRejectedMail;
 
 class BookingController extends Controller
 {
@@ -199,6 +203,22 @@ class BookingController extends Controller
 
         $booking = Booking::create($validated);
 
+        if (! empty($booking->user_email)) {
+            try {
+                if ($booking->status === 'pending') {
+                    Mail::to($booking->user_email)->queue(new BookingPendingMail($booking));
+                } elseif ($booking->status === 'approved') {
+                    Mail::to($booking->user_email)->queue(new BookingApprovedMail($booking));
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Failed to send booking creation email.', [
+                    'booking_id' => $booking->id,
+                    'user_email' => $booking->user_email,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         return response()->json([
             'success' => true,
             'message' => $requiresCapacityPermission
@@ -351,13 +371,13 @@ class BookingController extends Controller
     $payload['qr_validity'] = $fresh->qr_validity;
 
         try {
-            if ($fresh->user) {
-                $fresh->user->notify(new BookingApprovedNotification($fresh));
-            } elseif (! empty($fresh->user_email)) {
-                Notification::route('mail', $fresh->user_email)->notify(new BookingApprovedNotification($fresh));
+            if (! empty($fresh->user_email)) {
+                Mail::to($fresh->user_email)->queue(new BookingApprovedMail($fresh));
+            } elseif ($fresh->user && ! empty($fresh->user->email)) {
+                Mail::to($fresh->user->email)->queue(new BookingApprovedMail($fresh));
             }
         } catch (\Throwable $e) {
-            Log::warning('Booking approval notification failed.', [
+            Log::warning('Booking approval email failed.', [
                 'booking_id' => $fresh->id,
                 'user_id' => $fresh->user?->id,
                 'user_email' => $fresh->user_email,
@@ -378,6 +398,18 @@ class BookingController extends Controller
             'status' => 'rejected',
             'reason' => $request->get('reason'),
         ]);
+
+        try {
+            $email = $booking->user_email ?? $booking->user?->email;
+            if (! empty($email)) {
+                Mail::to($email)->queue(new BookingRejectedMail($booking));
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Booking rejection email failed.', [
+                'booking_id' => $booking->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return response()->json(['success' => true, 'message' => 'Booking rejected successfully']);
     }
