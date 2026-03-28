@@ -37,16 +37,20 @@ class RoomDashboardController extends Controller
 
         $rooms = Room::operational()->orderBy('name')->get();
 
+        $user = $request->user();
+        $isStaff = $user?->isAdmin() || $user?->isSuperAdmin() || $user?->isStaff();
+
         // Calendar data for current month
         $month = $request->get('month', now()->month);
         $year = $request->get('year', now()->year);
-        $calendarData = $this->getCalendarData($month, $year, $request->user());
+        $calendarData = $this->getCalendarData($month, $year, $user);
 
         return view('rooms.dashboard', compact(
             'collabRoomBookings',
             'stats',
             'rooms',
             'calendarData',
+            'isStaff',
         ));
     }
 
