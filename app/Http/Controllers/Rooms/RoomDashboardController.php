@@ -37,20 +37,24 @@ class RoomDashboardController extends Controller
 
         $rooms = Room::operational()->orderBy('name')->get();
 
+        $user = $request->user();
+        $isStaff = $user?->isAdmin() || $user?->isSuperAdmin() || $user?->isStaff();
+
         // Calendar data for current month
         $month = $request->get('month', now()->month);
         $year = $request->get('year', now()->year);
-        $calendarData = $this->getCalendarData($month, $year);
+        $calendarData = $this->getCalendarData($month, $year, $user);
 
         return view('rooms.dashboard', compact(
             'collabRoomBookings',
             'stats',
             'rooms',
             'calendarData',
+            'isStaff',
         ));
     }
 
-    private function getCalendarData($month, $year)
+    private function getCalendarData($month, $year, $user = null)
     {
         $startOfMonth = Carbon::createFromDate($year, $month, 1)->startOfMonth();
         $endOfMonth = Carbon::createFromDate($year, $month, 1)->endOfMonth();
@@ -84,6 +88,6 @@ class RoomDashboardController extends Controller
         $month = $request->get('month', now()->month);
         $year = $request->get('year', now()->year);
 
-        return response()->json($this->getCalendarData($month, $year));
+        return response()->json($this->getCalendarData($month, $year, $request->user()));
     }
 }
