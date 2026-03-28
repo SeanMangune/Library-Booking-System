@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Rooms;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\QcIdRegistration;
 use App\Models\Room;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -14,29 +15,6 @@ class RoomDashboardController extends Controller
     {
         $today = today();
         $twoWeeksAhead = today()->copy()->addDays(14);
-
-        // Collaborative-room bookings from today to the next two weeks.
-        $collabRoomBookings = Booking::with('room')
-            ->where('status', 'approved')
-            ->whereBetween('date', [$today, $twoWeeksAhead])
-            ->orderBy('date')
-            ->orderBy('start_time')
-            ->get()
-            ->filter(function ($booking) {
-                return $booking->room?->isCollaborative();
-            })
-            ->values();
-
-        // Stats
-        $stats = [
-            'pending' => Booking::where('status', 'pending')->count(),
-            'approved' => Booking::where('status', 'approved')->count(),
-            'rejected' => Booking::where('status', 'rejected')->count(),
-            'today' => Booking::whereDate('date', $today)->where('status', 'approved')->count(),
-        ];
-
-        $rooms = Room::operational()->orderBy('name')->get();
-
         $user = $request->user();
         $isStaff = $user?->isAdmin() || $user?->isSuperAdmin() || $user?->isStaff();
 
@@ -44,6 +22,40 @@ class RoomDashboardController extends Controller
         $month = $request->get('month', now()->month);
         $year = $request->get('year', now()->year);
         $calendarData = $this->getCalendarData($month, $year, $user);
+        $rooms = Room::operational()->orderBy('name')->get();
+
+        if ($isStaff) {
+            return $this->adminDashboard($request, $user, $today, $twoWeeksAhead, $calendarData, $rooms);
+        }
+
+        return $this->userDashboard($request, $user, $today, $twoWeeksAhead, $calendarData, $rooms);
+    }
+
+    private function adminDashboard($request, $user, $today, $twoWeeksAhead, $calendarData, $rooms)
+    {
+        $collabRoomBookings = Booking::with('room')
+            ->where('status', 'approved')
+            ->whereBetween('date', [$today, $twoWeeksAhead])
+            ->orderBy('date')
+            ->orderBy('start_time')
+            ->get()
+            ->filter(fn ($booking) => $booking->room?->isCollaborative())
+            ->values();
+
+        $stats = [
+            'pending' => Booking::where('status', 'pending')->count(),
+            'approved' => Booking::where('status', 'approved')->count(),
+            'rejected' => Booking::where('status', 'rejected')->count(),
+            'today' => Booking::whereDate('date', $today)->where('status', 'approved')->count(),
+        ];
+
+        $pendingBookings = Booking::with('room')
+            ->where('status', 'pending')
+            ->orderBy('created_at', 'desc')
+            ->take(10)
+            ->get();
+
+        $isStaff = true;
 
         return view('rooms.dashboard', compact(
             'collabRoomBookings',
@@ -51,6 +63,67 @@ class RoomDashboardController extends Controller
             'rooms',
             'calendarData',
             'isStaff',
+            'pendingBookings',
+        ));
+    }
+
+    private function userDashboard($request, $user, $today, $twoWeeksAhead, $calendarData, $rooms)
+    {
+        $userBookings = Booking::with('room')
+            ->where('user_id', $user->id)
+            ->orderBy('date', 'desc')
+            ->orderBy('start_time', 'desc')
+            ->take(20)
+            ->get();
+
+        $upcomingBookings = Booking::with('room')
+            ->where('user_id', $user->id)
+            ->where('status', 'approved')
+            ->where('date', '>=', $today)
+            ->orderBy('date')
+            ->orderBy('start_time')
+            ->take(5)
+            ->get();
+
+        $userStats = [
+            'total' => Booking::where('user_id', $user->id)->count(),
+            'upcoming' => $upcomingBookings->count(),
+            'pending' => Booking::where('user_id', $user->id)->where('status', 'pending')->count(),
+            'approved' => Booking::where('user_id', $user->id)->where('status', 'approved')->count(),
+        ];
+
+        $qcIdRegistration = QcIdRegistration::where('user_id', $user->id)->first();
+        $isVerified = $qcIdRegistration !== null;
+
+        $collabRoomBookings = Booking::with('room')
+            ->where('status', 'approved')
+            ->whereBetween('date', [$today, $twoWeeksAhead])
+            ->orderBy('date')
+            ->orderBy('start_time')
+            ->get()
+            ->filter(fn ($booking) => $booking->room?->isCollaborative())
+            ->values();
+
+        $stats = [
+            'pending' => Booking::where('status', 'pending')->count(),
+            'approved' => Booking::where('status', 'approved')->count(),
+            'rejected' => Booking::where('status', 'rejected')->count(),
+            'today' => Booking::whereDate('date', $today)->where('status', 'approved')->count(),
+        ];
+
+        $isStaff = false;
+
+        return view('rooms.dashboard-user', compact(
+            'collabRoomBookings',
+            'stats',
+            'rooms',
+            'calendarData',
+            'isStaff',
+            'userBookings',
+            'upcomingBookings',
+            'userStats',
+            'isVerified',
+            'qcIdRegistration',
         ));
     }
 

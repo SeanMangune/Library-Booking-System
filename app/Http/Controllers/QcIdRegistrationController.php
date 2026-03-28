@@ -61,7 +61,7 @@ class QcIdRegistrationController extends Controller
                 ? 'Fake QC ID detected. Please upload a genuine Quezon City Citizen ID.'
                 : (! empty($verification['rejected_id_type'])
                     ? "This appears to be a {$verification['rejected_id_type']}. Only a valid Quezon City Citizen ID is accepted."
-                    : 'Only a valid Quezon City Citizen ID is accepted. Please upload a clearer QC ID image.');
+                    : 'Only a valid Quezon City Citizen ID is accepted. Please upload a QC ID Image.');
 
             return back()
                 ->withInput()

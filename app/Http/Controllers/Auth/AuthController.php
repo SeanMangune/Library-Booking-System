@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
@@ -27,8 +28,6 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-
-
         $validated = $request->validate([
             'login' => ['required', 'string', 'max:255'],
             'password' => ['required'],
@@ -38,6 +37,37 @@ class AuthController extends Controller
         $identifier = trim((string) $validated['login']);
         $password = (string) $validated['password'];
         $hasUsernameColumn = Schema::hasColumn('users', 'username');
+
+        // --- Account lockout check ---
+        $lockoutKey = 'login_lockout:' . $request->ip() . ':' . strtolower($identifier);
+        $attemptsKey = 'login_attempts:' . $request->ip() . ':' . strtolower($identifier);
+        $lockoutSeconds = 300; // 5 minutes
+
+        // Check if currently locked out
+        $lockedUntil = Cache::get($lockoutKey);
+        if ($lockedUntil && now()->timestamp < $lockedUntil) {
+            $remainingSeconds = (int) ($lockedUntil - now()->timestamp);
+            $errorMsg = 'Account locked due to too many failed attempts. Try again in ' . ceil($remainingSeconds / 60) . ' minute(s).';
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMsg,
+                    'locked' => true,
+                    'lockout_seconds' => $remainingSeconds,
+                    'attempts_remaining' => 0,
+                    'show_warning' => true,
+                ], 429);
+            }
+
+            return back()
+                ->withErrors([
+                    'login' => $errorMsg,
+                    'lockout_seconds' => $remainingSeconds,
+                    'locked' => true,
+                ])
+                ->onlyInput('login');
+        }
 
         $candidate = User::query()
             ->where(function ($query) use ($identifier, $hasUsernameColumn) {
@@ -49,13 +79,73 @@ class AuthController extends Controller
             ->first();
 
         if (! $candidate || ! Hash::check($password, $candidate->password)) {
+            // --- Increment failed attempts ---
+            $attempts = (int) Cache::get($attemptsKey, 0) + 1;
+            Cache::put($attemptsKey, $attempts, $lockoutSeconds + 60);
+
+            $maxAttempts = 5;
+            $warnAtAttempt = 3;
+            $attemptsRemaining = max(0, $maxAttempts - $attempts);
+            $showWarning = $attempts >= $warnAtAttempt;
+
+            // Lockout after max attempts
+            if ($attempts >= $maxAttempts) {
+                Cache::put($lockoutKey, now()->timestamp + $lockoutSeconds, $lockoutSeconds);
+                Cache::forget($attemptsKey);
+
+                $errorMsg = 'Account locked due to too many failed attempts. Try again in 5 minutes.';
+
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $errorMsg,
+                        'locked' => true,
+                        'lockout_seconds' => $lockoutSeconds,
+                        'attempts_remaining' => 0,
+                        'show_warning' => true,
+                    ], 429);
+                }
+
+                return back()
+                    ->withErrors([
+                        'login' => $errorMsg,
+                        'lockout_seconds' => $lockoutSeconds,
+                        'locked' => true,
+                    ])
+                    ->onlyInput('login');
+            }
+
+            // Warning after warn threshold
             $errorMsg = 'Invalid username/email or password.';
+            if ($showWarning) {
+                $errorMsg .= " Warning: {$attemptsRemaining} attempt(s) remaining before account lockout.";
+            }
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMsg,
+                    'locked' => false,
+                    'lockout_seconds' => 0,
+                    'attempts_remaining' => $attemptsRemaining,
+                    'show_warning' => $showWarning,
+                    'total_attempts' => $attempts,
+                ], 422);
+            }
+
             return back()
-                ->withErrors(['login' => $errorMsg])
+                ->withErrors([
+                    'login' => $errorMsg,
+                    'attempts_remaining' => $attemptsRemaining,
+                    'show_warning' => $showWarning,
+                ])
                 ->onlyInput('login');
         }
 
-        // Login throttling is now handled by middleware in Laravel 12
+        // --- Successful login: clear attempts ---
+        Cache::forget($attemptsKey);
+        Cache::forget($lockoutKey);
+
         Auth::login($candidate, $remember);
         $request->session()->regenerate();
         return $this->redirectFor($candidate);
@@ -108,8 +198,9 @@ class AuthController extends Controller
                 'required',
                 'string',
                 'min:8',
+                'max:16',
                 'confirmed',
-                'regex:/^(?=.*[A-Z])(?=.*\d).{8,}$/', // At least 1 capital, 1 number, min 8 chars
+                'regex:/^(?=.*[A-Z])(?=.*\d).{8,16}$/', // At least 1 capital, 1 number, 8-16 chars
             ],
             'phone_number' => ['nullable', 'string', 'max:20'],
             'qcid_number' => ['required', 'string', 'max:50'],
@@ -123,6 +214,7 @@ class AuthController extends Controller
             'valid_until' => ['nullable', 'date'],
             'address' => ['nullable', 'string', 'max:100'],
             'ocr_text' => ['required', 'string'],
+            'qr_validated_id' => ['nullable', 'string', 'max:50'],
         ], [
             'password.regex' => 'Password must be at least 8 characters, contain at least one uppercase letter and one number.'
         ]);
@@ -131,6 +223,22 @@ class AuthController extends Controller
         $ocrVerifier = app(\App\Services\QcIdOcrVerifier::class);
         if ($ocrVerifier->detectFakeId($ocrText)) {
             return back()->withErrors(['ocr_text' => 'The provided QC ID is invalid or a sample ID. Registration denied.'])->withInput();
+        }
+
+        // === QR Cross-Validation Gate (Server-side) ===
+        $qrValidatedId = trim((string) ($validated['qr_validated_id'] ?? ''));
+        $enteredId = trim((string) ($validated['qcid_number'] ?? ''));
+
+        if ($qrValidatedId !== '') {
+            // Normalize both IDs for comparison (strip spaces)
+            $qrClean = preg_replace('/\s+/', '', $qrValidatedId);
+            $enteredClean = preg_replace('/\s+/', '', $enteredId);
+
+            if ($qrClean !== $enteredClean) {
+                return back()->withErrors([
+                    'qcid_number' => "QC ID number mismatch! Your ID's QR code shows {$qrValidatedId}, but you entered {$enteredId}. The QC ID number must match what's on your physical card."
+                ])->withInput();
+            }
         }
 
         $user = User::create([

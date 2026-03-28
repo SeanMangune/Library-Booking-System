@@ -22,6 +22,52 @@
             <div class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4">
                 <p class="text-sm font-semibold text-red-800">{{ $errors->first('login') }}</p>
             </div>
+            @if ($errors->has('locked') && $errors->first('locked'))
+                <div x-data="{
+                    totalSeconds: {{ (int) $errors->first('lockout_seconds', '0') }},
+                    remaining: {{ (int) $errors->first('lockout_seconds', '0') }},
+                    get minutes() { return Math.floor(this.remaining / 60) },
+                    get seconds() { return this.remaining % 60 },
+                    get formatted() { return String(this.minutes).padStart(2, '0') + ':' + String(this.seconds).padStart(2, '0') },
+                    get progress() { return this.totalSeconds > 0 ? ((this.totalSeconds - this.remaining) / this.totalSeconds) * 100 : 0 },
+                    init() {
+                        if (this.remaining > 0) {
+                            const timer = setInterval(() => {
+                                this.remaining--;
+                                if (this.remaining <= 0) {
+                                    clearInterval(timer);
+                                    window.location.reload();
+                                }
+                            }, 1000);
+                        }
+                    }
+                }" class="mb-6 rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-orange-50 p-5 shadow-sm">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center animate-pulse">
+                            <i class="fa-solid fa-lock text-red-600 text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-red-800">Account Temporarily Locked</p>
+                            <p class="text-xs text-red-600">Too many failed login attempts</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-center gap-2 mb-3">
+                        <span class="text-3xl font-black tabular-nums text-red-700" x-text="formatted"></span>
+                    </div>
+                    <div class="h-2 rounded-full bg-red-100 overflow-hidden">
+                        <div class="h-full rounded-full bg-gradient-to-r from-red-500 to-orange-500 transition-all duration-1000" :style="`width: ${progress}%`"></div>
+                    </div>
+                    <p class="text-xs text-red-600 text-center mt-2">Login will be re-enabled when the timer reaches zero</p>
+                </div>
+            @elseif ($errors->has('show_warning') && $errors->first('show_warning'))
+                <div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-600 mt-0.5"></i>
+                    <div>
+                        <p class="text-sm font-bold text-amber-800">Warning: Account at risk</p>
+                        <p class="text-xs text-amber-700 mt-1">{{ $errors->first('attempts_remaining', '0') }} attempt(s) remaining before your account is temporarily locked.</p>
+                    </div>
+                </div>
+            @endif
         @endif
 
         {{-- Signup error modal --}}
@@ -69,7 +115,7 @@
             $openSignupOnLoad = $hasSignupOldInput || $errors->hasAny($signupFields);
         @endphp
 
-        <div x-data="signupLoginApp({{ $openSignupOnLoad ? 'true' : 'false' }})">
+        <div x-data="signupLoginApp($persist, {{ $openSignupOnLoad ? 'true' : 'false' }})">
             <div class="flex justify-center">
                 <!-- User Login -->
                 <div class="w-full max-w-xl">
@@ -115,23 +161,31 @@
                         <button type="button" @click="signupOpen = true" class="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition-colors shadow-lg shadow-teal-700/20">
                             Sign Up
                         </button>
-                        <a href="{{ route('google.redirect') }}" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-sm font-semibold text-gray-800 transition-colors">
-                            <span class="w-5 h-5 inline-flex items-center justify-center rounded-full border border-gray-300 bg-white text-xs font-extrabold text-gray-900">G</span>
-                            Continue with Google
-                        </a>
+
 
                         <div id="installPromptContainer" class="hidden">
-                            <button id="installBtn" type="button" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors">
-                                <span>Install App</span>
+                            <button id="installBtn" type="button" class="install-app-card group/install w-full relative overflow-hidden rounded-2xl border border-emerald-200/60 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 text-left transition-all duration-500 hover:border-emerald-300/80 hover:shadow-[0_0_30px_-5px_rgba(16,185,129,0.35)] active:scale-[0.98]">
+                                <!-- Animated gradient glow background -->
+                                <div class="absolute inset-0 rounded-2xl opacity-0 group-hover/install:opacity-100 transition-opacity duration-700 bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,0.08)_0%,transparent_70%)]"></div>
+                                <!-- Shimmer sweep -->
+                                <div class="absolute inset-0 -translate-x-full group-hover/install:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/40 to-transparent"></div>
+                                <div class="relative z-10 flex items-center gap-4">
+                                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/25 group-hover/install:shadow-emerald-500/40 group-hover/install:scale-110 transition-all duration-500">
+                                        <i class="fa-solid fa-download text-white text-lg group-hover/install:animate-bounce"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-bold text-gray-900 group-hover/install:text-emerald-700 transition-colors duration-300">Install SmartSpace</p>
+                                        <p class="text-xs text-gray-500 group-hover/install:text-emerald-600/70 transition-colors duration-300 mt-0.5">Add to your device for quick access</p>
+                                    </div>
+                                    <div class="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 group-hover/install:bg-emerald-500 group-hover/install:text-white transition-all duration-300">
+                                        <i class="fa-solid fa-arrow-right text-xs"></i>
+                                    </div>
+                                </div>
                             </button>
                         </div>
 
-                        <p id="desktopInstallHint" class="hidden rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700">
-                            Use your browser install menu, or open SmartSpace on your phone to install.
-                        </p>
-
                         <div id="iosInstallHint" class="hidden rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm text-blue-800">
-                            Tap Share -> Add to Home Screen
+                            Tap Share → Add to Home Screen
                         </div>
                     </div>
                         </div>
@@ -176,9 +230,11 @@
                     </div>
 
                     <div class="max-h-[calc(92vh-120px)] overflow-y-auto signup-scroll-area p-5 sm:p-6">
-                        <form method="POST" action="{{ route('register.post') }}" enctype="multipart/form-data" class="space-y-5">
+                        <form method="POST" action="{{ route('register.post') }}" enctype="multipart/form-data" class="space-y-5"
+                              @submit.prevent="validateAndSubmitSignup($el)">
                             @csrf
                             <input type="hidden" name="ocr_text" x-model="signup.ocr_text">
+                            <input type="hidden" name="qr_validated_id" x-model="scan.qrIdNumber">
 
 
                                 <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -222,6 +278,19 @@
                                                     <div class="flex items-center justify-between gap-3"><dt class="text-slate-500">Cardholder</dt><dd class="font-medium text-slate-800" x-text="signup.name || '—'"></dd></div>
                                                     <div class="flex items-center justify-between gap-3"><dt class="text-slate-500">QC ID number</dt><dd class="font-medium text-slate-800" x-text="signup.qcid_number || '—'"></dd></div>
                                                     <div class="flex items-center justify-between gap-3"><dt class="text-slate-500">Birth date</dt><dd class="font-medium text-slate-800" x-text="signup.date_of_birth || '—'"></dd></div>
+                                                    <div class="flex items-center justify-between gap-3">
+                                                        <dt class="text-slate-500">QR Validation</dt>
+                                                        <dd>
+                                                            <span x-show="scan.qrIdNumber" x-cloak class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                                                                <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                                                QR Verified
+                                                            </span>
+                                                            <span x-show="scan.status && !scan.qrIdNumber" x-cloak class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                                                                OCR Only
+                                                            </span>
+                                                            <span x-show="!scan.status" x-cloak class="text-slate-400">—</span>
+                                                        </dd>
+                                                    </div>
                                                 </dl>
                                             </div>
                                         </div>
@@ -237,10 +306,10 @@
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Full Name</label>
                                                 <input name="name" type="text" value="{{ old('name') }}" x-model="signup.name" required autocomplete="name"
-                                                       maxlength="20"
-                                                       @input="signup.name = signup.name.replace(/[0-9]/g, '').substring(0, 20)"
+                                                       maxlength="50"
+                                                       @input="signup.name = (signup.name || '').replace(/[0-9]/g, '').substring(0, 50)"
                                                        class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                                <p class="mt-1 text-xs text-slate-400" x-text="signup.name.length + '/20 characters'"></p>
+                                                <p class="mt-1 text-xs text-slate-400" x-text="(signup.name || '').length + '/50 characters'"></p>
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Email</label>
@@ -287,17 +356,20 @@
                                                 <select name="course" x-model="signup.course" :required="signup.user_type === 'student'" :disabled="signup.user_type !== 'student'"
                                                         class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                                     <option value="">Select course or department</option>
-                                                    <option value="BSIT" @selected(old('course') === 'BSIT')>BSIT</option>
-                                                    <option value="BSIE" @selected(old('course') === 'BSIE')>BSIE</option>
-                                                    <option value="BSENT" @selected(old('course') === 'BSENT')>BSENT</option>
-                                                    <option value="BSCS" @selected(old('course') === 'BSCS')>BSCS</option>
-                                                    <option value="BSCPE" @selected(old('course') === 'BSCPE')>BSCPE</option>
-                                                    <option value="BSED" @selected(old('course') === 'BSED')>BSED</option>
-                                                    <option value="BEED" @selected(old('course') === 'BEED')>BEED</option>
-                                                    <option value="BSOA" @selected(old('course') === 'BSOA')>BSOA</option>
-                                                    <option value="BSA" @selected(old('course') === 'BSA')>BSA</option>
-                                                    <option value="BSBA" @selected(old('course') === 'BSBA')>BSBA</option>
-                                                    <option value="OTHER" @selected(old('course') === 'OTHER')>OTHER</option>
+                                                    <optgroup label="College of Business Administration & Accountancy">
+                                                        <option value="BSA" @selected(old('course') === 'BSA')>BSA — Bachelor of Science in Accountancy</option>
+                                                        <option value="BS Entrep" @selected(old('course') === 'BS Entrep')>BS Entrep — Bachelor of Science in Entrepreneurship</option>
+                                                    </optgroup>
+                                                    <optgroup label="College of Education">
+                                                        <option value="BECEd" @selected(old('course') === 'BECEd')>BECEd — Bachelor of Early Childhood Education</option>
+                                                    </optgroup>
+                                                    <optgroup label="College of Engineering">
+                                                        <option value="BSIE" @selected(old('course') === 'BSIE')>BSIE — Bachelor of Science in Industrial Engineering</option>
+                                                        <option value="BSECE" @selected(old('course') === 'BSECE')>BSECE — Bachelor of Science in Electronics Engineering</option>
+                                                    </optgroup>
+                                                    <optgroup label="College of Computer Studies">
+                                                        <option value="BSIT" @selected(old('course') === 'BSIT')>BSIT — Bachelor of Science in Information Technology</option>
+                                                    </optgroup>
                                                 </select>
                                             </div>
                                             <div>
@@ -343,7 +415,8 @@
                                                 <p class="mt-1 text-xs text-slate-400" x-text="(signup.address || '').length + '/100 characters'"></p>
                                             </div>
                                             <div class="md:col-span-2" x-data="{
-                                                get hasMin() { return signupPassword.length >= 15 },
+                                                get hasMin() { return signupPassword.length >= 8 },
+                                                get hasMax() { return signupPassword.length <= 16 },
                                                 get hasUpper() { return /[A-Z]/.test(signupPassword) },
                                                 get hasNumber() { return /\d/.test(signupPassword) },
                                                 get strength() {
@@ -357,9 +430,10 @@
                                                 <label class="block text-sm font-semibold text-slate-700">Password</label>
                                                 <div class="relative mt-1">
                                                     <input name="password" :type="showSignupPassword ? 'text' : 'password'" required autocomplete="new-password"
-                                                           x-model="signupPassword" minlength="15" maxlength="50"
+                                                           x-model="signupPassword" minlength="8" maxlength="16"
+                                                           @input="if (signupPassword.length > 16) signupPassword = signupPassword.substring(0, 16)"
                                                            class="w-full rounded-xl border border-slate-200 px-3 py-2.5 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                                           :class="signupPassword.length > 0 && signupPassword.length < 15 ? 'border-red-300 focus:ring-red-400' : ''">
+                                                           :class="signupPassword.length > 0 && signupPassword.length < 8 ? 'border-red-300 focus:ring-red-400' : ''">
                                                     <button type="button"
                                                             @click="showSignupPassword = !showSignupPassword"
                                                             :aria-label="showSignupPassword ? 'Hide password' : 'Show password'"
@@ -371,10 +445,10 @@
                                                 <!-- Password Requirements Checklist -->
                                                 <div x-show="signupPassword.length > 0" x-cloak x-transition class="mt-2 space-y-1">
                                                     <div class="flex items-center gap-2 text-xs transition-colors duration-200"
-                                                         :class="signupPassword.length >= 15 ? 'text-emerald-700' : 'text-slate-500'">
+                                                         :class="signupPassword.length >= 8 ? 'text-emerald-700' : 'text-slate-500'">
                                                         <i class="w-3.5 h-3.5 fa-icon text-sm leading-none"
-                                                           :class="signupPassword.length >= 15 ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i>
-                                                        <span>Minimum 15 characters</span>
+                                                           :class="signupPassword.length >= 8 ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i>
+                                                        <span>8–16 characters (<span x-text="signupPassword.length"></span>/16)</span>
                                                     </div>
                                                     <div class="flex items-center gap-2 text-xs" :class="hasUpper ? 'text-emerald-700' : 'text-slate-500'">
                                                         <i class="w-3.5 h-3.5 fa-icon text-sm leading-none" :class="hasUpper ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i>
@@ -384,7 +458,17 @@
                                                         <i class="w-3.5 h-3.5 fa-icon text-sm leading-none" :class="hasNumber ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i>
                                                         <span>At least one number</span>
                                                     </div>
-                                                    <div class="mt-1">
+                                                    <!-- Strength meter bar -->
+                                                    <div class="mt-2 flex items-center gap-2">
+                                                        <div class="flex-1 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                                                            <div class="h-full rounded-full transition-all duration-300"
+                                                                 :style="`width: ${strength * 33.33}%`"
+                                                                 :class="{
+                                                                     'bg-rose-500': strength === 1,
+                                                                     'bg-amber-500': strength === 2,
+                                                                     'bg-emerald-500': strength === 3
+                                                                 }"></div>
+                                                        </div>
                                                         <span class="text-xs font-semibold" :class="{
                                                             'text-rose-600': strength === 1,
                                                             'text-amber-600': strength === 2,
@@ -401,7 +485,8 @@
                                                 <label class="block text-sm font-semibold text-slate-700">Confirm Password</label>
                                                 <div class="relative mt-1">
                                                     <input name="password_confirmation" :type="showSignupConfirmPassword ? 'text' : 'password'" required autocomplete="new-password"
-                                                           x-model="signupConfirmPassword" minlength="15" maxlength="50"
+                                                           x-model="signupConfirmPassword" minlength="8" maxlength="16"
+                                                           @input="if (signupConfirmPassword.length > 16) signupConfirmPassword = signupConfirmPassword.substring(0, 16)"
                                                            class="w-full rounded-xl border border-slate-200 px-3 py-2.5 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                                            :class="signupConfirmPassword.length > 0 && signupConfirmPassword !== signupPassword ? 'border-red-300 focus:ring-red-400' : ''">
                                                     <button type="button"
@@ -470,6 +555,7 @@
 </script>
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script type="text/javascript">
 // Blade: Hide signupOldInput and signupQcidVerifyUrl from page output
 window.signupOldInput = {
@@ -489,15 +575,15 @@ window.signupOldInput = {
 window.signupQcidVerifyUrl = @json(route('signup.qcid.verify'));
 </script>
 <script>
-function signupLoginApp(initialSignupOpen) {
+function signupLoginApp($persist, initialSignupOpen) {
     return {
-        signupOpen: !!initialSignupOpen,
+        signupOpen: $persist(!!initialSignupOpen).as('smartspace_signup_open'),
         showLoginPassword: false,
         showSignupPassword: false,
         showSignupConfirmPassword: false,
         signupPassword: '',
         signupConfirmPassword: '',
-        signup: { ...window.signupOldInput },
+        signup: $persist({ ...window.signupOldInput }).as('smartspace_signup_data'),
         scan: {
             file: null,
             previewUrl: '',
@@ -507,11 +593,40 @@ function signupLoginApp(initialSignupOpen) {
             idAssessment: '',
             confidenceLabel: '',
             isVerified: false,
+            qrData: '',
+            qrIdNumber: '',
         },
 
         init() {
-            // Copy old input values into signup object on Alpine.js init
-            this.signup = { ...this.signupOldInput };
+            // Server-side validation errors take precedence over cached state
+            if (initialSignupOpen) {
+                this.signupOpen = true;
+                
+                // Merge old inputs dynamically over what was locally stored
+                for (const key in window.signupOldInput) {
+                    if (window.signupOldInput[key]) {
+                        this.signup[key] = window.signupOldInput[key];
+                    }
+                }
+            } else if (!this.signup) {
+                // Failsafe initialization
+                this.signup = { ...window.signupOldInput };
+            }
+        },
+
+        validateAndSubmitSignup(formEl) {
+            this.scan.error = '';
+
+            if (this.scan.qrIdNumber) {
+                const enteredId = (this.signup.qcid_number || '').replace(/\s+/g, '');
+                const qrId = this.scan.qrIdNumber.replace(/\s+/g, '');
+                if (enteredId !== qrId) {
+                    this.scan.error = 'QC ID number mismatch! Your ID\'s QR code shows ' + this.scan.qrIdNumber + ', but the form has ' + this.signup.qcid_number + '. The QC ID number must match the QR code on your physical ID.';
+                    return;
+                }
+            }
+
+            formEl.submit();
         },
 
         onSignupQcImageChange(event) {
@@ -546,40 +661,53 @@ function signupLoginApp(initialSignupOpen) {
 
         normalizeDate(raw) {
             if (!raw) return '';
-            
-            // Clean up the string: replace all separators with a single space
-            const cleaned = String(raw).toUpperCase().replace(/[^A-Z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
-            
-            // Try standard Date parsing first for things like "JAN 01 1990"
-            const dateObj = new Date(cleaned);
-            if (!isNaN(dateObj.getTime())) {
-                return dateObj.toISOString().split('T')[0];
+
+            // Clean: replace separators with '/' for consistent parsing
+            let cleaned = String(raw).trim().replace(/[\-\.]/g, '/');
+
+            // YYYY/MM/DD format (from server)
+            let m = cleaned.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+            if (m) {
+                return `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
             }
 
-            // Fallback for DD MM YYYY or MM DD YYYY
-            const parts = cleaned.split(' ');
-            if (parts.length === 3) {
-                let day, month, year;
-                if (parts[2].length === 4) { // YYYY is at the end
-                    year = parts[2];
-                    if (parseInt(parts[0]) > 12) { // Definitely DD MM YYYY
-                        day = parts[0];
-                        month = parts[1];
-                    } else { // Ambiguous, assume MM DD YYYY or standard format
-                        month = parts[0];
-                        day = parts[1];
-                    }
-                } else if (parts[0].length === 4) { // YYYY is at the start
-                    year = parts[0];
-                    month = parts[1];
-                    day = parts[2];
-                }
+            // MM/DD/YYYY or DD/MM/YYYY format
+            m = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (m) {
+                const a = parseInt(m[1], 10);
+                const b = parseInt(m[2], 10);
+                const year = m[3];
+                // If first number > 12, it must be day (DD/MM/YYYY)
+                const month = a > 12 ? b : a;
+                const day = a > 12 ? a : b;
+                return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            }
 
-                if (year && month && day) {
-                    // Normalize to YYYY-MM-DD
-                    const m = String(month).padStart(2, '0');
-                    const d = String(day).padStart(2, '0');
-                    return `${year}-${m}-${d}`;
+            // YYYYMMDD (8 continuous digits)
+            m = cleaned.match(/^(\d{4})(\d{2})(\d{2})$/);
+            if (m) {
+                return `${m[1]}-${m[2]}-${m[3]}`;
+            }
+
+            // YYYY-MM-DD already
+            m = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (m) {
+                return cleaned;
+            }
+
+            // Last resort: try string-based parsing without Date object (avoids timezone shift)
+            const parts = cleaned.replace(/[^0-9]/g, ' ').replace(/\s+/g, ' ').trim().split(' ');
+            if (parts.length === 3) {
+                let year, month2, day2;
+                if (parts[0].length === 4) { year = parts[0]; month2 = parts[1]; day2 = parts[2]; }
+                else if (parts[2].length === 4) {
+                    year = parts[2];
+                    const aa = parseInt(parts[0], 10);
+                    month2 = aa > 12 ? parts[1] : parts[0];
+                    day2 = aa > 12 ? parts[0] : parts[1];
+                }
+                if (year && month2 && day2) {
+                    return `${year}-${String(month2).padStart(2, '0')}-${String(day2).padStart(2, '0')}`;
                 }
             }
 
@@ -593,6 +721,98 @@ function signupLoginApp(initialSignupOpen) {
                 reader.onload = () => resolve(reader.result);
                 reader.onerror = error => reject(error);
             });
+        },
+
+        /**
+         * Decode QR code from an uploaded image file using jsQR.
+         * Returns the raw QR data string, or null if no QR found.
+         */
+        async decodeQrFromImage(file) {
+            return new Promise((resolve) => {
+                if (typeof jsQR === 'undefined') {
+                    resolve(null);
+                    return;
+                }
+
+                const img = new Image();
+                img.onload = () => {
+                    // Create a canvas to get pixel data
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+
+                    // Try multiple resolutions for better QR detection
+                    const attempts = [
+                        { w: img.width, h: img.height },           // Original size
+                        { w: Math.min(img.width * 2, 4000), h: Math.min(img.height * 2, 4000) }, // Upscaled
+                        { w: Math.round(img.width * 0.5), h: Math.round(img.height * 0.5) },     // Downscaled
+                    ];
+
+                    for (const size of attempts) {
+                        canvas.width = size.w;
+                        canvas.height = size.h;
+                        ctx.drawImage(img, 0, 0, size.w, size.h);
+
+                        const imageData = ctx.getImageData(0, 0, size.w, size.h);
+                        const qrCode = jsQR(imageData.data, imageData.width, imageData.height, {
+                            inversionAttempts: 'attemptBoth',
+                        });
+
+                        if (qrCode && qrCode.data) {
+                            resolve(qrCode.data);
+                            return;
+                        }
+                    }
+
+                    resolve(null);
+                };
+                img.onerror = () => resolve(null);
+
+                // Load image from file
+                const reader = new FileReader();
+                reader.onload = (e) => { img.src = e.target.result; };
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(file);
+            });
+        },
+
+        /**
+         * Extract a QC ID number from QR code data.
+         * QR data may be: plain number, URL, JSON, or key=value pairs.
+         */
+        extractQcIdFromQr(qrData) {
+            if (!qrData) return null;
+
+            const text = String(qrData).trim();
+
+            // Pattern: 14-digit number with optional spaces/dashes (e.g. "005 000 01257479")
+            const idPattern = /(\d{3})\s*(\d{3})\s*(\d{8})/;
+            let match = text.match(idPattern);
+            if (match) {
+                return `${match[1]} ${match[2]} ${match[3]}`;
+            }
+
+            // Pattern: continuous 14-digit number
+            match = text.match(/(\d{14})/);
+            if (match) {
+                const d = match[1];
+                return `${d.substring(0,3)} ${d.substring(3,6)} ${d.substring(6,14)}`;
+            }
+
+            // Pattern: 13-digit number (missing leading zero)
+            match = text.match(/(\d{13})/);
+            if (match) {
+                const d = '0' + match[1];
+                return `${d.substring(0,3)} ${d.substring(3,6)} ${d.substring(6,14)}`;
+            }
+
+            // Try to extract from URL (e.g. https://qcid.quezon.gov.ph/verify/00500001257479)
+            match = text.match(/\d{10,14}/);
+            if (match) {
+                const d = match[0].padStart(14, '0').substring(0, 14);
+                return `${d.substring(0,3)} ${d.substring(3,6)} ${d.substring(6,14)}`;
+            }
+
+            return null;
         },
 
         parseDateCandidates(text) {
@@ -798,18 +1018,31 @@ function signupLoginApp(initialSignupOpen) {
             }
 
             this.scan.isProcessing = true;
-            this.scan.status = 'Reading QC ID image...';
+            this.scan.status = 'Scanning QR code & reading QC ID image...';
             this.scan.idAssessment = '';
             this.scan.confidenceLabel = '';
             this.scan.isVerified = false;
+            this.scan.qrData = '';
+            this.scan.qrIdNumber = '';
 
             try {
+                // Step 1: Decode QR code from the uploaded image
+                const qrResult = await this.decodeQrFromImage(this.scan.file);
+                this.scan.qrData = qrResult || '';
+
+                if (qrResult) {
+                    this.scan.status = 'QR code found! Verifying with server...';
+                } else {
+                    this.scan.status = 'No QR code found. Reading text via OCR...';
+                }
+
                 const base64Image = await this.getBase64(this.scan.file);
 
                 const formData = new FormData();
-                formData.append('ocr_text', ocrText);
+                formData.append('ocr_text', this.signup.ocr_text || '');
                 formData.append('user_name', this.signup.name || '');
                 formData.append('qcid_image', this.scan.file);
+                formData.append('qr_data', this.scan.qrData);
 
                 const response = await fetch(window.signupQcidVerifyUrl, {
                     method: 'POST',
@@ -841,9 +1074,12 @@ function signupLoginApp(initialSignupOpen) {
                     this.signup.valid_until = '';
                     this.signup.address = '';
 
-                    this.scan.error = this.scan.idAssessment === 'Fake QC ID'
-                        ? 'This ID is FAKE QC ID.'
-                        : 'This ID is INVALID.';
+                    // Use the server's specific message (e.g., "This ID is invalid because it's a Postal ID")
+                    this.scan.error = payload?.message || (
+                        this.scan.idAssessment === 'Fake QC ID'
+                            ? 'This ID is FAKE. Please upload a genuine Quezon City Citizen ID.'
+                            : 'This ID is INVALID. Only Quezon City Citizen IDs (QC IDs) are accepted.'
+                    );
                     this.scan.status = this.scan.idAssessment === 'Fake QC ID' ? 'Fake QC ID detected.' : 'Invalid ID detected.';
                 } else {
                     this.signup.ocr_text = payload?.ocr_text || '';
@@ -857,10 +1093,31 @@ function signupLoginApp(initialSignupOpen) {
                         verification.normalized_text || '',
                         this.signup.ocr_text || '',
                     );
-                    this.signup.qcid_number = correctedId || verification.id_number || '';
+                    let ocrIdNumber = correctedId || verification.id_number || '';
+
+                    // === QR Code Cross-Validation ===
+                    // If QR data was decoded, extract the QC ID number from it
+                    const qrIdNumber = this.extractQcIdFromQr(this.scan.qrData) ||
+                                       (payload?.qr_id_number || '');
+
+                    if (qrIdNumber) {
+                        this.scan.qrIdNumber = qrIdNumber;
+
+                        // QR is authoritative — use it over OCR
+                        if (ocrIdNumber && ocrIdNumber !== qrIdNumber) {
+                            this.scan.status = `QR code verified. QC ID auto-corrected from "${ocrIdNumber}" to "${qrIdNumber}".`;
+                        }
+                        this.signup.qcid_number = qrIdNumber;
+                    } else {
+                        // No QR found — use OCR result
+                        this.signup.qcid_number = ocrIdNumber;
+                    }
 
                     if (verification.sex) {
-                        this.signup.sex = verification.sex;
+                        // Server returns 'M'/'F', dropdown expects 'MALE'/'FEMALE'
+                        const sexVal = verification.sex.toUpperCase();
+                        if (sexVal === 'M' || sexVal === 'MALE') this.signup.sex = 'MALE';
+                        else if (sexVal === 'F' || sexVal === 'FEMALE') this.signup.sex = 'FEMALE';
                     }
                     if (verification.civil_status) {
                         this.signup.civil_status = verification.civil_status;
@@ -917,7 +1174,6 @@ function signupLoginApp(initialSignupOpen) {
     const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
     const iosInstallHint = document.getElementById('iosInstallHint');
-    const desktopInstallHint = document.getElementById('desktopInstallHint');
     const installBtn = document.getElementById('installBtn');
     const installContainer = document.getElementById('installPromptContainer');
     const installToast = document.getElementById('installToast');
@@ -961,15 +1217,10 @@ function signupLoginApp(initialSignupOpen) {
 
     const updateInstallUiState = () => {
         const installed = isAppInstalled();
-        const canShowInstallButton = isMobileBrowser && !installed;
-        const shouldShowDesktopHint = !isMobileBrowser && !installed;
 
+        // Show Install App button for everyone who hasn't installed yet
         if (installContainer) {
-            installContainer.classList.toggle('hidden', !canShowInstallButton);
-        }
-
-        if (desktopInstallHint) {
-            desktopInstallHint.classList.toggle('hidden', !shouldShowDesktopHint);
+            installContainer.classList.toggle('hidden', installed);
         }
     };
 
@@ -986,30 +1237,38 @@ function signupLoginApp(initialSignupOpen) {
     });
 
     installBtn?.addEventListener('click', async () => {
-        if (!deferredInstallPrompt) {
-            if (!isMobileBrowser) {
-                showInstallToast('Use your browser install menu, or open SmartSpace on your phone to install.');
-            } else {
-                showInstallToast('Use your browser install menu to add SmartSpace to home screen.');
+        // Path 1: Native PWA install prompt is available
+        if (deferredInstallPrompt) {
+            deferredInstallPrompt.prompt();
+            const { outcome } = await deferredInstallPrompt.userChoice;
+
+            if (outcome === 'accepted') {
+                markAppInstalled();
+                showInstallToast('SmartSpace installed successfully!');
+                updateInstallUiState();
             }
 
-            if (isIos && iosInstallHint) {
-                iosInstallHint.classList.remove('hidden');
-            }
-
+            deferredInstallPrompt = null;
             return;
         }
 
-        deferredInstallPrompt.prompt();
-        const { outcome } = await deferredInstallPrompt.userChoice;
-
-        if (outcome === 'accepted') {
-            markAppInstalled();
-            updateInstallUiState();
-            showInstallToast('SmartSpace app installed successfully.');
+        // Path 2: iOS — show specific instructions
+        if (isIos) {
+            if (iosInstallHint) {
+                iosInstallHint.classList.remove('hidden');
+            }
+            showInstallToast('Tap the Share button, then "Add to Home Screen".');
+            return;
         }
 
-        deferredInstallPrompt = null;
+        // Path 3: Desktop/Android — guide to browser install UI
+        const isChromium = /chrome|chromium|edg|opr|opera/i.test(navigator.userAgent);
+
+        if (isChromium) {
+            showInstallToast('Click the install icon (⊕) in your browser\'s address bar, or use Menu → "Install SmartSpace"');
+        } else {
+            showInstallToast('Use your browser menu to add SmartSpace to your home screen.');
+        }
     });
 
     window.addEventListener('appinstalled', () => {
@@ -1021,8 +1280,13 @@ function signupLoginApp(initialSignupOpen) {
             iosInstallHint.classList.add('hidden');
         }
 
-        showInstallToast('SmartSpace app installed successfully.');
+        showInstallToast('SmartSpace has been installed!');
     });
+
+    // Register service worker for PWA support
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
 
     document.addEventListener('keydown', function (e) {
         const key = (e.key || '').toLowerCase();

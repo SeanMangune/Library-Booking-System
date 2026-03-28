@@ -159,7 +159,7 @@ class QcIdOcrVerifier
         array $matchedMarkers,
         ?string $rejectedIdType
     ): ?string {
-        if (preg_match('/\b(FAKE|SAMPLE|SPECIMEN|NOT\s+VALID|FOR\s+DISPLAY\s+ONLY|DEMO)\b/', $normalized) === 1) {
+        if (preg_match('/\b(FAKE|SAMPLE|SPECIMEN|NOT\s+VALID|FOR\s+DISPLAY\s+ONLY|DEMO|MOCK\s*UP|DUMMY|PROTOTYPE)\b/', $normalized) === 1) {
             return 'Image text contains fake/sample markers.';
         }
 
@@ -174,8 +174,35 @@ class QcIdOcrVerifier
         $idNumber = $fields['id_number'] ?? null;
         if ($idNumber !== null) {
             $digits = preg_replace('/\D/', '', $idNumber) ?? '';
-            if ($digits !== '' && preg_match('/^(\d)\1{13}$/', $digits) === 1) {
-                return 'QC ID number pattern is suspicious.';
+            // All-same digits (e.g. 11111111111111)
+            if ($digits !== '' && preg_match('/^(\d)\1{9,}$/', $digits) === 1) {
+                return 'QC ID number pattern is suspicious (repeating digits).';
+            }
+            // Sequential digits (12345678901234)
+            if ($digits !== '' && preg_match('/^(?:0123456789|1234567890|9876543210)/', $digits) === 1) {
+                return 'QC ID number pattern is suspicious (sequential digits).';
+            }
+            // Too short or too long for a real QC ID number
+            if (strlen($digits) > 0 && (strlen($digits) < 8 || strlen($digits) > 16)) {
+                return 'QC ID number length is inconsistent with genuine QC IDs.';
+            }
+        }
+
+        // Known sample QC ID numbers used in training/testing
+        $knownFakeIds = ['00000000000000', '12345678901234', '99999999999999', '11111111111111'];
+        if ($idNumber !== null) {
+            $cleanId = preg_replace('/[\s\-]/', '', $idNumber) ?? '';
+            if (in_array($cleanId, $knownFakeIds, true)) {
+                return 'This QC ID number matches a known sample/test ID.';
+            }
+        }
+
+        // Check for known sample names commonly used in fake IDs
+        $cardholderName = strtoupper($fields['cardholder_name'] ?? '');
+        $sampleNames = ['JUAN DELA CRUZ', 'JANE DOE', 'JOHN DOE', 'MARIA CLARA', 'JOSE RIZAL', 'TEST USER', 'SAMPLE NAME'];
+        foreach ($sampleNames as $sampleName) {
+            if ($cardholderName !== '' && str_contains($cardholderName, $sampleName)) {
+                return 'Cardholder name matches a known sample/placeholder name.';
             }
         }
 
@@ -1202,15 +1229,16 @@ class QcIdOcrVerifier
     private function extractCardholderName(string $normalized, array $lines): ?string
     {
         // Strategy 1: Look for the line ABOVE the Sex/DOB/Civil Status labels.
-        // On QC IDs, the name is typically the largest text block above the demographic fields.
         foreach ($lines as $index => $line) {
             if (preg_match('/\b(?:SEX|DATE\s*OF\s*BIRTH|CIVIL\s*STATUS)\b/', $line)) {
-                // Check up to 3 lines above
-                for ($offset = 1; $offset <= 3; $offset++) {
+                for ($offset = 1; $offset <= 4; $offset++) {
                     $idx = $index - $offset;
                     if ($idx >= 0) {
-                        $candidate = $lines[$idx];
-                        if (!$this->looksLikeLabel($candidate) && preg_match('/[A-Z]{3,}/', $candidate)) {
+                        $candidate = trim($lines[$idx]);
+                        if ($candidate === '' || $this->looksLikeLabel($candidate)) continue;
+                        if (preg_match('/[A-Z]{2,}/', $candidate) && mb_strlen($candidate) >= 5) {
+                            if (preg_match('/^\d[\d\/\-\s]+$/', $candidate)) continue;
+                            if (preg_match('/^\d{2,}\s/', $candidate)) continue;
                             return $this->cleanName($candidate);
                         }
                     }
@@ -1218,25 +1246,50 @@ class QcIdOcrVerifier
             }
         }
 
-        // Strategy 2: LAST NAME, FIRST NAME, MIDDLE NAME followed by a
-        // name-like string before the next field label.
+        // Strategy 2: Line after LAST NAME/FIRST NAME label
+        foreach ($lines as $index => $line) {
+            if (preg_match('/LAST\s*NAME.*FIRST\s*NAME|FIRST\s*NAME.*LAST\s*NAME/', $line)) {
+                $nextLine = $lines[$index + 1] ?? '';
+                if ($nextLine !== '' && !$this->looksLikeLabel($nextLine) && preg_match('/[A-Z]{2,}/', $nextLine)) {
+                    return $this->cleanName($nextLine);
+                }
+            }
+        }
+
+        // Strategy 3: LAST NAME, FIRST NAME, MIDDLE NAME followed by name text
         if (preg_match('/LAST\s*NAME,?\s*FIRST\s*NAME,?\s*MIDDLE\s*NAME\s+([A-Z][A-Z\s,\.\-]{4,}?)\b/', $normalized, $matches) === 1) {
             return $this->cleanName($matches[1]);
         }
 
-        // Strategy 3: Look for comma-separated name pattern (SURNAME, FIRST MIDDLE)
+        // Strategy 4: Comma-separated (SURNAME, FIRST MIDDLE) — QC ID standard format
         foreach ($lines as $line) {
             if ($this->looksLikeLabel($line)) continue;
-            if (preg_match('/^([A-Z\s]{2,}),\s*([A-Z\s]{2,}(?:\s+[A-Z\s]{2,})*)$/', trim($line), $m)) {
-                return $this->cleanName($m[0]);
+            $trimmed = trim($line);
+            if (preg_match('/^([A-Z]{2,}),\s*([A-Z][A-Z\s\.]{2,})$/', $trimmed, $m)) {
+                if (!preg_match('/\b(?:CITY|STREET|BARANGAY|QUEZON|REPUBLIC|ADDRESS|CARD)\b/', $m[0])) {
+                    return $this->cleanName($m[0]);
+                }
             }
         }
 
-        // Strategy 4: Any line starting with common QC surnames or having name structure
+        // Strategy 5: Multi-word uppercase line (FIRST LAST or FIRST MIDDLE LAST)
         foreach ($lines as $line) {
             if ($this->looksLikeLabel($line)) continue;
-            if (preg_match('/^[A-Z]{3,}\s+[A-Z]{2,}(?:\s+[A-Z\s]{2,})*$/', trim($line))) {
-                return $this->cleanName($line);
+            $trimmed = trim($line);
+            if (preg_match('/^[A-Z][A-Z\s,\.\-]+$/', $trimmed) && mb_strlen($trimmed) >= 5) {
+                $words = preg_split('/[\s,]+/', $trimmed, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+                $alphaWords = array_filter($words, fn ($w) => preg_match('/^[A-Z]{2,}$/', $w));
+                if (count($alphaWords) >= 2 && count($words) <= 6) {
+                    if (preg_match('/\b(?:CITY|STREET|BARANGAY|QUEZON|REPUBLIC|KASAMA|CITIZEN|CARDHOLDER|SIGNATURE|ADDRESS|EMERGENCY)\b/', $trimmed)) continue;
+                    return $this->cleanName($trimmed);
+                }
+            }
+        }
+
+        // Strategy 6: Comma-name pattern anywhere in normalized text
+        if (preg_match('/\b([A-Z]{2,}),\s*([A-Z]{2,}(?:\s+[A-Z\.]{1,}){0,3})\b/', $normalized, $m)) {
+            if (!preg_match('/\b(?:CITY|QUEZON|REPUBLIC|KASAMA|CITIZEN|ADDRESS)\b/', $m[0])) {
+                return $this->cleanName($m[0]);
             }
         }
 
@@ -1252,11 +1305,9 @@ class QcIdOcrVerifier
         foreach ($lines as $index => $line) {
             if (preg_match('/\bADDRESS\b/', $line)) {
                 $addressParts = [];
-                // Check current and next 3 lines
                 for ($offset = 0; $offset <= 3; $offset++) {
                     $idx = $index + $offset;
                     $candidate = $lines[$idx] ?? '';
-                    // Clean "ADDRESS" label from the first line
                     if ($offset === 0) $candidate = trim(preg_replace('/\bADDRESS\b/', '', $candidate));
                     
                     if ($candidate && !$this->looksLikeLabel($candidate)) {
@@ -1272,7 +1323,6 @@ class QcIdOcrVerifier
         foreach ($lines as $index => $line) {
             if (preg_match('/QUEZON\s*CITY/i', $line)) {
                 $parts = [];
-                // Grab 2 lines above
                 for ($back = 2; $back >= 1; $back--) {
                     $prev = $lines[$index - $back] ?? null;
                     if ($prev && !$this->looksLikeLabel($prev)) $parts[] = $prev;
@@ -1287,7 +1337,6 @@ class QcIdOcrVerifier
 
     /**
      * Prefer the strict 3-3-8 digit pattern from the lower card strip.
-     * This avoids accidental matches from dates or noisy OCR fragments.
      *
      * @param list<string> $lines
      */
@@ -1327,41 +1376,56 @@ class QcIdOcrVerifier
         $value = preg_replace('/\s+/', ' ', trim($value)) ?? trim($value);
         $value = trim($value, ' .,');
 
+        // Remove known OCR noise labels that may appear in a name line
+        $value = preg_replace('/\b(?:LAST\s*NAME|FIRST\s*NAME|MIDDLE\s*NAME|CARDHOLDER|SIGNATURE)\b/', '', $value) ?? $value;
+        $value = trim(preg_replace('/\s+/', ' ', $value) ?? $value);
+
         // OCR sometimes prefixes a stray single character before
         // surname-based names (e.g. "A JIBE, MICCO JIRO FRUELDA").
         $value = preg_replace('/^[A-Z0-9]\s+(?=[A-Z]{2,},\s*[A-Z])/', '', $value) ?? $value;
 
-        // Remove trailing digits / single characters that are OCR noise
-        // e.g. "CALINAWAN 3" → "CALINAWAN"
+        // Remove trailing pure digit noise (e.g. "CALINAWAN 3")
         $value = preg_replace('/\s+\d+$/', '', $value) ?? $value;
-        // Remove trailing single character (not part of a name)
-        $value = preg_replace('/\s+[A-Z0-9]$/', '', $value) ?? $value;
 
+        // Only remove trailing single char if it's a digit (preserve middle initials)
         $parts = preg_split('/\s+/', $value) ?: [];
         if (count($parts) >= 3) {
             $last = end($parts);
-            if ($last !== false && strlen($last) <= 2) {
+            if ($last !== false && strlen($last) === 1 && ctype_digit($last)) {
                 array_pop($parts);
                 $value = implode(' ', $parts);
             }
         }
 
-        return trim($value);
+        return trim($value, ' ,.-');
     }
 
     private function cleanAddress(string $value): string
     {
         $value = mb_strtoupper($value, 'UTF-8');
         $value = preg_replace('/[^A-Z0-9,\.\-\s]/u', ' ', $value) ?? $value;
-        $value = preg_replace('/\b(?:ADDRESS|CARDHOLDER|SIGNATURE|EMERGENCY|CONTACT|RELAY|GNATURE|DATE\s*ISSUED|VALID\s*UNTIL|DATE\s*(?:OF)?\s*BIRTH|CIVIL\s*STATUS|REPUBLIC\s+OF\s+THE\s+PHILIPPINES|Q\s*CITIZEN\s*CARD|LAST\s*NAME|FIRST\s*NAME|MIDDLE\s*NAME|SEX|IN\s*CASE\s*OF)\b/', ' ', $value) ?? $value;
+
+        // Remove label/header text that OCR often mixes in
+        $value = preg_replace('/\b(?:ADDRESS|CARDHOLDER|SIGNATURE|EMERGENCY|CONTACT|RELAY|GNATURE|DATE\s*ISSUED|VALID\s*UNTIL|DATE\s*(?:OF)?\s*BIRTH|CIVIL\s*STATUS|REPUBLIC\s+OF\s+THE\s+PHILIPPINES|Q\s*CITIZEN\s*CARD|LAST\s*NAME|FIRST\s*NAME|MIDDLE\s*NAME|SEX|IN\s*CASE\s*OF|BLOOD\s*TYPE|KASAMA\s*KA\s*SA\s*PAG\s*UNLAD)\b/', ' ', $value) ?? $value;
         $value = preg_replace('/\bREPUBLIC\s+OF\s+THE\s+[A-Z]{1,20}\b/', ' ', $value) ?? $value;
+
+        // Remove dates (YYYY/MM/DD or MM/DD/YYYY patterns)
+        $value = preg_replace('/\b\d{4}[\/-]\d{2}[\/-]\d{2}\b/', ' ', $value) ?? $value;
+        $value = preg_replace('/\b\d{2}[\/-]\d{2}[\/-]\d{4}\b/', ' ', $value) ?? $value;
+
+        // Remove phone numbers (e.g. 0998 954 6210)
+        $value = preg_replace('/\b0\d{3}\s*\d{3}\s*\d{4}\b/', ' ', $value) ?? $value;
+        $value = preg_replace('/\b09\d{9}\b/', ' ', $value) ?? $value;
+
+        // Remove emergency contact names (pattern: SURNAME, FIRST V.)
+        $value = preg_replace('/[A-Z]{2,},\s*[A-Z]{2,}\s*[A-Z]\.?\s*/', ' ', $value) ?? $value;
+
         $value = preg_replace('/\s+/', ' ', trim($value)) ?? trim($value);
 
-        if (preg_match('/\b(?:BLK|BLOCK|LOT|STREET|ST|ROAD|RD|AVENUE|AVE|SUBD|SUBDIVISION)\b.*$/', $value, $m)) {
-            $value = $m[0];
-        }
-
-        if (preg_match('/((?:BLK\-?\d*|LOT\-?\d*|UNIT\-?\d*|#\d+)\s*[A-Z0-9,\.\-\s]+?QUEZON\s*CITY)/', $value, $m)) {
+        // Anchor on street/address number pattern before QUEZON CITY
+        if (preg_match('/(\d{1,5}\s*[A-Z]?\s+[A-Z][A-Z0-9\s,\.\-]*?QUEZON\s*CITY)/', $value, $m)) {
+            $value = $m[1];
+        } elseif (preg_match('/((?:BLK\-?\d*|LOT\-?\d*|UNIT\-?\d*|#\d+)\s*[A-Z0-9,\.\-\s]+?QUEZON\s*CITY)/', $value, $m)) {
             $value = $m[1];
         } elseif (preg_match('/([A-Z0-9,\.\-\s]+?QUEZON\s*CITY)/', $value, $m)) {
             $value = $m[1];
@@ -1738,19 +1802,29 @@ class QcIdOcrVerifier
     {
         $nonQcMarkers = [
             'Philippine National ID (PhilSys)' => '/PHIL\w*\s*NATIONAL\s*ID|PHILSYS|PHILIPPINE\s*IDENTIFICATION\s*SYSTEM|PSN\s*\d/',
-            'Driver\'s License' => '/DRIVER\S?\s*S?\s*LICENSE|LAND\s*TRANSPORTATION|NON.?PROFESSIONAL\s*DRIVER|PROFESSIONAL\s*DRIVER/',
+            'Driver\'s License' => '/DRIVER\S?\s*S?\s*LICENSE|LAND\s*TRANSPORTATION|NON.?PROFESSIONAL\s*DRIVER|PROFESSIONAL\s*DRIVER|LTO\s*(?:ID|LICENSE)/',
             'PhilHealth ID' => '/PHILHEALTH|PHILIPPINE\s*HEALTH\s*INSURANCE|PHIC\b/',
             'SSS ID' => '/SOCIAL\s*SECURITY\s*SYSTEM|\bSSS\b\s*(?:MEMBER|NUMBER|ID)/',
             'UMID' => '/UNIFIED\s*MULTI.?PURPOSE\s*ID|U\.?M\.?I\.?D\b/',
-            'TIN Card' => '/TAXPAYER\s*IDENTIFICATION|BUREAU\s*OF\s*INTERNAL\s*REVENUE/',
-            'Philippine Passport' => '/PASSPORT\s*(?:NO|NUMBER)|DEPARTMENT\s*OF\s*FOREIGN\s*AFFAIRS/',
+            'TIN Card' => '/TAXPAYER\s*IDENTIFICATION|BUREAU\s*OF\s*INTERNAL\s*REVENUE|\bTIN\s*(?:ID|CARD|NO)/',
+            'Philippine Passport' => '/PASSPORT\s*(?:NO|NUMBER)|DEPARTMENT\s*OF\s*FOREIGN\s*AFFAIRS|\bPASSPORT\b/',
             'PRC ID' => '/PROFESSIONAL\s*REGULATION|PRC\s*(?:ID|BOARD|LICENSE)/',
-            'Postal ID' => '/POSTAL\s*(?:ID|IDENTIFICATION)|PHILIPPINE\s*POSTAL|PHILPOST/',
+            'Postal ID' => '/POSTAL\s*(?:ID|IDENTIFICATION)|PHILIPPINE\s*POSTAL|PHILPOST|PHLPost/',
             'Voter\'s ID' => '/VOTER\S?\s*S?\s*(?:ID|IDENTIFICATION)|COMMISSION\s*ON\s*ELECTIONS|COMELEC/',
-            'Senior Citizen ID' => '/SENIOR\s*CITIZEN\s*(?:ID|CARD)/',
-            'PWD ID' => '/PERSON\s*WITH\s*DISABILITY|\bPWD\s*(?:ID|CARD)/',
+            'Senior Citizen ID' => '/SENIOR\s*CITIZEN\s*(?:ID|CARD)|\bOSCA\b/',
+            'PWD ID' => '/PERSON\s*WITH\s*DISABILITY|\bPWD\s*(?:ID|CARD)|NATIONAL\s*COUNCIL\s*ON\s*DISABILITY/',
             'NBI Clearance' => '/NATIONAL\s*BUREAU\s*OF\s*INVESTIGATION|\bNBI\s*CLEARANCE/',
-            'School ID' => '/STUDENT\s*(?:ID|IDENTIFICATION)|UNIVERSITY\s*(?:ID|IDENTIFICATION)/',
+            'School ID' => '/STUDENT\s*(?:ID|IDENTIFICATION)|UNIVERSITY\s*(?:ID|IDENTIFICATION)|COLLEGE\s*(?:ID|IDENTIFICATION)/',
+            'Barangay ID' => '/BARANGAY\s*(?:CLEARANCE|CERTIFICATE|ID)|BARANGAY\s*HALL|PUNONG\s*BARANGAY|BARANGAY\s*CAPTAIN/',
+            'GSIS ID' => '/GOVERNMENT\s*SERVICE\s*INSURANCE|\bGSIS\b\s*(?:ID|MEMBER|CARD)/',
+            'Company ID' => '/EMPLOYEE\s*(?:ID|IDENTIFICATION|NUMBER)|COMPANY\s*(?:ID|IDENTIFICATION)/',
+            'OFW ID' => '/OVERSEAS\s*(?:FILIPINO|WORKER)|\bOFW\b\s*(?:ID|CARD)|\bOWWA\b/',
+            'Police Clearance' => '/POLICE\s*CLEARANCE|PHILIPPINE\s*NATIONAL\s*POLICE|\bPNP\b\s*CLEARANCE/',
+            'Birth Certificate' => '/CERTIFICATE\s*OF\s*(?:LIVE\s*)?BIRTH|CIVIL\s*REGISTRAR/',
+            'Pag-IBIG ID' => '/PAG\s*-?\s*IBIG\s*(?:ID|FUND|MEMBER)|HDMF\s*(?:ID|MEMBER)/',
+            'OWWA ID' => '/OVERSEAS\s*WORKERS\s*WELFARE|\bOWWA\s*(?:ID|CARD|MEMBER)/',
+            'AFP ID' => '/ARMED\s*FORCES\s*OF\s*THE\s*PHILIPPINES|\bAFP\b\s*(?:ID|CARD)/',
+            'IBP ID' => '/INTEGRATED\s*BAR\s*OF\s*THE\s*PHILIPPINES|\bIBP\b\s*(?:ID|CARD)/',
         ];
 
         foreach ($nonQcMarkers as $idType => $pattern) {
@@ -1777,10 +1851,22 @@ class QcIdOcrVerifier
             'NOT\s*VALID',
             'DO\s*NOT\s*USE',
             'TESTING\s*ONLY',
+            'FOR\s*DEMO',
+            'MOCK\s*UP',
+            'DUMMY',
+            'PROTOTYPE',
+            'PLACEHOLDER',
             '1234567890', // Common placeholder
             '000\s*000\s*00000000', // Common placeholder ID
+            '11111111111111',
+            '99999999999999',
             'JANE\s*DOE',
+            'JOHN\s*DOE',
             'JUAN\s+DELA\s+CRUZ',
+            'MARIA\s+CLARA',
+            'JOSE\s+RIZAL',
+            'TEST\s+USER',
+            'SAMPLE\s+NAME',
             'INVALID',
         ];
 

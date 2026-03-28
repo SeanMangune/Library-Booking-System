@@ -12,6 +12,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'SmartSpace')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
     <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
@@ -113,6 +114,54 @@
         .animate-shake { animation: shake 0.3s ease-in-out; }
         /* Gradient text */
         .gradient-text { background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        /* Staggered entrance animations for dashboard cards */
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-slide-in-up { animation: slideInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .animate-slide-in-left { animation: slideInLeft 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .animate-slide-in-right { animation: slideInRight 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .animate-scale-in { animation: scaleIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        /* Stagger delays */
+        .stagger-1 { animation-delay: 0.05s; opacity: 0; }
+        .stagger-2 { animation-delay: 0.1s; opacity: 0; }
+        .stagger-3 { animation-delay: 0.15s; opacity: 0; }
+        .stagger-4 { animation-delay: 0.2s; opacity: 0; }
+        .stagger-5 { animation-delay: 0.25s; opacity: 0; }
+        .stagger-6 { animation-delay: 0.3s; opacity: 0; }
+        /* Skeleton loading */
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 0.75rem;
+        }
+        /* Subtle glow for premium cards */
+        @keyframes subtleGlow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+            50% { box-shadow: 0 0 20px 2px rgba(99, 102, 241, 0.08); }
+        }
+        .card-glow:hover { animation: subtleGlow 2s ease-in-out infinite; }
+        /* Smooth hover lift for interactive cards */
+        .hover-lift { transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease; }
+        .hover-lift:hover { transform: translateY(-3px); box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.12); }
         .sidebar-brand,
         .sidebar-section-label,
         .sidebar-text,
