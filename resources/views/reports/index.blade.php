@@ -112,22 +112,11 @@
                     @endforeach
                 </select>
             </div>
-<<<<<<< HEAD
             <div class="md:col-span-2 xl:col-span-1 flex flex-wrap xl:flex-col items-end justify-end gap-2">
                 <a href="{{ route('reports.index') }}" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold transition-colors">
                     Reset filters
                 </a>
                 <button type="submit" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors">
-=======
-            <div class="md:col-span-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2 w-full">
-                <div class="flex flex-wrap gap-2">
-                    <a href="#room-breakdown" class="px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-100 to-indigo-200 text-indigo-700 font-semibold border border-indigo-300 shadow-sm hover:from-indigo-200 hover:to-indigo-300 transition">Room Breakdown</a>
-                    <a href="#top-requesters" class="px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-100 to-indigo-200 text-indigo-700 font-semibold border border-indigo-300 shadow-sm hover:from-indigo-200 hover:to-indigo-300 transition">Top Requesters</a>
-                    <a href="#daily-activity" class="px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-100 to-indigo-200 text-indigo-700 font-semibold border border-indigo-300 shadow-sm hover:from-indigo-200 hover:to-indigo-300 transition">Daily Activity</a>
-                    <a href="#detailed-bookings" class="px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-100 to-indigo-200 text-indigo-700 font-semibold border border-indigo-300 shadow-sm hover:from-indigo-200 hover:to-indigo-300 transition">Detailed Booking List</a>
-                </div>
-                <button type="submit" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white text-base font-bold shadow-lg transition">
->>>>>>> ca25bc025b3782320ae4bd77168d19933eb1ba21
                     Apply filters
                 </button>
             </div>
@@ -162,14 +151,9 @@
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-<<<<<<< HEAD
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden report-reveal" id="room-breakdown">
-            <div class="px-5 py-4 border-b border-gray-200 bg-gray-50">
-=======
-        <div id="room-breakdown" class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
                 <i class="fa-solid fa-door-open text-indigo-500"></i>
->>>>>>> ca25bc025b3782320ae4bd77168d19933eb1ba21
                 <h2 class="text-base font-bold text-gray-900">Room Breakdown</h2>
             </div>
             <div class="overflow-x-auto">
@@ -200,14 +184,9 @@
             </div>
         </div>
 
-<<<<<<< HEAD
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden report-reveal" id="top-requesters">
-            <div class="px-5 py-4 border-b border-gray-200 bg-gray-50">
-=======
-        <div id="top-requesters" class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
                 <i class="fa-solid fa-user-group text-indigo-500"></i>
->>>>>>> ca25bc025b3782320ae4bd77168d19933eb1ba21
                 <h2 class="text-base font-bold text-gray-900">Top Requesters</h2>
             </div>
             <div class="divide-y divide-gray-200">
@@ -223,14 +202,9 @@
         </div>
     </div>
 
-<<<<<<< HEAD
     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden report-reveal" id="daily-activity">
-        <div class="px-5 py-4 border-b border-gray-200 bg-gray-50">
-=======
-    <div id="daily-activity" class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
             <i class="fa-solid fa-calendar-day text-indigo-500"></i>
->>>>>>> ca25bc025b3782320ae4bd77168d19933eb1ba21
             <h2 class="text-base font-bold text-gray-900">Daily Activity</h2>
         </div>
         <div class="overflow-x-auto">
@@ -261,14 +235,9 @@
         </div>
     </div>
 
-<<<<<<< HEAD
     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden report-reveal" id="detailed-bookings">
-        <div class="px-5 py-4 border-b border-gray-200 bg-gray-50">
-=======
-    <div id="detailed-bookings" class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
             <i class="fa-solid fa-list-check text-indigo-500"></i>
->>>>>>> ca25bc025b3782320ae4bd77168d19933eb1ba21
             <h2 class="text-base font-bold text-gray-900">Detailed Booking List</h2>
         </div>
         <div class="overflow-x-auto">
@@ -315,7 +284,6 @@
     </div>
 </div>
 
-<<<<<<< HEAD
 <div class="print:hidden fixed bottom-5 right-5 z-40 flex flex-col gap-2" id="report-floating-nav">
     <button type="button" id="report-back-top" class="hidden items-center justify-center gap-2 rounded-xl bg-indigo-600 text-white px-3.5 py-2.5 text-xs font-semibold shadow-lg hover:bg-indigo-700 transition-all">
         <i class="w-3.5 h-3.5 fa-icon fa-solid fa-arrow-up text-sm leading-none"></i>
@@ -482,20 +450,6 @@
 })();
 </script>
 @endpush
-=======
-    <!-- Floating Back to Top Button -->
-    <button
-        x-data="{ show: false }"
-        x-init="window.addEventListener('scroll', () => { show = window.scrollY > 300 })"
-        x-show="show"
-        @click="window.scrollTo({top: 0, behavior: 'smooth'})"
-        class="fixed bottom-8 right-8 z-50 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-3 shadow-lg transition"
-        style="display: none;"
-        title="Back to Top"
-    >
-        <i class="fa-solid fa-arrow-up"></i>
-    </button>
->>>>>>> ca25bc025b3782320ae4bd77168d19933eb1ba21
 
 @push('styles')
 <style>

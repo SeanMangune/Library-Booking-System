@@ -217,39 +217,29 @@
                                                 <dt class="text-gray-500">Cardholder</dt>
                                                 <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.cardholder_name || '—'"></dd>
                                             </div>
-<<<<<<< HEAD
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">QC ID Number</dt>
-                                                <dd x-text="qcIdVerification?.id_number || '—'"></dd>
-                                            </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Birth Date</dt>
-                                                <dd x-text="qcIdVerification?.date_of_birth || '—'"></dd>
-                                            </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Blood Type</dt>
-                                                <dd x-text="qcIdVerification?.blood_type || '—'"></dd>
-                                            </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Date Issued</dt>
-                                                <dd x-text="qcIdVerification?.date_issued || '—'"></dd>
-                                            </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Valid Until</dt>
-                                                <dd x-text="qcIdVerification?.valid_until || '—'"></dd>
-                                            </div>
-                                            <div class="sm:col-span-2">
-                                                <dt class="font-medium text-emerald-700">Address</dt>
-                                                <dd x-text="qcIdVerification?.address || '—'"></dd>
-=======
                                             <div class="flex items-start justify-between gap-4">
-                                                <dt class="text-gray-500">ID number</dt>
+                                                <dt class="text-gray-500">QC ID Number</dt>
                                                 <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.id_number || '—'"></dd>
                                             </div>
                                             <div class="flex items-start justify-between gap-4">
-                                                <dt class="text-gray-500">Validity</dt>
+                                                <dt class="text-gray-500">Birth Date</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.date_of_birth || '—'"></dd>
+                                            </div>
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">Blood Type</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.blood_type || '—'"></dd>
+                                            </div>
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">Date Issued</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.date_issued || '—'"></dd>
+                                            </div>
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">Valid Until</dt>
                                                 <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.valid_until || '—'"></dd>
->>>>>>> ca25bc025b3782320ae4bd77168d19933eb1ba21
+                                            </div>
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">Address</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.address || '—'"></dd>
                                             </div>
                                         </dl>
                                     </div>

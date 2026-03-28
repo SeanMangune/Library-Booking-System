@@ -108,14 +108,9 @@
                 'requires_capacity_permission' => $booking->requiresCapacityPermission(),
                 'standard_capacity_limit' => $booking->room->standardBookingCapacityLimit(),
                 'student_capacity_limit' => $booking->room->maxStudentBookingCapacity(),
-<<<<<<< HEAD
                 // Add QR code info for modal
                 'qr_code_encrypted' => $booking->qr_code_encrypted ?? null,
                 'qr_token' => $booking->qr_token ?? null,
-=======
-                'qr_code_url' => $booking->qr_code_url,
-                'qr_token' => $booking->qr_token,
->>>>>>> ca25bc025b3782320ae4bd77168d19933eb1ba21
             ];
             $statusColor = [
                 'pending' => 'bg-amber-50 text-amber-700 border border-amber-200',
@@ -163,20 +158,6 @@
                         </p>
                     </div>
                 </div>
-<<<<<<< HEAD
-                @if($booking->status === 'pending')
-                <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                    Pending
-                </span>
-                @elseif($booking->status === 'approved')
-                <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
-                    Approved
-                </span>
-                @elseif($booking->status === 'rejected')
-                <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-                    Rejected
-                </span>
-=======
                 @if($booking->status === 'approved')
                     <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                         Approved
@@ -189,7 +170,6 @@
                     <span class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
                         Pending
                     </span>
->>>>>>> ca25bc025b3782320ae4bd77168d19933eb1ba21
                 @endif
             </div>
             <!-- Details Grid -->
@@ -219,10 +199,6 @@
             <div class="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
                 <i class="w-8 h-8 text-gray-400 fa-icon fa-solid fa-circle-check text-3xl leading-none"></i>
             </div>
-<<<<<<< HEAD
-            <h3 class="text-lg font-medium text-gray-900">No bookings found</h3>
-            <p class="mt-1 text-sm text-gray-500">No bookings for this status.</p>
-=======
             <h3 class="text-lg font-medium text-gray-900">
                 @if($status === 'approved')
                     No approved bookings
@@ -241,7 +217,6 @@
                     All booking requests have been reviewed.
                 @endif
             </p>
->>>>>>> ca25bc025b3782320ae4bd77168d19933eb1ba21
         </div>
         @endforelse
     </div>
