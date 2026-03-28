@@ -11,6 +11,9 @@ class QcIdVerificationController extends Controller
 {
     public function __invoke(Request $request, QcIdOcrVerifier $verifier, OcrSpaceClient $ocrSpace): JsonResponse
     {
+        // Increase maximum execution time specifically for this route
+        set_time_limit(120);
+
         $validated = $request->validate([
             'ocr_text' => 'nullable|string|max:12000',
             'user_name' => 'nullable|string|max:255',
@@ -130,7 +133,7 @@ class QcIdVerificationController extends Controller
                     'civil_status' => ['civil_status', 'status', 'marital_status'],
                     'date_issued' => ['date_issued', 'issued', 'issue_date'],
                     'valid_until' => ['valid_until', 'expiry', 'valid', 'expiry_date', 'expiration'],
-                    'address' => ['address', 'residence', 'home_address', 'current_address'],
+                    'address' => ['address', 'residence', 'home_address', 'current_address', 'present_address', 'addr', 'permanent_address', 'location'],
                 ];
 
                 foreach ($mappings as $targetKey => $sourceKeys) {
@@ -176,7 +179,7 @@ class QcIdVerificationController extends Controller
                     'sex' => ['sex', 'gender'],
                     'date_of_birth' => ['dob', 'birthdate', 'birth_date', 'bday'],
                     'civil_status' => ['status', 'civil_status'],
-                    'address' => ['address', 'residence'],
+                    'address' => ['address', 'residence', 'home_address', 'current_address', 'present_address', 'addr', 'permanent_address', 'location'],
                     'date_issued' => ['issued', 'issue_date'],
                     'valid_until' => ['expiry', 'valid'],
                 ];

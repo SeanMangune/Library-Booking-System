@@ -279,6 +279,7 @@
                                                     <div class="flex items-center justify-between gap-3"><dt class="text-slate-500">QC ID number</dt><dd class="font-medium text-slate-800" x-text="signup.qcid_number || '—'"></dd></div>
                                                     <div class="flex items-center justify-between gap-3"><dt class="text-slate-500">Birth date</dt><dd class="font-medium text-slate-800" x-text="signup.date_of_birth || '—'"></dd></div>
                                                     <div class="flex items-center justify-between gap-3"><dt class="text-slate-500">Sex</dt><dd class="font-medium text-slate-800" x-text="signup.sex || '—'"></dd></div>
+                                                    <div class="flex items-center justify-between gap-3"><dt class="text-slate-500">Address</dt><dd class="truncate font-medium text-slate-800" x-text="signup.address || '—'"></dd></div>
                                                     <div class="flex items-center justify-between gap-3">
                                                         <dt class="text-slate-500">QR Validation</dt>
                                                         <dd>
@@ -1153,6 +1154,9 @@ function signupLoginApp($persist, initialSignupOpen) {
                     // Always prioritize QR results for any field provided
                     this.signup.name = (verification.cardholder_name || this.signup.name || '').trim();
                     this.signup.qcid_number = (qrIdNumber || ocrIdNumber || '').trim();
+                    if (verification.address) {
+                        this.signup.address = this.improveAddress(verification.address);
+                    }
 
                     if (verification.sex) {
                         // Server returns 'M'/'F', dropdown expects 'MALE'/'FEMALE'

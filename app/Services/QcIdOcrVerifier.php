@@ -1320,18 +1320,35 @@ class QcIdOcrVerifier
                     if ($candidate && !$this->looksLikeLabel($candidate)) {
                         $addressParts[] = $candidate;
                     }
-                    // Fuzzy anchor break
                     if (preg_match('/QUEZON\s*(CITY|C\s*ITY|C1TY|ITY)/i', $candidate)) break;
                 }
                 if ($addressParts) return $this->cleanAddress(implode(', ', $addressParts), $knownDates);
             }
         }
 
-        // Strategy 2: Search for QUEZON CITY anchor
+        // Strategy 2: Search for address markers (PUROK, BARANGAY, etc.)
+        foreach ($lines as $index => $line) {
+            if (preg_match('/\b(PUROK|BARANGAY|BRGY|SITIO|STREET|AVE|AVENUE|UNIT|BLK|LOT|PHASE|SUBD|VILLAGE)\b/i', $line)) {
+                $addressParts = [];
+                // Look forward 3 lines for the city anchor
+                for ($offset = 0; $offset <= 3; $offset++) {
+                    $idx = $index + $offset;
+                    if (!isset($lines[$idx])) break;
+                    $candidate = $lines[$idx];
+                    if ($candidate && !$this->looksLikeLabel($candidate)) {
+                        $addressParts[] = $candidate;
+                    }
+                    if (preg_match('/QUEZON\s*(CITY|C\s*ITY|C1TY|ITY)/i', $candidate)) break;
+                }
+                if ($addressParts) return $this->cleanAddress(implode(', ', $addressParts), $knownDates);
+            }
+        }
+
+        // Strategy 3: Search for QUEZON CITY anchor
         foreach ($lines as $index => $line) {
             if (preg_match('/QUEZON\s*(CITY|C\s*ITY|C1TY|ITY)/i', $line)) {
                 $parts = [];
-                for ($back = 3; $back >= 1; $back--) {
+                for ($back = 4; $back >= 1; $back--) {
                     $prev = $lines[$index - $back] ?? null;
                     if ($prev && !$this->looksLikeLabel($prev)) $parts[] = $prev;
                 }
@@ -1448,12 +1465,12 @@ class QcIdOcrVerifier
         $value = preg_replace('/\s+/', ' ', trim($value)) ?? trim($value);
 
         // Anchor on street/address number pattern before QUEZON CITY (fuzzy)
-        $cityPattern = 'QUEZON\s*(?:CITY|C\s*ITY|C1TY|ITY)';
-        if (preg_match('/(\d{1,5}\s*[A-Z]?\s+[A-Z][A-Z0-9\s,\.\-]*?'.$cityPattern.')/', $value, $m)) {
+        $cityPattern = 'QUEZON\s*(?:CITY|C\s*ITY|C1TY|1TY|ITY|LITY|CTY)';
+        if (preg_match('/(\d{1,5}\s*[A-Z]?\s+[A-Z][A-Z0-9\s,\.\-]*?'.$cityPattern.')/i', $value, $m)) {
             $value = $m[1];
-        } elseif (preg_match('/((?:BLK\-?\d*|LOT\-?\d*|UNIT\-?\d*|#\d+)\s*[A-Z0-9,\.\-\s]+?'.$cityPattern.')/', $value, $m)) {
+        } elseif (preg_match('/((?:BLK\-?\d*|LOT\-?\d*|UNIT\-?\d*|#\d+|PUROK\s*\d+|BRGY\s*[A-Z]+)\s*[A-Z0-9,\.\-\s]+?'.$cityPattern.')/i', $value, $m)) {
             $value = $m[1];
-        } elseif (preg_match('/([A-Z0-9,\.\-\s]+?'.$cityPattern.')/', $value, $m)) {
+        } elseif (preg_match('/([A-Z0-9,\.\-\s]+?'.$cityPattern.')/i', $value, $m)) {
             $value = $m[1];
         }
 
