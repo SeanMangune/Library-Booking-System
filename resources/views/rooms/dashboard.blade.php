@@ -84,11 +84,12 @@
                         <template x-for="(week, weekIndex) in calendarWeeks" :key="weekIndex">
                             <template x-for="(day, dayIndex) in week" :key="weekIndex + '-' + dayIndex">
                                 <div class="min-h-[100px] border-b border-r border-gray-200 p-2"
-                                     @click="openBookingModalForDay(day)"
+                                     @click="!day.isPast && day.isCurrentMonth && openBookingModalForDay(day)"
                                      :class="{
                                          'bg-gray-50': !day.isCurrentMonth,
                                          'bg-yellow-50': day.isToday,
-                                         'cursor-pointer hover:bg-teal-50 transition-colors': day.isCurrentMonth
+                                         'cursor-pointer hover:bg-teal-50 transition-colors': day.isCurrentMonth && !day.isPast,
+                                         'opacity-50 cursor-not-allowed': day.isPast && day.isCurrentMonth,
                                      }">
                                     <div class="flex items-center justify-between mb-1">
                                         <span class="text-sm font-medium"
@@ -163,15 +164,18 @@
                 </div>
                 <div class="p-4 max-h-[34rem] xl:max-h-none xl:flex-1 xl:min-h-0 overflow-y-auto">
                     @forelse($collabRoomBookings as $booking)
+                    @php
+                        $canViewBookingDetails = $isStaff;
+                    @endphp
                     <div class="py-3 px-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer {{ $loop->last ? '' : 'border-b border-gray-200' }}"
                          @click="viewBooking({{ json_encode([
                              'id' => $booking->id,
-                             'title' => $booking->title,
+                             'title' => $canViewBookingDetails ? $booking->title : 'Occupied',
                              'room_name' => $booking->room->name,
                              'date' => $booking->date->format('M d, Y'),
                              'formatted_date' => $booking->formatted_date,
                              'formatted_time' => $booking->formatted_time,
-                             'user_name' => $booking->user_name,
+                             'user_name' => $canViewBookingDetails ? $booking->user_name : 'Occupied',
                              'attendees' => $booking->attendees,
                              'status' => $booking->status,
                          ]) }})">

@@ -104,9 +104,16 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z\s,.\-]+$/'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', 'min:15', 'max:50', 'confirmed'],
+            'address' => ['nullable', 'string', 'max:100'],
+            'sex' => ['nullable', 'string', 'in:MALE,FEMALE'],
+            'civil_status' => ['nullable', 'string', 'in:SINGLE,MARRIED,WIDOWED,DIVORCED,SEPARATED'],
+        ], [
+            'name.regex' => 'Name can only contain letters, spaces, commas, periods, and hyphens.',
+            'password.min' => 'Password must be at least 15 characters.',
+            'password.max' => 'Password must not exceed 50 characters.',
         ]);
 
         $user = User::create([

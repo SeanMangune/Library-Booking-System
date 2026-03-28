@@ -106,6 +106,23 @@ function buildBookingTimeSlots(startHour = BOOKING_OPEN_HOUR, endHour = BOOKING_
 
 const BOOKING_TIME_SLOTS = buildBookingTimeSlots();
 
+function filterPastTimeSlots(slots, selectedDate) {
+    const todayStr = todayDateString();
+    if (selectedDate !== todayStr) {
+        return slots;
+    }
+
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTotalMinutes = (currentHour * 60) + currentMinute;
+
+    return slots.filter((slot) => {
+        const startMinutes = parseTimeToMinutes(slot.start_time);
+        return startMinutes !== null && startMinutes > currentTotalMinutes;
+    });
+}
+
 function resolveBookingTimeSlot(slotValue) {
     if (slotValue) {
         const match = BOOKING_TIME_SLOTS.find((slot) => slot.value === slotValue);
@@ -432,7 +449,9 @@ export function createRoomCalendarApp(config = {}) {
         verifiedRegistrationName: config.verifiedRegistrationName || '',
         isStaffUser: Boolean(config.isStaffUser),
         rooms: Array.isArray(config.rooms) ? config.rooms : [],
-        bookingTimeSlots: BOOKING_TIME_SLOTS,
+        get bookingTimeSlots() {
+            return filterPastTimeSlots(BOOKING_TIME_SLOTS, this.bookingForm.date);
+        },
         bookingDateOptions: buildBookingDateOptions(config.bookingDateRangeDays),
         qcIdFile: null,
         qcIdPreviewUrl: '',
@@ -1358,7 +1377,9 @@ export function createDashboardApp(config = {}) {
         verifiedRegistrationName: config.verifiedRegistrationName || '',
         isStaffUser: Boolean(config.isStaffUser),
         rooms: Array.isArray(config.rooms) ? config.rooms : [],
-        bookingTimeSlots: BOOKING_TIME_SLOTS,
+        get bookingTimeSlots() {
+            return filterPastTimeSlots(BOOKING_TIME_SLOTS, this.bookingForm.date);
+        },
         bookingDateOptions: buildBookingDateOptions(config.bookingDateRangeDays),
         qcIdFile: null,
         qcIdPreviewUrl: '',
@@ -1397,12 +1418,14 @@ export function createDashboardApp(config = {}) {
                 const date = new Date(this.currentYear, this.currentMonth, i);
                 const dateStr = this.formatDateKey(date);
                 const isToday = date.getTime() === today.getTime();
+                const isPast = date < today;
 
                 currentWeek.push({
                     day: i,
                     date: dateStr,
                     isCurrentMonth: true,
                     isToday,
+                    isPast,
                     events: this.calendarData[dateStr] || [],
                 });
 

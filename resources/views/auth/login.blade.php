@@ -195,7 +195,10 @@
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Full Name</label>
                                                 <input name="name" type="text" value="{{ old('name') }}" x-model="signup.name" required autocomplete="name"
+                                                       maxlength="50"
+                                                       @input="signup.name = signup.name.replace(/[0-9]/g, '')"
                                                        class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                <p class="mt-1 text-xs text-slate-400" x-text="signup.name.length + '/50 characters'"></p>
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Email</label>
@@ -257,13 +260,24 @@
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Sex</label>
-                                                <input name="sex" type="text" value="{{ old('sex') }}" x-model="signup.sex"
-                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                <select name="sex" x-model="signup.sex"
+                                                        class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                    <option value="">Select sex</option>
+                                                    <option value="MALE" @selected(old('sex') === 'MALE')>Male</option>
+                                                    <option value="FEMALE" @selected(old('sex') === 'FEMALE')>Female</option>
+                                                </select>
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Civil Status</label>
-                                                <input name="civil_status" type="text" value="{{ old('civil_status') }}" x-model="signup.civil_status"
-                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                <select name="civil_status" x-model="signup.civil_status"
+                                                        class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                    <option value="">Select civil status</option>
+                                                    <option value="SINGLE" @selected(old('civil_status') === 'SINGLE')>Single</option>
+                                                    <option value="MARRIED" @selected(old('civil_status') === 'MARRIED')>Married</option>
+                                                    <option value="WIDOWED" @selected(old('civil_status') === 'WIDOWED')>Widowed</option>
+                                                    <option value="DIVORCED" @selected(old('civil_status') === 'DIVORCED')>Divorced</option>
+                                                    <option value="SEPARATED" @selected(old('civil_status') === 'SEPARATED')>Separated</option>
+                                                </select>
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Date of Birth</label>
@@ -282,14 +296,17 @@
                                             </div>
                                             <div class="md:col-span-2">
                                                 <label class="block text-sm font-semibold text-slate-700">Address</label>
-                                                <textarea name="address" rows="2" x-model="signup.address"
+                                                <textarea name="address" rows="2" x-model="signup.address" maxlength="100"
                                                           class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">{{ old('address') }}</textarea>
+                                                <p class="mt-1 text-xs text-slate-400" x-text="(signup.address || '').length + '/100 characters'"></p>
                                             </div>
-                                            <div>
+                                            <div class="md:col-span-2">
                                                 <label class="block text-sm font-semibold text-slate-700">Password</label>
                                                 <div class="relative mt-1">
                                                     <input name="password" :type="showSignupPassword ? 'text' : 'password'" required autocomplete="new-password"
-                                                           class="w-full rounded-xl border border-slate-200 px-3 py-2.5 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                           x-model="signupPassword" minlength="15" maxlength="50"
+                                                           class="w-full rounded-xl border border-slate-200 px-3 py-2.5 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                           :class="signupPassword.length > 0 && signupPassword.length < 15 ? 'border-red-300 focus:ring-red-400' : ''">
                                                     <button type="button"
                                                             @click="showSignupPassword = !showSignupPassword"
                                                             :aria-label="showSignupPassword ? 'Hide password' : 'Show password'"
@@ -298,12 +315,29 @@
                                                         <i x-show="showSignupPassword" x-cloak class="w-5 h-5 fa-icon fa-regular fa-eye-slash text-lg leading-none"></i>
                                                     </button>
                                                 </div>
+                                                <!-- Password Requirements Checklist -->
+                                                <div x-show="signupPassword.length > 0" x-cloak x-transition class="mt-2 space-y-1">
+                                                    <div class="flex items-center gap-2 text-xs transition-colors duration-200"
+                                                         :class="signupPassword.length >= 15 ? 'text-emerald-600' : 'text-red-500'">
+                                                        <i class="w-3.5 h-3.5 fa-icon text-sm leading-none"
+                                                           :class="signupPassword.length >= 15 ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'"></i>
+                                                        <span>Minimum 15 characters</span>
+                                                    </div>
+                                                    <div class="flex items-center gap-2 text-xs transition-colors duration-200"
+                                                         :class="signupPassword.length <= 50 ? 'text-emerald-600' : 'text-red-500'">
+                                                        <i class="w-3.5 h-3.5 fa-icon text-sm leading-none"
+                                                           :class="signupPassword.length <= 50 ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'"></i>
+                                                        <span>Maximum 50 characters</span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div>
+                                            <div class="md:col-span-2">
                                                 <label class="block text-sm font-semibold text-slate-700">Confirm Password</label>
                                                 <div class="relative mt-1">
                                                     <input name="password_confirmation" :type="showSignupConfirmPassword ? 'text' : 'password'" required autocomplete="new-password"
-                                                           class="w-full rounded-xl border border-slate-200 px-3 py-2.5 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                           x-model="signupConfirmPassword" minlength="15" maxlength="50"
+                                                           class="w-full rounded-xl border border-slate-200 px-3 py-2.5 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                           :class="signupConfirmPassword.length > 0 && signupConfirmPassword !== signupPassword ? 'border-red-300 focus:ring-red-400' : ''">
                                                     <button type="button"
                                                             @click="showSignupConfirmPassword = !showSignupConfirmPassword"
                                                             :aria-label="showSignupConfirmPassword ? 'Hide password' : 'Show password'"
@@ -311,6 +345,15 @@
                                                         <i x-show="!showSignupConfirmPassword" x-cloak class="w-5 h-5 fa-icon fa-regular fa-eye text-lg leading-none"></i>
                                                         <i x-show="showSignupConfirmPassword" x-cloak class="w-5 h-5 fa-icon fa-regular fa-eye-slash text-lg leading-none"></i>
                                                     </button>
+                                                </div>
+                                                <!-- Password Match Warning -->
+                                                <div x-show="signupConfirmPassword.length > 0" x-cloak x-transition class="mt-2">
+                                                    <div class="flex items-center gap-2 text-xs transition-colors duration-200"
+                                                         :class="signupConfirmPassword === signupPassword ? 'text-emerald-600' : 'text-red-500'">
+                                                        <i class="w-3.5 h-3.5 fa-icon text-sm leading-none"
+                                                           :class="signupConfirmPassword === signupPassword ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'"></i>
+                                                        <span x-text="signupConfirmPassword === signupPassword ? 'Passwords match' : 'Passwords do not match'"></span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -365,6 +408,8 @@ function signupLoginApp(initialSignupOpen) {
         showLoginPassword: false,
         showSignupPassword: false,
         showSignupConfirmPassword: false,
+        signupPassword: '',
+        signupConfirmPassword: '',
         signup: {
             name: @json(old('name', '')),
             user_type: @json(old('user_type', '')),
@@ -730,7 +775,29 @@ function signupLoginApp(initialSignupOpen) {
     }
 
     .login-card-wrap {
-        animation: floatCard 8s ease-in-out infinite;
+        animation: floatCard 8s ease-in-out infinite, loginCardEntrance 0.6s ease-out both;
+    }
+
+    @keyframes loginCardEntrance {
+        from {
+            opacity: 0;
+            transform: translateY(24px) scale(0.97);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    @keyframes loginBrandEntrance {
+        from {
+            opacity: 0;
+            transform: translateY(-16px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .login-brand-wrap {
@@ -739,6 +806,7 @@ function signupLoginApp(initialSignupOpen) {
         align-items: center;
         justify-content: center;
         padding: 0.25rem 1rem;
+        animation: loginBrandEntrance 0.5s ease-out both;
     }
 
     .login-brand-wrap::before {

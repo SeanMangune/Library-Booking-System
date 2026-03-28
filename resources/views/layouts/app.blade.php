@@ -83,6 +83,28 @@
         .transition-smooth { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
         /* Card hover effects */
         .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.1); }
+        /* Page content fade-in */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        main { animation: fadeInUp 0.4s ease-out; }
+        /* Button press micro-animation */
+        button:active:not(:disabled), [type="submit"]:active:not(:disabled) {
+            transform: scale(0.97);
+            transition: transform 0.1s ease;
+        }
+        /* Smooth input focus transition */
+        input, select, textarea {
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        /* Form validation shake */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+        .animate-shake { animation: shake 0.3s ease-in-out; }
         /* Gradient text */
         .gradient-text { background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .sidebar-brand,
