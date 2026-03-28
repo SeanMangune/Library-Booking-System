@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="/images/icons/icon-192.svg">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -106,7 +112,7 @@
         }
         .animate-shake { animation: shake 0.3s ease-in-out; }
         /* Gradient text */
-        .gradient-text { background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .gradient-text { background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .sidebar-brand,
         .sidebar-section-label,
         .sidebar-text,
@@ -202,6 +208,24 @@
             : collect();
         $userUnreadCount = $userUnreadNotifications->count();
         $headerNotificationCount = $pendingApprovalCount + $userUnreadCount;
+        $safeNotificationUrl = function (?string $url) use ($isStaff) {
+            $value = (string) ($url ?? '#');
+            if ($value === '' || $value === '#' || $value === url('/logout') || $value === route('logout')) {
+                return '#';
+            }
+
+            if ($isStaff) {
+                return $value;
+            }
+
+            foreach (['/rooms/approvals', '/rooms/manage', '/reports', '/settings', '/api/users/search', '/logout'] as $fragment) {
+                if (str_contains($value, $fragment)) {
+                    return route('dashboard');
+                }
+            }
+
+            return $value;
+        };
         $initials = $currentUser
             ? collect(preg_split('/\s+/', trim($currentUser->name)))->filter()->take(2)->map(fn ($p) => mb_strtoupper(mb_substr($p, 0, 1)))->implode('')
             : 'U';
@@ -378,8 +402,9 @@
                         <div x-data="{ notifOpen: false }"
                              id="header-notification-root"
                              data-user-id="{{ $currentUser?->id }}"
+                             data-is-staff="{{ $isStaff ? '1' : '0' }}"
                              data-unread-url="{{ route('notifications.unread') }}"
-                             data-approvals-url="{{ route('approvals.index') }}"
+                             data-approvals-url="{{ $isStaff ? route('approvals.index') : route('dashboard') }}"
                              class="relative">
                             <button @click="notifOpen = !notifOpen" class="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
                                 <i class="w-6 h-6 fa-icon fa-solid fa-bell text-2xl leading-none"></i>
@@ -432,7 +457,7 @@
                                     <div class="px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50 border-b border-gray-100">Your Unread</div>
                                     <div data-role="user-unread-list">
                                         @forelse($userUnreadNotifications as $notification)
-                                        <a href="{{ $notification->data['url'] ?? '#' }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
+                                        <a href="{{ $safeNotificationUrl($notification->data['url'] ?? '#') }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
                                             <p class="text-sm font-medium text-gray-900">{{ $notification->data['title'] ?? 'Notification' }}</p>
                                             <p class="text-xs text-gray-600 mt-1">{{ $notification->data['message'] ?? '' }}</p>
                                             <p class="text-xs text-gray-400 mt-1">{{ $notification->created_at->diffForHumans() }}</p>
@@ -498,9 +523,10 @@
                                     </a>
                                 @endif
                                 <hr class="my-2">
-                                <form x-ref="logoutForm" method="POST" action="{{ route('logout') }}" class="px-2" @submit.prevent="logoutOpen = true; open = false">
+                                <form x-ref="logoutForm" method="POST" action="{{ route('logout') }}" class="px-2">
                                     @csrf
-                                    <button type="submit" class="w-full flex items-center gap-3 px-2 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors rounded-lg">
+                                    <button type="button" class="w-full flex items-center gap-3 px-2 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors rounded-lg"
+                                        @click="logoutOpen = true">
                                         <i class="w-4 h-4 fa-icon fa-solid fa-right-from-bracket text-base leading-none"></i>
                                         Sign Out
                                     </button>
@@ -547,6 +573,81 @@
          <div x-show="sidebarOpen && !canHoverSidebar" @click="sidebarOpen = false" x-cloak
              class="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"></div>
     </div>
+
+    <div id="swUpdateToast" class="hidden fixed left-1/2 bottom-6 z-50 w-[92%] max-w-md -translate-x-1/2 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm shadow-xl">
+        <div class="flex items-center justify-between gap-3">
+            <p class="text-slate-700">A new SmartSpace version is ready.</p>
+            <button id="swUpdateBtn" type="button" class="shrink-0 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">
+                Refresh
+            </button>
+        </div>
+    </div>
+
+    <script>
+    if ('serviceWorker' in navigator) {
+        let swRegistration;
+        let refreshing = false;
+        const updateToast = document.getElementById('swUpdateToast');
+        const updateBtn = document.getElementById('swUpdateBtn');
+
+        const showUpdateToast = function () {
+            if (updateToast) {
+                updateToast.classList.remove('hidden');
+            }
+        };
+
+        const bindUpdateFlow = function (registration) {
+            if (!registration) {
+                return;
+            }
+
+            if (registration.waiting) {
+                showUpdateToast();
+            }
+
+            registration.addEventListener('updatefound', function () {
+                const newWorker = registration.installing;
+                if (!newWorker) {
+                    return;
+                }
+
+                newWorker.addEventListener('statechange', function () {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        showUpdateToast();
+                    }
+                });
+            });
+        };
+
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+            if (refreshing) {
+                return;
+            }
+            refreshing = true;
+            window.location.reload();
+        });
+
+        updateBtn?.addEventListener('click', function () {
+            if (swRegistration && swRegistration.waiting) {
+                swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+        });
+
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/sw.js')
+                .then(function (registration) {
+                    swRegistration = registration;
+                    bindUpdateFlow(registration);
+                    window.setInterval(function () {
+                        registration.update();
+                    }, 60 * 60 * 1000);
+                })
+                .catch(function(error) {
+                    console.error('Service worker registration failed', error);
+                });
+        });
+    }
+    </script>
 
     @stack('scripts')
 </body>

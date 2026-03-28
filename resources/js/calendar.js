@@ -184,8 +184,9 @@ function formatBookingDateLabel(dateValue) {
 
 function buildBookingDateOptions(daysAhead = BOOKING_DATE_RANGE_DAYS) {
     const options = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Always get the local date at the time of function call
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // local midnight
 
     for (let dayOffset = 0; dayOffset <= daysAhead; dayOffset += 1) {
         const date = new Date(today);
@@ -201,7 +202,9 @@ function buildBookingDateOptions(daysAhead = BOOKING_DATE_RANGE_DAYS) {
         });
     }
 
-    return options;
+    // Remove any past dates (shouldn't be present, but extra safety)
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    return options.filter(opt => opt.value >= todayStr);
 }
 
 function ensureBookingDateOption(options, dateValue) {
@@ -440,11 +443,11 @@ function createRoomBookingForm(config, dateOverride = null) {
         start_time: defaultSlot.start_time,
         end_time: defaultSlot.end_time,
         attendees: 1,
-        user_name: '',
+        user_name: config.userName || '',
         user_email: '',
         description: '',
         qc_id_ocr_text: '',
-        qc_id_cardholder_name: '',
+        qc_id_cardholder_name: config.verifiedRegistrationName || '',
     };
 }
 
@@ -468,6 +471,7 @@ export function createRoomCalendarApp(config = {}) {
         isSubmitting: false,
         hasVerifiedRegistration: Boolean(config.hasVerifiedRegistration),
         verifiedRegistrationName: config.verifiedRegistrationName || '',
+        verifiedRegistrationQcidNumber: config.verifiedRegistrationQcidNumber || '',
         isStaffUser: Boolean(config.isStaffUser),
         rooms: Array.isArray(config.rooms) ? config.rooms : [],
         get bookingTimeSlots() {
@@ -488,6 +492,27 @@ export function createRoomCalendarApp(config = {}) {
         bookingForm: createRoomBookingForm(config),
 
         init() {
+            // Autofill user_name and QC ID if available
+            if (this.hasVerifiedRegistration) {
+                if (config.userName) {
+                    this.bookingForm.user_name = config.userName;
+                }
+                if (config.verifiedRegistrationName) {
+                    this.bookingForm.qc_id_cardholder_name = config.verifiedRegistrationName;
+                }
+                // Mark QC ID as verified in the form state
+                this.qcIdVerification = {
+                    is_valid: true,
+                    cardholder_name: config.verifiedRegistrationName || config.userName || '',
+                    confidence_score: 100,
+                    source: 'registration',
+                };
+                this.qcIdError = '';
+            } else {
+                if (this.bookingForm && config.userName) {
+                    this.bookingForm.user_name = config.userName;
+                }
+            }
             this.$nextTick(() => {
                 this.initCalendar();
             });
@@ -684,6 +709,21 @@ export function createRoomCalendarApp(config = {}) {
 
                 const payload = await performQcIdVerification(file, this.bookingForm.user_name, verifyQcIdUrl);
 
+                // Use the returned payload to update state
+                const verification = payload.verification || null;
+                this.qcIdVerification = verification;
+                
+                if (verification?.is_valid && verification?.cardholder_name) {
+                    this.bookingForm.qc_id_cardholder_name = verification.cardholder_name;
+                    this.bookingForm.user_name = verification.cardholder_name;
+                }
+
+                if (!payload.success || !verification?.is_valid) {
+                    this.qcIdError = payload.message || 'The uploaded image is not recognized as a QC ID.';
+                    return;
+                }
+
+                this.qcIdError = '';
                 this.qcIdProgress = 100;
                 this.qcIdVerification = payload.verification;
                 
@@ -818,11 +858,18 @@ export function createRoomCalendarApp(config = {}) {
         openBookingModal(date = null) {
             this.clearTimeConflictSuggestions();
 
-            if (date) {
-                this.ensureBookingDateOption(date);
-                this.bookingForm.date = date;
+            // Always rebuild bookingDateOptions from today for every modal open
+            this.bookingDateOptions = buildBookingDateOptions();
+
+            // Prevent selecting a past date, even if pre-filled
+            const todayStr = new Date().toISOString().split('T')[0];
+            let formDate = date || this.bookingForm.date;
+            if (formDate && formDate < todayStr) {
+                this.bookingForm.date = todayStr;
+            } else if (formDate && this.bookingDateOptions.some(opt => opt.value === formDate)) {
+                this.bookingForm.date = formDate;
             } else {
-                this.ensureBookingDateOption(this.bookingForm.date);
+                this.bookingForm.date = todayStr;
             }
 
             applyBookingTimeSlot(this.bookingForm, this.bookingForm.time_slot);
@@ -1977,8 +2024,22 @@ export function createDashboardApp(config = {}) {
 
         openBookingModal(date = null) {
             this.clearTimeConflictSuggestions();
+            // Always rebuild bookingDateOptions from today for every modal open
+            this.bookingDateOptions = buildBookingDateOptions();
+
             this.bookingForm = createDashboardBookingForm(config, date);
-            this.ensureBookingDateOption(this.bookingForm.date);
+
+            // Prevent selecting a past date, even if pre-filled
+            const todayStr = new Date().toISOString().split('T')[0];
+            let formDate = date || this.bookingForm.date;
+            if (formDate && formDate < todayStr) {
+                this.bookingForm.date = todayStr;
+            } else if (formDate && this.bookingDateOptions.some(opt => opt.value === formDate)) {
+                this.bookingForm.date = formDate;
+            } else {
+                this.bookingForm.date = todayStr;
+            }
+
             applyBookingTimeSlot(this.bookingForm, this.bookingForm.time_slot);
 
             this.qcIdError = '';

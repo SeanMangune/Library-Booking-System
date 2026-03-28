@@ -28,8 +28,22 @@ function buildPendingApprovalItem(item, approvalsUrl) {
     `;
 }
 
-function buildUnreadNotificationItem(item) {
-    const url = escapeHtml(item?.url || '#');
+function normalizeUserUrl(url, isStaff) {
+    const value = String(url || '#');
+    if (value === '/logout' || value === window.LaravelLogoutUrl) {
+        return '#';
+    }
+    if (isStaff) {
+        return value;
+    }
+    const blocked = ['/rooms/approvals', '/rooms/manage', '/reports', '/settings', '/api/users/search', '/logout'];
+    return blocked.some((fragment) => value.includes(fragment)) ? '/rooms' : value;
+}
+// Expose the logout route to JS for defensive checks
+window.LaravelLogoutUrl = (typeof window.LaravelLogoutUrl !== 'undefined') ? window.LaravelLogoutUrl : (document.querySelector('form[action][method="POST"]')?.action.includes('/logout') ? document.querySelector('form[action][method="POST"]')?.action : '/logout');
+
+function buildUnreadNotificationItem(item, isStaff) {
+    const url = escapeHtml(normalizeUserUrl(item?.url || '#', isStaff));
     const title = escapeHtml(item?.title || 'Notification');
     const message = escapeHtml(item?.message || '');
     const createdAtHuman = escapeHtml(item?.created_at_human || 'Just now');
@@ -69,6 +83,7 @@ function initializeRealtimeNotifications() {
     }
 
     const userId = Number(root.dataset.userId || 0);
+    const isStaffUser = root.dataset.isStaff === '1';
     const unreadUrl = root.dataset.unreadUrl || '';
     const approvalsUrl = root.dataset.approvalsUrl || '#';
 
@@ -135,7 +150,7 @@ function initializeRealtimeNotifications() {
         if (unreadList) {
             if (unreadNotifications.length > 0) {
                 unreadList.innerHTML = unreadNotifications
-                    .map((item) => buildUnreadNotificationItem(item))
+                    .map((item) => buildUnreadNotificationItem(item, isStaffUser))
                     .join('');
             } else {
                 unreadList.innerHTML = `

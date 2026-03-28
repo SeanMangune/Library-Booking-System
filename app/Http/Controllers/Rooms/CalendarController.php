@@ -16,7 +16,15 @@ class CalendarController extends Controller
         $rooms = Room::orderBy('name')->get();
         $selectedRoom = $request->room_id ? Room::find($request->room_id) : $rooms->first();
 
-        return view('rooms.calendar', compact('rooms', 'selectedRoom'));
+        $user = $request->user();
+        $verifiedRegistration = null;
+        if ($user) {
+            $verifiedRegistration = $user->qcidRegistration()
+                ->where('verification_status', 'verified')
+                ->first();
+        }
+
+        return view('rooms.calendar', compact('rooms', 'selectedRoom', 'user', 'verifiedRegistration'));
     }
 
     public function events(Request $request)

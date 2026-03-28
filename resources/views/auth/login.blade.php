@@ -17,16 +17,30 @@
             </div>
         </div>
 
-        @if ($errors->any())
+        {{-- Only show login errors for login attempts --}}
+        @if ($errors->has('login'))
             <div class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4">
-                <p class="text-sm font-semibold text-red-800">Please fix the following:</p>
-                <ul class="mt-2 list-disc pl-5 text-sm text-red-700 space-y-1">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
+                <p class="text-sm font-semibold text-red-800">{{ $errors->first('login') }}</p>
             </div>
         @endif
+
+        {{-- Signup error modal --}}
+        <div x-data="{ showSignupError: false }" x-init="@if($errors->any() && !$errors->has('login')) showSignupError = true @endif" x-show="showSignupError" x-cloak style="z-index: 1000; position: fixed; inset: 0;">
+            <div class="absolute inset-0 backdrop-blur-sm z-10"></div>
+            <div class="absolute inset-0 flex items-center justify-center z-20">
+                <div class="bg-white rounded-xl shadow-xl p-8 max-w-md w-full">
+                    <h2 class="text-lg font-bold text-red-700 mb-2">Please fix the following:</h2>
+                    <ul class="list-disc pl-5 text-sm text-red-700 space-y-1 mb-4">
+                        @foreach ($errors->all() as $error)
+                            @if ($error !== $errors->first('login'))
+                                <li>{{ $error }}</li>
+                            @endif
+                        @endforeach
+                    </ul>
+                    <button @click="showSignupError = false" class="mt-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold">Close</button>
+                </div>
+            </div>
+        </div>
 
         @php
             $signupFields = [
@@ -101,7 +115,24 @@
                         <button type="button" @click="signupOpen = true" class="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition-colors shadow-lg shadow-teal-700/20">
                             Sign Up
                         </button>
+                        <a href="{{ route('google.redirect') }}" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-sm font-semibold text-gray-800 transition-colors">
+                            <span class="w-5 h-5 inline-flex items-center justify-center rounded-full border border-gray-300 bg-white text-xs font-extrabold text-gray-900">G</span>
+                            Continue with Google
+                        </a>
 
+                        <div id="installPromptContainer" class="hidden">
+                            <button id="installBtn" type="button" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors">
+                                <span>Install App</span>
+                            </button>
+                        </div>
+
+                        <p id="desktopInstallHint" class="hidden rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700">
+                            Use your browser install menu, or open SmartSpace on your phone to install.
+                        </p>
+
+                        <div id="iosInstallHint" class="hidden rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm text-blue-800">
+                            Tap Share -> Add to Home Screen
+                        </div>
                     </div>
                         </div>
                     </div>
@@ -128,17 +159,17 @@
                                 <p class="mt-2 max-w-2xl text-base text-indigo-100/80 font-medium">Upload your Quezon City Citizen ID for instant verification and auto-fill.</p>
                             </div>
                             <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:w-[430px]">
-                                <div class="rounded-2xl border border-white/20 bg-white/10 px-3 py-3 backdrop-blur-sm">
+                                <div class="rounded-2xl border border-indigo-300/20 bg-indigo-500/10 px-3 py-3 backdrop-blur-sm">
                                     <p class="text-[11px] font-semibold uppercase tracking-wide text-indigo-100">Current status</p>
-                                    <p class="mt-1 text-lg font-bold text-white" x-text="signup.ocr_text ? 'Ready to submit' : 'Not submitted'"></p>
+                                    <p class="mt-1 text-lg font-bold text-white" x-text="scan.isVerified ? 'Ready to submit' : (scan.idAssessment === 'Fake QC ID' ? 'Fake QC ID' : (scan.idAssessment === 'INVALID' ? 'Invalid ID' : 'Not submitted'))"></p>
                                 </div>
-                                <div class="rounded-2xl border border-white/20 bg-white/10 px-3 py-3 backdrop-blur-sm">
+                                <div class="rounded-2xl border border-indigo-300/20 bg-indigo-500/10 px-3 py-3 backdrop-blur-sm">
                                     <p class="text-[11px] font-semibold uppercase tracking-wide text-indigo-100">Detected ID</p>
-                                    <p class="mt-1 text-lg font-bold text-white" x-text="signup.ocr_text ? 'QC Citizen ID' : 'Not verified'"></p>
+                                    <p class="mt-1 text-lg font-bold text-white" x-text="scan.idAssessment || (signup.ocr_text ? 'Scanning...' : 'Not verified')"></p>
                                 </div>
-                                <div class="rounded-2xl border border-white/20 bg-white/10 px-3 py-3 backdrop-blur-sm">
+                                <div class="rounded-2xl border border-indigo-300/20 bg-indigo-500/10 px-3 py-3 backdrop-blur-sm">
                                     <p class="text-[11px] font-semibold uppercase tracking-wide text-indigo-100">Confidence</p>
-                                    <p class="mt-1 text-lg font-bold text-white" x-text="scan.status ? 'High' : '—'"></p>
+                                    <p class="mt-1 text-lg font-bold text-white" x-text="scan.confidenceLabel || '—'"></p>
                                 </div>
                             </div>
                         </div>
@@ -170,6 +201,7 @@
                                                 <input type="file"
                                                        name="qcid_image"
                                                        accept="image/png,image/jpeg,image/jpg,image/webp"
+                                                       @click="$event.target.value=''"
                                                        @change="onSignupQcImageChange($event)"
                                                        required
                                                        class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-teal-700">
@@ -195,7 +227,8 @@
                                         </div>
 
                                         <div x-show="scan.error" x-cloak class="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" x-text="scan.error"></div>
-                                        <div x-show="scan.status" x-cloak class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700" x-text="scan.status"></div>
+                                        <!-- Show progress/status except for redundant fake/invalid messages -->
+                                        <div x-show="scan.status && scan.status !== 'Fake QC ID detected.' && scan.status !== 'Invalid ID detected.'" x-cloak class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700" x-text="scan.status"></div>
                                     </section>
 
                                     <section class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm space-y-4">
@@ -309,7 +342,18 @@
                                                           class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">{{ old('address') }}</textarea>
                                                 <p class="mt-1 text-xs text-slate-400" x-text="(signup.address || '').length + '/100 characters'"></p>
                                             </div>
-                                            <div class="md:col-span-2">
+                                            <div class="md:col-span-2" x-data="{
+                                                get hasMin() { return signupPassword.length >= 15 },
+                                                get hasUpper() { return /[A-Z]/.test(signupPassword) },
+                                                get hasNumber() { return /\d/.test(signupPassword) },
+                                                get strength() {
+                                                    let s = 0;
+                                                    if (this.hasMin) s++;
+                                                    if (this.hasUpper) s++;
+                                                    if (this.hasNumber) s++;
+                                                    return s;
+                                                }
+                                            }">
                                                 <label class="block text-sm font-semibold text-slate-700">Password</label>
                                                 <div class="relative mt-1">
                                                     <input name="password" :type="showSignupPassword ? 'text' : 'password'" required autocomplete="new-password"
@@ -327,16 +371,29 @@
                                                 <!-- Password Requirements Checklist -->
                                                 <div x-show="signupPassword.length > 0" x-cloak x-transition class="mt-2 space-y-1">
                                                     <div class="flex items-center gap-2 text-xs transition-colors duration-200"
-                                                         :class="signupPassword.length >= 15 ? 'text-emerald-600' : 'text-red-500'">
+                                                         :class="signupPassword.length >= 15 ? 'text-emerald-700' : 'text-slate-500'">
                                                         <i class="w-3.5 h-3.5 fa-icon text-sm leading-none"
-                                                           :class="signupPassword.length >= 15 ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'"></i>
+                                                           :class="signupPassword.length >= 15 ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i>
                                                         <span>Minimum 15 characters</span>
                                                     </div>
-                                                    <div class="flex items-center gap-2 text-xs transition-colors duration-200"
-                                                         :class="signupPassword.length <= 50 ? 'text-emerald-600' : 'text-red-500'">
-                                                        <i class="w-3.5 h-3.5 fa-icon text-sm leading-none"
-                                                           :class="signupPassword.length <= 50 ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'"></i>
-                                                        <span>Maximum 50 characters</span>
+                                                    <div class="flex items-center gap-2 text-xs" :class="hasUpper ? 'text-emerald-700' : 'text-slate-500'">
+                                                        <i class="w-3.5 h-3.5 fa-icon text-sm leading-none" :class="hasUpper ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i>
+                                                        <span>At least one uppercase letter</span>
+                                                    </div>
+                                                    <div class="flex items-center gap-2 text-xs" :class="hasNumber ? 'text-emerald-700' : 'text-slate-500'">
+                                                        <i class="w-3.5 h-3.5 fa-icon text-sm leading-none" :class="hasNumber ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i>
+                                                        <span>At least one number</span>
+                                                    </div>
+                                                    <div class="mt-1">
+                                                        <span class="text-xs font-semibold" :class="{
+                                                            'text-rose-600': strength === 1,
+                                                            'text-amber-600': strength === 2,
+                                                            'text-emerald-700': strength === 3
+                                                        }">
+                                                            <template x-if="strength === 1">Weak</template>
+                                                            <template x-if="strength === 2">Medium</template>
+                                                            <template x-if="strength === 3">Strong</template>
+                                                        </span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -392,9 +449,9 @@
                                         <p class="text-sm text-indigo-200">Live signup progress</p>
                                         <dl class="mt-4 space-y-2 text-sm">
                                             <div class="flex items-center justify-between"><dt class="text-indigo-200">Image</dt><dd class="font-semibold" x-text="scan.previewUrl ? 'Uploaded' : 'Waiting'"></dd></div>
-                                            <div class="flex items-center justify-between"><dt class="text-indigo-200">OCR</dt><dd class="font-semibold" x-text="signup.ocr_text ? 'Captured' : 'Not captured'"></dd></div>
+                                            <div class="flex items-center justify-between"><dt class="text-indigo-200">OCR</dt><dd class="font-semibold" x-text="scan.isVerified ? 'Captured' : (scan.idAssessment ? 'Rejected' : 'Not captured')"></dd></div>
                                             <div class="flex items-center justify-between"><dt class="text-indigo-200">QC ID number</dt><dd class="font-semibold" x-text="signup.qcid_number || '—'"></dd></div>
-                                            <div class="flex items-center justify-between"><dt class="text-indigo-200">Ready</dt><dd class="font-semibold" x-text="(signup.name && signup.qcid_number && signup.ocr_text) ? 'Yes' : 'No'"></dd></div>
+                                            <div class="flex items-center justify-between"><dt class="text-indigo-200">Ready</dt><dd class="font-semibold" x-text="(scan.isVerified && signup.name && signup.qcid_number && signup.ocr_text) ? 'Yes' : 'No'"></dd></div>
                                         </dl>
                                     </section>
                                 </aside>
@@ -408,7 +465,29 @@
     </div>
 </div>
 
+</script>
+
+</script>
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script type="text/javascript">
+// Blade: Hide signupOldInput and signupQcidVerifyUrl from page output
+window.signupOldInput = {
+    name: @json(old('name', '')),
+    user_type: @json(old('user_type', '')),
+    employee_category: @json(old('employee_category', '')),
+    course: @json(old('course', '')),
+    qcid_number: @json(old('qcid_number', '')),
+    sex: @json(old('sex', '')),
+    civil_status: @json(old('civil_status', '')),
+    date_of_birth: @json(old('date_of_birth', '')),
+    date_issued: @json(old('date_issued', '')),
+    valid_until: @json(old('valid_until', '')),
+    address: @json(old('address', '')),
+    ocr_text: @json(old('ocr_text', '')),
+};
+window.signupQcidVerifyUrl = @json(route('signup.qcid.verify'));
+</script>
 <script>
 function signupLoginApp(initialSignupOpen) {
     return {
@@ -418,26 +497,21 @@ function signupLoginApp(initialSignupOpen) {
         showSignupConfirmPassword: false,
         signupPassword: '',
         signupConfirmPassword: '',
-        signup: {
-            name: @json(old('name', '')),
-            user_type: @json(old('user_type', '')),
-            employee_category: @json(old('employee_category', '')),
-            course: @json(old('course', '')),
-            qcid_number: @json(old('qcid_number', '')),
-            sex: @json(old('sex', '')),
-            civil_status: @json(old('civil_status', '')),
-            date_of_birth: @json(old('date_of_birth', '')),
-            date_issued: @json(old('date_issued', '')),
-            valid_until: @json(old('valid_until', '')),
-            address: @json(old('address', '')),
-            ocr_text: @json(old('ocr_text', '')),
-        },
+        signup: { ...window.signupOldInput },
         scan: {
             file: null,
             previewUrl: '',
             isProcessing: false,
             error: '',
             status: '',
+            idAssessment: '',
+            confidenceLabel: '',
+            isVerified: false,
+        },
+
+        init() {
+            // Copy old input values into signup object on Alpine.js init
+            this.signup = { ...this.signupOldInput };
         },
 
         onSignupQcImageChange(event) {
@@ -445,6 +519,9 @@ function signupLoginApp(initialSignupOpen) {
             this.scan.file = file;
             this.scan.error = '';
             this.scan.status = '';
+            this.scan.idAssessment = '';
+            this.scan.confidenceLabel = '';
+            this.scan.isVerified = false;
 
             if (!file) {
                 this.scan.previewUrl = '';
@@ -463,7 +540,7 @@ function signupLoginApp(initialSignupOpen) {
             }
             this.scan.previewUrl = URL.createObjectURL(file);
 
-            // Auto-trigger scan
+            // Auto-start scanning immediately after upload selection.
             this.scanSignupQcId();
         },
 
@@ -518,6 +595,199 @@ function signupLoginApp(initialSignupOpen) {
             });
         },
 
+        parseDateCandidates(text) {
+            const source = String(text || '').toUpperCase();
+            const normalized = source
+                .replace(/[|]/g, '/')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            const results = [];
+            const pushDate = (raw) => {
+                const parsed = this.normalizeDate(raw);
+                if (parsed && !results.includes(parsed)) {
+                    results.push(parsed);
+                }
+            };
+
+            const yyyySlash = normalized.match(/\b\d{4}\/\d{1,2}\/\d{1,2}\b/g) || [];
+            yyyySlash.forEach(pushDate);
+
+            const mmddyyyy = normalized.match(/\b\d{1,2}\/\d{1,2}\/\d{4}\b/g) || [];
+            mmddyyyy.forEach(pushDate);
+
+            const yyyymmdd = normalized.match(/\b\d{8}\b/g) || [];
+            yyyymmdd.forEach((digits) => pushDate(`${digits.slice(0, 4)}/${digits.slice(4, 6)}/${digits.slice(6, 8)}`));
+
+            return results;
+        },
+
+        improveAddress(value) {
+            let address = String(value || '')
+                .toUpperCase()
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            if (!address) {
+                return '';
+            }
+
+            address = address
+                .replace(/\b(?:DATE ISSUED|VALID UNTIL|DATE OF BIRTH|DOB|CIVIL STATUS|SEX|SIGNATURE)\b/g, ' ')
+                .replace(/\b\d{4}\/\d{1,2}\/\d{1,2}\b/g, ' ')
+                .replace(/\b\d{1,2}\/\d{1,2}\/\d{4}\b/g, ' ')
+                .replace(/\b(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC)\b\s+\d{1,2}\b/g, ' ')
+                .replace(/\b\d{1,2}\s+(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC)\b/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            address = address
+                .replace(/^\d{1,2}\s+[A-Z]{3,10}\s+(?=\d{1,4}\s+[A-Z])/, '')
+                .replace(/^\d{1,2}\s+(?=\d{1,4}\s+[A-Z])/, '')
+                .trim();
+
+            const streetAnchor = address.match(/((?:\d{1,4}[A-Z\-]?\s+[A-Z][A-Z0-9\s,.\-]{6,})QUEZON\s+CITY)/);
+            if (streetAnchor?.[1]) {
+                address = streetAnchor[1];
+            }
+
+            const qcChunk = address.match(/([A-Z0-9,\-.\s]{8,}?QUEZON\s+CITY)/);
+            if (qcChunk?.[1]) {
+                address = qcChunk[1];
+            }
+
+            return address.replace(/\s+,/g, ',').replace(/,{2,}/g, ',').replace(/\s{2,}/g, ' ').trim();
+        },
+
+        digitsOnly(value) {
+            return String(value || '').replace(/\D/g, '');
+        },
+
+        normalizeDigitLike(value) {
+            return String(value || '')
+                .toUpperCase()
+                .replace(/[OQDP]/g, '0')
+                .replace(/[IL]/g, '1')
+                .replace(/Z/g, '2')
+                .replace(/S/g, '5')
+                .replace(/B/g, '8')
+                .replace(/G/g, '6');
+        },
+
+        formatQcIdDigits(digits) {
+            const only = this.digitsOnly(digits);
+            if (only.length === 12) return `00${only}`;
+            if (only.length === 13) return `0${only}`;
+            if (only.length === 14) return only;
+            return '';
+        },
+
+        extractQcIdCandidatesFromText(text) {
+            const source = this.normalizeDigitLike(text);
+            const raw = [
+                ...(source.match(/\b\d{3}\s*\d{3}\s*\d{6,8}\b/g) || []),
+                ...(source.match(/\b\d{12,14}\b/g) || []),
+                ...(source.match(/\b\d{3}\D{0,4}\d{3}\D{0,4}\d{6,8}\b/g) || []),
+            ];
+
+            const candidates = [];
+            for (const item of raw) {
+                const normalized = this.formatQcIdDigits(item);
+                if (!normalized) continue;
+                candidates.push(`${normalized.slice(0, 3)} ${normalized.slice(3, 6)} ${normalized.slice(6, 14)}`);
+            }
+
+            return candidates;
+        },
+
+        chooseBestQcIdCandidate(initialValue, verificationText, ocrText) {
+            const all = [
+                ...this.extractQcIdCandidatesFromText(initialValue || ''),
+                ...this.extractQcIdCandidatesFromText(verificationText || ''),
+                ...this.extractQcIdCandidatesFromText(ocrText || ''),
+            ];
+
+            if (all.length === 0) return '';
+
+            const counts = new Map();
+            for (const candidate of all) {
+                counts.set(candidate, (counts.get(candidate) || 0) + 1);
+            }
+
+            const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+            const top = ranked[0]?.[0] || '';
+            if (!top) return '';
+
+            const topDigits = this.digitsOnly(top);
+            for (const [candidate] of ranked) {
+                const digits = this.digitsOnly(candidate);
+                if (digits.length !== 14 || topDigits.length !== 14 || digits === topDigits) continue;
+
+                let diffCount = 0;
+                let diffIndex = -1;
+                for (let i = 0; i < 14; i += 1) {
+                    if (digits[i] !== topDigits[i]) {
+                        diffCount += 1;
+                        diffIndex = i;
+                    }
+                }
+
+                if (diffCount === 1 && [6, 7].includes(diffIndex)) {
+                    const a = topDigits[diffIndex];
+                    const b = digits[diffIndex];
+                    if ((a === '0' || a === '1') && /[3689]/.test(b)) return top;
+                    if ((b === '0' || b === '1') && /[3689]/.test(a)) return candidate;
+                }
+            }
+
+            return top;
+        },
+
+        applyDateFallbacks(verification, ocrText) {
+            const currentYear = new Date().getFullYear();
+            const candidates = this.parseDateCandidates(`${verification?.normalized_text || ''}\n${ocrText || ''}`);
+
+            const getYear = (value) => Number(String(value || '').slice(0, 4));
+            const isBirthYear = (year) => year >= 1940 && year <= 2015;
+            const isIssuedYear = (year) => year >= 2015 && year <= currentYear;
+            const isValidYear = (year) => year > currentYear;
+
+            const existingDob = this.normalizeDate(verification?.date_of_birth || this.signup.date_of_birth);
+            const existingIssued = this.normalizeDate(verification?.date_issued || this.signup.date_issued);
+            const existingValid = this.normalizeDate(verification?.valid_until || this.signup.valid_until);
+
+            let dob = existingDob;
+            let issued = existingIssued;
+            let valid = existingValid;
+
+            for (const date of candidates) {
+                const year = getYear(date);
+                if (!dob && isBirthYear(year)) {
+                    dob = date;
+                    continue;
+                }
+                if (!issued && isIssuedYear(year)) {
+                    issued = date;
+                    continue;
+                }
+                if (!valid && isValidYear(year)) {
+                    valid = date;
+                }
+            }
+
+            if (!issued || !valid) {
+                const sorted = [...candidates].sort();
+                if (!issued) {
+                    issued = sorted.find((date) => isIssuedYear(getYear(date))) || issued || '';
+                }
+                if (!valid) {
+                    valid = sorted.find((date) => isValidYear(getYear(date))) || valid || '';
+                }
+            }
+
+            return { dob, issued, valid };
+        },
+
         async scanSignupQcId() {
             this.scan.error = '';
             this.scan.status = '';
@@ -528,71 +798,111 @@ function signupLoginApp(initialSignupOpen) {
             }
 
             this.scan.isProcessing = true;
-            this.scan.status = 'Uploading and scanning QC ID...';
+            this.scan.status = 'Reading QC ID image...';
+            this.scan.idAssessment = '';
+            this.scan.confidenceLabel = '';
+            this.scan.isVerified = false;
 
             try {
                 const base64Image = await this.getBase64(this.scan.file);
 
-                const response = await fetch(@json(route('signup.qcid.verify')), {
+                const formData = new FormData();
+                formData.append('ocr_text', ocrText);
+                formData.append('user_name', this.signup.name || '');
+                formData.append('qcid_image', this.scan.file);
+
+                const response = await fetch(window.signupQcidVerifyUrl, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
                         'Accept': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
                     },
-                    body: JSON.stringify({
-                        image_data: base64Image,
-                        user_name: this.signup.name || null,
-                    }),
+                    body: formData,
                 });
 
                 const payload = await response.json();
                 const verification = payload?.verification || {};
+                const assessment = verification?.id_assessment || (payload?.success ? 'Verified' : 'INVALID');
+                const isVerified = payload?.success && assessment === 'Verified';
+                this.scan.idAssessment = assessment;
+                this.scan.isVerified = !!isVerified;
+                const confidenceScore = Number(verification?.confidence_score || 0);
+                this.scan.confidenceLabel = isVerified
+                    ? `${Math.max(0, Math.min(100, confidenceScore))}%`
+                    : '—';
 
-                if (!payload?.success) {
-                    this.scan.error = payload?.message || 'QC ID verification failed. Please check the image and try again.';
-                    if (payload.verification?.is_fake) {
-                        this.scan.error = '⛔ FAKE/INVALID ID DETECTED: ' + (payload.message || 'This ID is not accepted.');
-                    }
+                if (!isVerified) {
+                    this.signup.ocr_text = '';
+                    this.signup.qcid_number = '';
+                    this.signup.sex = '';
+                    this.signup.civil_status = '';
+                    this.signup.date_of_birth = '';
+                    this.signup.date_issued = '';
+                    this.signup.valid_until = '';
+                    this.signup.address = '';
+
+                    this.scan.error = this.scan.idAssessment === 'Fake QC ID'
+                        ? 'This ID is FAKE QC ID.'
+                        : 'This ID is INVALID.';
+                    this.scan.status = this.scan.idAssessment === 'Fake QC ID' ? 'Fake QC ID detected.' : 'Invalid ID detected.';
                 } else {
-                    this.scan.status = '✅ QC ID verified and fields auto-filled.';
-                    if (payload.ocr_text) {
-                        this.signup.ocr_text = payload.ocr_text;
-                    }
-                }
+                    this.signup.ocr_text = payload?.ocr_text || '';
+                    this.scan.status = 'QC ID verified and fields auto-filled. Please review before creating account.';
 
-                if (verification.cardholder_name) {
-                    this.signup.name = verification.cardholder_name;
-                }
-                if (verification.id_number) {
-                    this.signup.qcid_number = verification.id_number;
-                }
-                if (verification.sex) {
-                    this.signup.sex = verification.sex;
-                }
-                if (verification.civil_status) {
-                    this.signup.civil_status = verification.civil_status;
-                }
-                if (verification.date_of_birth) {
-                    const normalized = this.normalizeDate(verification.date_of_birth);
-                    if (normalized) {
-                        this.signup.date_of_birth = normalized;
+                    if (verification.cardholder_name) {
+                        this.signup.name = verification.cardholder_name;
                     }
-                }
-                if (verification.date_issued) {
-                    const normalized = this.normalizeDate(verification.date_issued);
-                    if (normalized) {
-                        this.signup.date_issued = normalized;
+                    const correctedId = this.chooseBestQcIdCandidate(
+                        verification.id_number || '',
+                        verification.normalized_text || '',
+                        this.signup.ocr_text || '',
+                    );
+                    this.signup.qcid_number = correctedId || verification.id_number || '';
+
+                    if (verification.sex) {
+                        this.signup.sex = verification.sex;
                     }
-                }
-                if (verification.valid_until) {
-                    const normalized = this.normalizeDate(verification.valid_until);
-                    if (normalized) {
-                        this.signup.valid_until = normalized;
+                    if (verification.civil_status) {
+                        this.signup.civil_status = verification.civil_status;
                     }
-                }
-                if (verification.address) {
-                    this.signup.address = verification.address;
+                    if (verification.date_of_birth) {
+                        const normalized = this.normalizeDate(verification.date_of_birth);
+                        if (normalized) {
+                            this.signup.date_of_birth = normalized;
+                        }
+                    }
+                    if (verification.date_issued) {
+                        const normalized = this.normalizeDate(verification.date_issued);
+                        if (normalized) {
+                            this.signup.date_issued = normalized;
+                        }
+                    }
+                    if (verification.valid_until) {
+                        const normalized = this.normalizeDate(verification.valid_until);
+                        if (normalized) {
+                            this.signup.valid_until = normalized;
+                        }
+                    }
+                    if (verification.address) {
+                        this.signup.address = this.improveAddress(verification.address);
+                    }
+
+                    const fallbackDates = this.applyDateFallbacks(verification, this.signup.ocr_text);
+                    if (!this.signup.date_of_birth && fallbackDates.dob) {
+                        this.signup.date_of_birth = fallbackDates.dob;
+                    }
+                    if (!this.signup.date_issued && fallbackDates.issued) {
+                        this.signup.date_issued = fallbackDates.issued;
+                    }
+                    if (!this.signup.valid_until && fallbackDates.valid) {
+                        this.signup.valid_until = fallbackDates.valid;
+                    }
+
+                    if (this.signup.address) {
+                        this.signup.address = this.improveAddress(this.signup.address);
+                    } else if (verification.normalized_text) {
+                        this.signup.address = this.improveAddress(verification.normalized_text);
+                    }
                 }
             } catch (error) {
                 this.scan.error = error?.message || 'Unable to scan the QC ID image right now.';
@@ -602,7 +912,128 @@ function signupLoginApp(initialSignupOpen) {
         },
     };
 }
+    let deferredInstallPrompt;
+    const isMobileBrowser = /android|iphone|ipad|ipod|mobile|blackberry|iemobile|opera mini/i.test(window.navigator.userAgent);
+    const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    const iosInstallHint = document.getElementById('iosInstallHint');
+    const desktopInstallHint = document.getElementById('desktopInstallHint');
+    const installBtn = document.getElementById('installBtn');
+    const installContainer = document.getElementById('installPromptContainer');
+    const installToast = document.getElementById('installToast');
+
+    const showInstallToast = (message) => {
+        if (!installToast) {
+            return;
+        }
+
+        installToast.textContent = message;
+        installToast.classList.remove('hidden', 'opacity-0', 'translate-y-3');
+
+        window.setTimeout(() => {
+            installToast.classList.add('opacity-0', 'translate-y-3');
+            window.setTimeout(() => {
+                installToast.classList.add('hidden');
+            }, 250);
+        }, 2600);
+    };
+
+    const markAppInstalled = () => {
+        try {
+            window.localStorage.setItem('smartspace_pwa_installed', '1');
+        } catch (error) {
+            console.warn('Unable to persist install state', error);
+        }
+    };
+
+    const isAppInstalled = () => {
+        if (isStandalone) {
+            return true;
+        }
+
+        try {
+            return window.localStorage.getItem('smartspace_pwa_installed') === '1';
+        } catch (error) {
+            console.warn('Unable to read install state', error);
+            return false;
+        }
+    };
+
+    const updateInstallUiState = () => {
+        const installed = isAppInstalled();
+        const canShowInstallButton = isMobileBrowser && !installed;
+        const shouldShowDesktopHint = !isMobileBrowser && !installed;
+
+        if (installContainer) {
+            installContainer.classList.toggle('hidden', !canShowInstallButton);
+        }
+
+        if (desktopInstallHint) {
+            desktopInstallHint.classList.toggle('hidden', !shouldShowDesktopHint);
+        }
+    };
+
+    updateInstallUiState();
+
+    if (isIos && !isStandalone && iosInstallHint) {
+        iosInstallHint.classList.remove('hidden');
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+        updateInstallUiState();
+    });
+
+    installBtn?.addEventListener('click', async () => {
+        if (!deferredInstallPrompt) {
+            if (!isMobileBrowser) {
+                showInstallToast('Use your browser install menu, or open SmartSpace on your phone to install.');
+            } else {
+                showInstallToast('Use your browser install menu to add SmartSpace to home screen.');
+            }
+
+            if (isIos && iosInstallHint) {
+                iosInstallHint.classList.remove('hidden');
+            }
+
+            return;
+        }
+
+        deferredInstallPrompt.prompt();
+        const { outcome } = await deferredInstallPrompt.userChoice;
+
+        if (outcome === 'accepted') {
+            markAppInstalled();
+            updateInstallUiState();
+            showInstallToast('SmartSpace app installed successfully.');
+        }
+
+        deferredInstallPrompt = null;
+    });
+
+    window.addEventListener('appinstalled', () => {
+        deferredInstallPrompt = null;
+        markAppInstalled();
+        updateInstallUiState();
+
+        if (iosInstallHint) {
+            iosInstallHint.classList.add('hidden');
+        }
+
+        showInstallToast('SmartSpace app installed successfully.');
+    });
+
+    document.addEventListener('keydown', function (e) {
+        const key = (e.key || '').toLowerCase();
+        if ((e.ctrlKey || e.metaKey) && key === 'k') {
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('toggle-admin-login'));
+        }
+    });
 </script>
+
+<div id="installToast" class="hidden fixed left-1/2 bottom-6 z-50 w-[90%] max-w-sm -translate-x-1/2 rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white shadow-lg opacity-0 translate-y-3 transition-all duration-200"></div>
 @endpush
 
 @push('styles')

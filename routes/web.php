@@ -20,9 +20,18 @@ Route::get('/', function () {
         : redirect()->route('login');
 });
 
+Route::get('/pwa', function () {
+    return Auth::check()
+        ? redirect()->route('dashboard')
+        : view('pwa.landing');
+})->name('pwa.landing');
+
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AuthController::class, 'login'])->name('login.post');
+    Route::post('/login', [AuthController::class, 'login'])
+        ->middleware('throttle:5,1') // 5 attempts per minute
+        ->name('login.post');
+    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
     Route::post('/register', [AuthController::class, 'register'])->name('register.post');
     Route::post('/signup/qc-id/verify', QcIdVerificationController::class)->name('signup.qcid.verify');
 
@@ -71,6 +80,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     // Settings
     Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::put('/settings/preferences', [SettingsController::class, 'updatePreferences'])->name('settings.preferences.update');
+
+    Route::post('/settings/staff', [SettingsController::class, 'storeStaff'])->name('settings.staff.store');
     Route::put('/settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password.update');
 
     // Reports

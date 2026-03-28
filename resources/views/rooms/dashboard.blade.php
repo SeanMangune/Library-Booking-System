@@ -406,7 +406,8 @@
                 </div>
 
                 <!-- Modal Body -->
-                <form @submit.prevent="submitBooking()" class="flex flex-col min-h-0">
+                <form method="POST" enctype="multipart/form-data" @submit.prevent="submitBooking()" class="flex flex-col min-h-0">
+                    @csrf
                     <div class="p-6 flex-1 min-h-0 overflow-y-auto">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Left Column -->
@@ -431,75 +432,63 @@
                                         Book for User <span class="text-red-500">*</span>
                                     </label>
                                     <input type="text" x-model="bookingForm.user_name" required
+                                           :value="verifiedRegistrationName || bookingForm.user_name || ''"
                                            placeholder="Enter user name..."
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                 </div>
 
-                                <div class="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-3">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                                            QC ID Verification <span class="text-red-500">*</span>
-                                        </label>
-                                        <p x-show="!hasVerifiedRegistration" class="text-xs text-gray-500">Upload a clear photo of a Quezon City Citizen ID. The system will read the card using OCR and reject non-QC IDs.</p>
-                                        <p x-show="hasVerifiedRegistration" x-cloak class="text-xs text-emerald-700">QC ID already verified from your QC ID Registration.</p>
-                                    </div>
+                                <div class="rounded-xl border border-gray-200 bg-gray-50/80 p-4">
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">
+                                        QC ID Verification <span class="text-red-500">*</span>
+                                    </label>
+                                    <p class="text-xs text-gray-600 mb-2">Upload a clear photo of a Quezon City Citizen ID. The system will read the card using OCR and reject non-QC IDs.</p>
+                                    <input type="file" name="qcid_image" accept="image/*" required
+                                        class="block w-full text-sm text-gray-700 border border-gray-300 rounded-lg cursor-pointer focus:ring-2 focus:ring-teal-500 focus:border-teal-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+                                        @change="handleQcIdUpload($event)">
 
-                                    <input x-show="!hasVerifiedRegistration" x-cloak type="file"
-                                           accept="image/png,image/jpeg,image/jpg,image/webp"
-                                           @change="handleQcIdUpload($event)"
-                                           class="block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-teal-700">
+                                    <template x-if="qcIdPreviewUrl">
+                                        <div class="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
+                                            <img :src="qcIdPreviewUrl" alt="QC ID preview" class="h-48 w-full object-cover">
+                                        </div>
+                                    </template>
 
-                                    <div x-show="hasVerifiedRegistration" x-cloak class="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                                        <p class="text-sm font-semibold text-emerald-800">QC ID Verified</p>
-                                        <p class="text-xs text-emerald-700 mt-1">Bookings will use your approved QC ID registration status.</p>
-                                    </div>
-
-                                    <div x-show="qcIdPreviewUrl" x-cloak class="rounded-lg overflow-hidden border border-gray-200 bg-white">
-                                        <img :src="qcIdPreviewUrl" alt="QC ID preview" class="w-full h-44 object-cover">
-                                    </div>
-
-                                    <div x-show="qcIdIsProcessing" x-cloak class="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-700">
-                                        <div class="flex items-center justify-between gap-3">
-                                            <span x-text="qcIdStatusMessage || 'Reading QC ID…'"></span>
-                                            <span class="font-semibold" x-text="Math.round(qcIdProgress || 0) + '%' "></span>
+                                    <div x-show="qcIdIsProcessing" x-cloak class="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-4 mt-4">
+                                        <div class="flex items-center justify-between gap-4">
+                                            <div>
+                                                <p class="text-sm font-semibold text-teal-800" x-text="qcIdStatusMessage || 'Reading QC ID…'"></p>
+                                                <p class="text-xs text-teal-700 mt-1">OCR is extracting text and checking the QC ID layout.</p>
+                                            </div>
+                                            <div class="text-lg font-extrabold text-teal-700" x-text="Math.round(qcIdProgress) + '%' "></div>
+                                        </div>
+                                        <div class="mt-3 h-2 rounded-full bg-teal-100 overflow-hidden">
+                                            <div class="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-200" :style="`width: ${Math.round(qcIdProgress)}%`"></div>
                                         </div>
                                     </div>
 
-                                    <div x-show="qcIdError" x-cloak class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" x-text="qcIdError"></div>
+                                    <div x-show="qcIdError" x-cloak class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 mt-4" x-text="qcIdError"></div>
 
-                                    <div x-show="qcIdVerification?.is_valid" x-cloak class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
+                                    <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm mt-4">
                                         <div class="flex items-center justify-between gap-3">
                                             <div>
-                                                <p class="text-sm font-semibold text-emerald-800">QC ID verified</p>
-                                                <p class="text-xs text-emerald-700" x-text="'Confidence score: ' + (qcIdVerification?.confidence_score ?? 0) + '%' "></p>
+                                                <p class="text-sm font-semibold text-gray-900">Verification snapshot</p>
+                                                <p class="text-xs text-gray-500">Detected details from the uploaded card.</p>
                                             </div>
-                                            <button type="button"
-                                                    @click="reprocessQcId()"
-                                                    class="inline-flex items-center rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors">
-                                                Re-read ID
-                                            </button>
+                                            <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
+                                                :class="qcIdVerification?.is_valid ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
+                                                x-text="qcIdVerification?.is_valid ? 'QC ID verified' : 'Waiting for upload'"></span>
                                         </div>
-
-                                        <dl class="grid grid-cols-1 gap-2 text-xs text-emerald-900 sm:grid-cols-2">
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Cardholder</dt>
-                                                <dd x-text="qcIdVerification?.cardholder_name || '—'"></dd>
+                                        <dl class="mt-4 space-y-3 text-sm">
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">Cardholder</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.cardholder_name || '—'"></dd>
                                             </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Birth Date</dt>
-                                                <dd x-text="qcIdVerification?.date_of_birth || '—'"></dd>
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">ID number</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.id_number || '—'"></dd>
                                             </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Date Issued</dt>
-                                                <dd x-text="qcIdVerification?.date_issued || '—'"></dd>
-                                            </div>
-                                            <div>
-                                                <dt class="font-medium text-emerald-700">Valid Until</dt>
-                                                <dd x-text="qcIdVerification?.valid_until || '—'"></dd>
-                                            </div>
-                                            <div class="sm:col-span-2">
-                                                <dt class="font-medium text-emerald-700">Address</dt>
-                                                <dd x-text="qcIdVerification?.address || '—'"></dd>
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">Validity</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.valid_until || '—'"></dd>
                                             </div>
                                         </dl>
                                     </div>
@@ -657,19 +646,23 @@
         ];
     })->values();
 @endphp
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script type="application/json" id="dashboard-calendar-config">
+{!! json_encode([
+    'hasVerifiedRegistration' => $hasVerifiedRegistration,
+    'verifiedRegistrationName' => $verifiedRegistration?->full_name,
+    'isStaffUser' => auth()->user()?->isStaff() ?? false,
+    'rooms' => $roomOptions,
+    'defaultDate' => now()->format('Y-m-d'),
+    'initialCalendarData' => $calendarData,
+    'monthDataUrl' => route('calendar.month'),
+    'eventsUrl' => route('calendar.events'),
+    'verifyQcIdUrl' => route('qcid.verify'),
+    'storeBookingUrl' => route('reservations.store'),
+]) !!}
+</script>
 <script>
-window.dashboardCalendarConfig = {
-    hasVerifiedRegistration: @json($hasVerifiedRegistration),
-    verifiedRegistrationName: @json($verifiedRegistration?->full_name),
-    isStaffUser: @json(auth()->user()?->isStaff() ?? false),
-    rooms: @json($roomOptions),
-    defaultDate: '{{ now()->format("Y-m-d") }}',
-    initialCalendarData: @json($calendarData),
-    monthDataUrl: '{{ route("calendar.month") }}',
-    eventsUrl: '{{ route("calendar.events") }}',
-    verifyQcIdUrl: '{{ route("qcid.verify") }}',
-    storeBookingUrl: '{{ route("reservations.store") }}',
-};
+window.dashboardCalendarConfig = JSON.parse(document.getElementById('dashboard-calendar-config').textContent);
 </script>
 @endpush
 @endsection

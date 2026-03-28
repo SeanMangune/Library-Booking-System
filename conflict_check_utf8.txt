@@ -1,0 +1,11 @@
+﻿Clean: app/Http/Controllers/Auth/AuthController.php
+Clean: app/Http/Controllers/QcIdVerificationController.php
+Clean: app/Services/QcIdOcrVerifier.php
+Clean: config/services.php
+Clean: resources/js/calendar.js
+Clean: resources/views/auth/login.blade.php
+Clean: resources/views/components/modals/approvals/details.blade.php
+Conflict in: resources/views/reports/index.blade.php
+Conflict in: resources/views/rooms/approvals.blade.php
+Conflict in: resources/views/rooms/calendar.blade.php
+Clean: resources/views/rooms/dashboard.blade.php

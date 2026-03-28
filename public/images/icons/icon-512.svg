@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="SmartSpace icon">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="512" height="512" rx="110" fill="url(#g)"/>
+  <path d="M154 154h204a22 22 0 0 1 22 22v184a16 16 0 0 1-16 16h-8a16 16 0 0 1-16-16V208H172v152a16 16 0 0 1-16 16h-8a16 16 0 0 1-16-16V176a22 22 0 0 1 22-22z" fill="#ffffff" opacity="0.95"/>
+  <path d="M176 230h140" stroke="#2563eb" stroke-width="22" stroke-linecap="round"/>
+  <path d="M176 280h108" stroke="#2563eb" stroke-width="22" stroke-linecap="round"/>
+</svg>

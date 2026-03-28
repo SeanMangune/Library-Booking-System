@@ -42,7 +42,25 @@ TEXT;
         $result = (new QcIdOcrVerifier())->verify($text, 'John Sample');
 
         $this->assertFalse($result['is_valid']);
+        $this->assertSame('INVALID', $result['id_assessment']);
         $this->assertNull($result['date_of_birth']);
+    }
+
+    public function test_it_marks_fake_qc_id_when_qc_and_non_qc_markers_are_mixed(): void
+    {
+        $text = <<<'TEXT'
+Q CITIZENCARD
+QUEZON CITY
+PHILHEALTH IDENTIFICATION CARD
+DATE ISSUED 2024/02/16
+VALID UNTIL 2034/10/01
+005 000 01257479
+TEXT;
+
+        $result = (new QcIdOcrVerifier())->verify($text, 'John Sample');
+
+        $this->assertFalse($result['is_valid']);
+        $this->assertSame('Fake QC ID', $result['id_assessment']);
     }
 
     public function test_it_accepts_imperfect_but_still_valid_qcid_ocr_text(): void
