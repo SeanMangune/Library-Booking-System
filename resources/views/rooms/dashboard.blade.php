@@ -9,202 +9,172 @@
 
 @section('content')
 <div x-data="dashboardApp()" x-init="init()" class="flex flex-col xl:h-[calc(100dvh-9rem)] xl:overflow-hidden">
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Rooms Overview</h1>
-            {{-- <p class="text-sm text-gray-500 mt-1">View collab room bookings from today through the next two weeks, plus the calendar overview.</p> --}}
-        </div>
-        <button @click="openBookingModal()" 
-                class="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors">
-            <i class="w-4 h-4 fa-icon fa-solid fa-plus text-base leading-none"></i>
-            Create Booking
-        </button>
-    </div>
-
-    <div class="grid grid-cols-1 gap-6 transition-all duration-300 xl:flex-1 xl:min-h-0"
-         :class="bookingsPanelOpen ? 'xl:grid-cols-[minmax(0,1fr)_23rem]' : 'xl:grid-cols-1'">
-        <!-- Left Column: Calendar -->
-        <div class="min-w-0 xl:min-h-0">
-            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 xl:h-full xl:flex xl:flex-col xl:min-h-0">
-                <!-- Calendar Navigation -->
-                <div class="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center">
-                    <div class="order-2 flex items-end justify-center gap-2 sm:justify-start lg:order-1 lg:items-center">
-                        <button @click="prevMonth()" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
-                            <i class="w-4 h-4 text-gray-600 fa-icon fa-solid fa-chevron-left text-base leading-none"></i>
-                        </button>
-                        <button @click="nextMonth()" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
-                            <i class="w-4 h-4 text-gray-600 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
-                        </button>
-                        <button @click="goToToday()" class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
-                            today
-                        </button>
+    <!-- Main Dashboard Body -->
+    <div class="flex-1 min-h-0 overflow-y-auto px-1 group/dashboard">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-8">
+            
+            <!-- Left Column: Quick Stats & Current Status (lg:col-span-4) -->
+            <div class="lg:col-span-4 space-y-6">
+                <!-- Welcome Card -->
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 relative overflow-hidden group/welcome hover:shadow-md transition-all duration-300">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover/welcome:opacity-20 transition-opacity">
+                        <i class="fa-solid fa-house-chimney text-8xl text-teal-600"></i>
                     </div>
-
-                    <h2 class="order-1 text-center text-xl font-semibold text-gray-900 lg:order-2 lg:px-4" x-text="calendarTitle"></h2>
-
-                    <div class="order-3 flex flex-wrap items-center justify-center gap-2 sm:justify-end lg:order-3">
-                        <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                            <button @click="changeDashboardView('dayGridMonth')"
-                                    class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
-                                    :class="calendarView === 'dayGridMonth' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'">
-                                month
+                    <div class="relative z-10">
+                        <h2 class="text-xl font-bold text-gray-900">Welcome, {{ auth()->user()->name }}!</h2>
+                        <p class="text-gray-500 mt-1 text-sm leading-relaxed">Modernizing your library experience. Manage your room bookings and status from this dashboard.</p>
+                        
+                        <div class="mt-6 flex flex-wrap gap-2">
+                            <button @click="openBookingModal()" class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]">
+                                <i class="fa-solid fa-plus"></i> New Booking
                             </button>
-                            <button @click="changeDashboardView('timeGridWeek')"
-                                    class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
-                                    :class="calendarView === 'timeGridWeek' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'">
-                                week
-                            </button>
-                            <button @click="changeDashboardView('listWeek')"
-                                    class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
-                                    :class="calendarView === 'listWeek' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'">
-                                list
-                            </button>
+                            <a href="{{ route('reservations.index') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl transition-all">
+                                <i class="fa-solid fa-list"></i> My Reservations
+                            </a>
                         </div>
-
-                        <button type="button"
-                                @click="toggleBookingsPanel()"
-                            class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors whitespace-nowrap"
-                                :title="bookingsPanelOpen ? 'Collapse bookings panel' : 'Expand bookings panel'">
-                            <i class="w-4 h-4 fa-icon fa-solid text-base leading-none"
-                               :class="bookingsPanelOpen ? 'fa-angles-right' : 'fa-angles-left'"></i>
-                            <span x-text="bookingsPanelOpen ? 'Hide bookings' : 'Show bookings'"></span>
-                        </button>
                     </div>
                 </div>
 
-                <div class="border border-gray-200 rounded-lg overflow-auto xl:flex-1 xl:min-h-0" x-show="calendarView === 'dayGridMonth'">
-                    <div class="grid grid-cols-7 bg-gray-50 border-b border-gray-200">
-                        <template x-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="day">
-                            <div class="py-3 text-center text-sm font-semibold text-gray-600" x-text="day"></div>
-                        </template>
+                <!-- Status Card -->
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
+                        <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                           <i class="fa-solid fa-shield-check text-teal-600"></i>
+                           System Status
+                        </h3>
+                        <span class="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     </div>
-
-                    <div class="grid grid-cols-7">
-                        <template x-for="(week, weekIndex) in calendarWeeks" :key="weekIndex">
-                            <template x-for="(day, dayIndex) in week" :key="weekIndex + '-' + dayIndex">
-                                <div class="min-h-[100px] border-b border-r border-gray-200 p-2"
-                                     @click="!day.isPast && day.isCurrentMonth && openBookingModalForDay(day)"
-                                     :class="{
-                                         'bg-gray-50': !day.isCurrentMonth,
-                                         'bg-yellow-50': day.isToday,
-                                         'cursor-pointer hover:bg-teal-50 transition-colors': day.isCurrentMonth && !day.isPast,
-                                         'opacity-50 cursor-not-allowed': day.isPast && day.isCurrentMonth,
-                                     }">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="text-sm font-medium"
-                                              :class="day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'"
-                                              x-text="day.day"></span>
-                                    </div>
-                                    <div class="space-y-1">
-                                        <template x-for="event in day.events.slice(0, 2)" :key="event.id">
-                                            <div class="relative group">
-                                                   <div class="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded truncate cursor-pointer hover:bg-green-200 transition-colors"
-                                                     @click.stop="openViewBookingModal(event)"
-                                                     x-text="event.formatted_time?.split(' - ')[0] + ' ' + event.title"></div>
-                                                <div class="absolute left-0 bottom-full mb-2 z-50 hidden group-hover:block w-64 bg-gray-900 text-white text-xs rounded-lg shadow-xl p-3 pointer-events-none">
-                                                    <div class="font-semibold text-sm mb-2" x-text="event.title || event.room_name"></div>
-                                                    <div class="space-y-1.5 text-gray-300">
-                                                        <div class="flex items-center gap-2">
-                                                            <i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-building text-sm leading-none"></i>
-                                                            <span x-text="event.room_name"></span>
-                                                        </div>
-                                                        <div class="flex items-center gap-2">
-                                                            <i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-clock text-sm leading-none"></i>
-                                                            <span x-text="event.formatted_time"></span>
-                                                        </div>
-                                                        <div class="flex items-center gap-2">
-                                                            <i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-user text-sm leading-none"></i>
-                                                            <span x-text="event.user_name"></span>
-                                                        </div>
-                                                        <div class="flex items-center gap-2">
-                                                            <i class="w-3.5 h-3.5 text-gray-400 fa-icon fa-solid fa-users text-sm leading-none"></i>
-                                                            <span x-text="event.attendees + ' attendees'"></span>
-                                                        </div>
-                                                    </div>
-                                                    <div class="absolute left-4 top-full w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-gray-900"></div>
-                                                </div>
-                                            </div>
-                                        </template>
-                                        <template x-if="day.events.length > 2">
-                                            <button @click.stop="openDayEventsModal(day)"
-                                                    class="text-xs text-blue-600 hover:text-blue-800 font-medium pl-1 hover:underline"
-                                                    x-text="'+' + (day.events.length - 2) + ' more'"></button>
-                                        </template>
-                                    </div>
-                                </div>
-                            </template>
-                        </template>
+                    <div class="p-6">
+                        <div class="flex flex-col gap-4">
+                            <div class="flex items-center justify-between p-3 bg-emerald-50 rounded-xl">
+                                <span class="text-xs font-semibold text-emerald-800 uppercase">Verification</span>
+                                <span x-text="hasVerifiedRegistration ? 'VERIFIED' : 'PENDING'" class="text-xs font-black text-emerald-700"></span>
+                            </div>
+                            <div class="flex items-center justify-between p-3 bg-blue-50 rounded-xl">
+                                <span class="text-xs font-semibold text-blue-800 uppercase">Bookings Today</span>
+                                <span class="text-xs font-black text-blue-700 font-mono">{{ $collabRoomBookings->where('date', now()->today())->count() }} Active</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="h-[68vh] xl:h-auto border border-gray-200 rounded-lg p-3 overflow-auto xl:flex-1 xl:min-h-0" x-show="calendarView !== 'dayGridMonth'" x-cloak>
-                    <div id="dashboard-calendar" class="fc-custom-dashboard h-full"></div>
+                <!-- Quick Tips Card -->
+                <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group/tips">
+                    <div class="absolute -right-4 -bottom-4 opacity-20 transform rotate-12 group-hover/tips:scale-110 transition-transform">
+                        <i class="fa-solid fa-lightbulb text-9xl"></i>
+                    </div>
+                    <h3 class="font-bold text-lg mb-2">Modern SmartSpace</h3>
+                    <p class="text-indigo-100 text-xs leading-relaxed opacity-90">Remember to bring your QC ID for physical verification if required by the librarian.</p>
                 </div>
             </div>
-        </div>
 
-        <!-- Right Column: Collab Room Bookings -->
-        <aside x-show="bookingsPanelOpen"
-               x-cloak
-               x-transition
-                    class="min-w-0 xl:min-h-0">
-                <div class="bg-white rounded-xl border border-gray-200 shadow-sm h-full xl:flex xl:flex-col xl:min-h-0">
-                <div class="px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3">
-                    <div>
-                        <h2 class="text-lg font-semibold text-gray-900">Collab Room Bookings</h2>
-                        <p class="text-xs text-gray-500 mt-1">Today to next 2 weeks</p>
-                    </div>
-                    <button type="button"
-                            @click="toggleBookingsPanel()"
-                            class="inline-flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                            title="Collapse bookings panel">
-                        <i class="w-4 h-4 fa-icon fa-solid fa-xmark text-base leading-none"></i>
-                    </button>
-                </div>
-                <div class="p-4 max-h-[34rem] xl:max-h-none xl:flex-1 xl:min-h-0 overflow-y-auto">
-                    @forelse($collabRoomBookings as $booking)
-                    @php
-                        $canViewBookingDetails = $isStaff;
-                    @endphp
-                    <div class="py-3 px-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer {{ $loop->last ? '' : 'border-b border-gray-200' }}"
-                         @click="viewBooking({{ json_encode([
-                             'id' => $booking->id,
-                             'title' => $canViewBookingDetails ? $booking->title : 'Occupied',
-                             'room_name' => $booking->room->name,
-                             'date' => $booking->date->format('M d, Y'),
-                             'formatted_date' => $booking->formatted_date,
-                             'formatted_time' => $booking->formatted_time,
-                             'user_name' => $canViewBookingDetails ? $booking->user_name : 'Occupied',
-                             'attendees' => $booking->attendees,
-                             'status' => $booking->status,
-                         ]) }})">
-                        <div class="flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <h3 class="font-semibold text-gray-900">{{ $booking->room->name }}</h3>
-                                <p class="text-sm text-gray-500 mt-0.5">{{ $booking->formatted_time }}</p>
-                                <p class="text-xs text-gray-400 mt-1">
-                                    @if($booking->date->isToday())
-                                        Today
-                                    @else
-                                        {{ $booking->date->format('F d, Y') }}
-                                    @endif
-                                </p>
+            <!-- Right Column: Calendar & Bookings (lg:col-span-8) -->
+            <div class="lg:col-span-8 space-y-6">
+                <!-- Mini Calendar Subsection -->
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all duration-300">
+                    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h3 class="font-bold text-gray-900 text-lg">Availability Calendar</h3>
+                            <p class="text-xs text-gray-500" x-text="calendarTitle"></p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+                                <button @click="prevMonth()" class="p-1.5 rounded-lg hover:bg-white transition-all"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                                <button @click="goToToday()" class="px-2 py-1 text-[10px] font-black uppercase text-gray-600 hover:text-gray-900">TODAY</button>
+                                <button @click="nextMonth()" class="p-1.5 rounded-lg hover:bg-white transition-all"><i class="fa-solid fa-chevron-right text-xs"></i></button>
                             </div>
-                            <span class="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                                {{ ucfirst($booking->status) }}
+                            <div class="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+                                <button @click="changeDashboardView('dayGridMonth')" :class="calendarView === 'dayGridMonth' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500'" class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all">Month</button>
+                                <button @click="changeDashboardView('listWeek')" :class="calendarView === 'listWeek' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500'" class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all">List</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6 transition-all duration-500 min-h-[400px]">
+                        <div x-show="calendarView === 'dayGridMonth'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" class="border border-gray-100 rounded-2xl overflow-hidden shadow-inner bg-gray-50/10">
+                            <div class="grid grid-cols-7 bg-white/50 border-b border-gray-100">
+                                <template x-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="day">
+                                    <div class="py-3 text-center text-[10px] font-black uppercase text-gray-400 tracking-widest" x-text="day"></div>
+                                </template>
+                            </div>
+
+                            <div class="grid grid-cols-7">
+                                <template x-for="(week, weekIndex) in calendarWeeks" :key="weekIndex">
+                                    <template x-for="(day, dayIndex) in week" :key="weekIndex + '-' + dayIndex">
+                                        <div class="min-h-[110px] sm:min-h-[130px] border-b border-r border-gray-100 p-2 relative group/day transition-all"
+                                             @click="!day.isPast && day.isCurrentMonth && openBookingModalForDay(day)"
+                                             :class="{
+                                                 'bg-gray-50/50': !day.isCurrentMonth,
+                                                 'bg-teal-50/30': day.isToday,
+                                                 'cursor-pointer hover:bg-teal-50/80 hover:z-10 hover:shadow-lg': day.isCurrentMonth && !day.isPast,
+                                                 'opacity-40 cursor-not-allowed grayscale': day.isPast && day.isCurrentMonth,
+                                             }">
+                                            <div class="flex items-center justify-between mb-2">
+                                                <span class="text-xs font-black"
+                                                      :class="day.isToday ? 'bg-teal-600 text-white w-6 h-6 rounded-full flex items-center justify-center -ml-1' : (day.isCurrentMonth ? 'text-gray-600' : 'text-gray-300')"
+                                                      x-text="day.day"></span>
+                                            </div>
+                                            <div class="space-y-1 overflow-hidden">
+                                                <template x-for="event in day.events.slice(0, 3)" :key="event.id">
+                                                    <div class="relative group/event">
+                                                           <div class="text-[10px] px-2 py-1 bg-white border border-gray-100 text-gray-700 rounded-lg shadow-sm truncate hover:border-teal-400 hover:text-teal-700 transition-all font-medium flex items-center gap-1.5"
+                                                             @click.stop="openViewBookingModal(event)">
+                                                                <span class="w-1.5 h-1.5 rounded-full" :class="event.status === 'approved' ? 'bg-emerald-500' : 'bg-amber-500'"></span>
+                                                                <span x-text="event.formatted_time?.split(':')[0] + event.formatted_time?.slice(-2)"></span>
+                                                                <span class="opacity-60">|</span>
+                                                                <span x-text="event.room_name?.split(' ')[1] || event.room_name"></span>
+                                                            </div>
+                                                    </div>
+                                                </template>
+                                                <template x-if="day.events.length > 3">
+                                                    <button @click.stop="openDayEventsModal(day)"
+                                                            class="w-full text-[10px] text-teal-600 font-black uppercase text-center py-1 bg-teal-50/50 rounded-lg hover:bg-teal-100 transition-all"
+                                                            x-text="'+' + (day.events.length - 3) + ' more'"></button>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div x-show="calendarView === 'listWeek'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" class="h-[500px] border border-gray-100 rounded-2xl p-4 overflow-auto bg-gray-50/10">
+                            <div id="dashboard-calendar" class="fc-custom-dashboard h-full"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Bookings Panel (Compact Version) -->
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all duration-300">
+                    <h3 class="font-bold text-gray-900 mb-6 flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left text-teal-600"></i>
+                        Recent Room Activity
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        @forelse($collabRoomBookings as $booking)
+                        <div class="flex items-center gap-4 p-4 rounded-2xl border border-gray-50 hover:border-teal-100 hover:bg-teal-50/30 transition-all cursor-pointer group/item"
+                             @click="viewBooking({{ json_encode($booking) }})">
+                            <div class="w-12 h-12 rounded-xl bg-gray-50 group-hover/item:bg-white flex items-center justify-center shrink-0 transition-colors">
+                                <i class="fa-solid fa-door-open text-gray-400 group-hover/item:text-teal-600"></i>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <h4 class="font-bold text-gray-900 truncate">{{ $booking->room->name }}</h4>
+                                <p class="text-xs text-gray-500">{{ $booking->formatted_time }} • {{ $booking->date->format('M d') }}</p>
+                            </div>
+                            <span class="px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase rounded-lg">
+                                {{ $booking->status }}
                             </span>
                         </div>
+                        @empty
+                        <div class="md:col-span-2 text-center py-12 border-2 border-dashed border-gray-100 rounded-3xl">
+                            <i class="fa-solid fa-calendar-xmark text-4xl text-gray-200 mb-4"></i>
+                            <p class="text-gray-400 text-sm font-medium">No bookings found for the upcoming period.</p>
+                        </div>
+                        @endforelse
                     </div>
-                    @empty
-                    <div class="text-center py-8">
-                        <i class="w-12 h-12 text-gray-300 mx-auto mb-3 fa-icon fa-solid fa-calendar-days text-5xl leading-none"></i>
-                        <p class="text-sm text-gray-500">No collaborative-room bookings in the next two weeks</p>
-                    </div>
-                    @endforelse
                 </div>
             </div>
-        </aside>
+        </div>
     </div>
 
     <!-- View Booking Details Modal -->
@@ -415,18 +385,21 @@
     <div x-show="showBookingModal" x-cloak class="modal p-4" :class="{ 'modal-open': showBookingModal }" @keydown.escape.window="closeBookingModal()">
         <div class="modal-box w-11/12 max-w-2xl p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
                 <!-- Modal Header -->
-                <div class="bg-gradient-to-r from-teal-600 to-teal-700 px-6 py-4 rounded-t-2xl">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                <i class="w-5 h-5 text-white fa-icon fa-solid fa-calendar-days text-xl leading-none"></i>
+                <div class="bg-gradient-to-r from-teal-600 to-teal-700 px-6 py-6 rounded-t-2xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                        <i class="fa-solid fa-calendar-plus text-8xl text-white"></i>
+                    </div>
+                    <div class="flex items-center justify-between relative z-10">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md shadow-lg">
+                                <i class="w-6 h-6 text-white fa-icon fa-solid fa-calendar-days text-2xl leading-none"></i>
                             </div>
                             <div>
-                                <h2 class="text-lg font-bold text-white">Schedule New Booking</h2>
-                                <p class="text-teal-100 text-sm">Fill in the details below to schedule a new room booking</p>
+                                <h2 class="text-xl font-black text-white tracking-tight">User Verification Portal</h2>
+                                <p class="text-teal-50 text-xs font-medium opacity-90 uppercase tracking-widest mt-0.5">ID Scanning & Verification Required</p>
                             </div>
                         </div>
-                        <button @click="closeBookingModal()" class="text-white/80 hover:text-white">
+                        <button @click="closeBookingModal()" class="text-white/80 hover:text-white bg-white/10 p-2 rounded-xl hover:bg-white/20 transition-all">
                             <i class="w-6 h-6 fa-icon fa-solid fa-xmark text-2xl leading-none"></i>
                         </button>
                     </div>
@@ -684,7 +657,6 @@
         ];
     })->values();
 @endphp
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
 window.dashboardCalendarConfig = {
     hasVerifiedRegistration: @json($hasVerifiedRegistration),

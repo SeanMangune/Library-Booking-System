@@ -12,8 +12,8 @@
 
     <div class="w-full max-w-5xl relative z-10">
         <div class="flex items-center justify-center mb-8">
-            <div class="login-brand-wrap">
-                <img src="{{ asset('images/smartspace-logo.png') }}" alt="SmartSpace" class="h-40 sm:h-44 md:h-48 w-auto max-w-none login-brand-logo" onerror="this.onerror=null;this.src='{{ asset('images/smartspace-logo.svg') }}';">
+            <div class="premium-logo-container">
+                <img src="/images/smartspace-logo.png" alt="SmartSpace" class="h-44 sm:h-48 md:h-56 lg:h-64 w-auto max-w-none logo-premium logo-glow-purple">
             </div>
         </div>
 
@@ -112,12 +112,20 @@
             <div x-show="signupOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto px-4 py-8">
                 <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="signupOpen = false"></div>
                 <div class="relative mx-auto w-full max-w-6xl overflow-hidden rounded-3xl border border-indigo-100 bg-slate-50 shadow-[0_30px_100px_-30px_rgba(30,41,59,0.75)]">
-                    <div class="signup-hero px-6 py-6 sm:px-8">
-                        <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                            <div>
-                                <p class="inline-flex rounded-full bg-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-indigo-100">User Verification Portal</p>
-                                <h3 class="mt-3 text-3xl font-extrabold tracking-tight text-white">Create your SmartSpace account</h3>
-                                <p class="mt-2 max-w-2xl text-sm text-indigo-100/95">Upload your Quezon City Citizen ID, review captured details, and finish signup in one guided flow.</p>
+                    <div class="signup-hero px-6 py-6 sm:px-8 border-b border-white/10 shadow-2xl">
+                        <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                            <div class="relative z-10">
+                                <div class="flex flex-wrap items-center gap-3 mb-4">
+                                    <span class="inline-flex rounded-lg bg-indigo-500/20 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-200 backdrop-blur-md ring-1 ring-white/20">
+                                        QC Citizen Verification
+                                    </span>
+                                    <span class="signup-badge-glow inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-[10px] font-bold text-emerald-300 backdrop-blur-md">
+                                        <i class="fa-solid fa-shield-halved text-[9px]"></i>
+                                        SECURE SERVER-SIDE SCANNING
+                                    </span>
+                                </div>
+                                <h3 class="text-4xl font-black tracking-tight text-white">Create your SmartSpace account</h3>
+                                <p class="mt-2 max-w-2xl text-base text-indigo-100/80 font-medium">Upload your Quezon City Citizen ID for instant verification and auto-fill.</p>
                             </div>
                             <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:w-[430px]">
                                 <div class="rounded-2xl border border-white/20 bg-white/10 px-3 py-3 backdrop-blur-sm">
@@ -141,7 +149,8 @@
                             @csrf
                             <input type="hidden" name="ocr_text" x-model="signup.ocr_text">
 
-                            <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
+
+                                <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
                                 <div class="space-y-5 lg:col-span-2">
                                     <section class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
                                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -195,10 +204,10 @@
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Full Name</label>
                                                 <input name="name" type="text" value="{{ old('name') }}" x-model="signup.name" required autocomplete="name"
-                                                       maxlength="50"
-                                                       @input="signup.name = signup.name.replace(/[0-9]/g, '')"
+                                                       maxlength="20"
+                                                       @input="signup.name = signup.name.replace(/[0-9]/g, '').substring(0, 20)"
                                                        class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                                <p class="mt-1 text-xs text-slate-400" x-text="signup.name.length + '/50 characters'"></p>
+                                                <p class="mt-1 text-xs text-slate-400" x-text="signup.name.length + '/20 characters'"></p>
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Email</label>
@@ -400,7 +409,6 @@
 </div>
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
 function signupLoginApp(initialSignupOpen) {
     return {
@@ -454,186 +462,60 @@ function signupLoginApp(initialSignupOpen) {
                 URL.revokeObjectURL(this.scan.previewUrl);
             }
             this.scan.previewUrl = URL.createObjectURL(file);
+
+            // Auto-trigger scan
+            this.scanSignupQcId();
         },
 
         normalizeDate(raw) {
-            const value = String(raw || '').trim();
-            if (!value) {
-                return '';
+            if (!raw) return '';
+            
+            // Clean up the string: replace all separators with a single space
+            const cleaned = String(raw).toUpperCase().replace(/[^A-Z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+            
+            // Try standard Date parsing first for things like "JAN 01 1990"
+            const dateObj = new Date(cleaned);
+            if (!isNaN(dateObj.getTime())) {
+                return dateObj.toISOString().split('T')[0];
             }
 
-            const slash = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-            if (slash) {
-                const month = slash[1].padStart(2, '0');
-                const day = slash[2].padStart(2, '0');
-                return `${slash[3]}-${month}-${day}`;
-            }
+            // Fallback for DD MM YYYY or MM DD YYYY
+            const parts = cleaned.split(' ');
+            if (parts.length === 3) {
+                let day, month, year;
+                if (parts[2].length === 4) { // YYYY is at the end
+                    year = parts[2];
+                    if (parseInt(parts[0]) > 12) { // Definitely DD MM YYYY
+                        day = parts[0];
+                        month = parts[1];
+                    } else { // Ambiguous, assume MM DD YYYY or standard format
+                        month = parts[0];
+                        day = parts[1];
+                    }
+                } else if (parts[0].length === 4) { // YYYY is at the start
+                    year = parts[0];
+                    month = parts[1];
+                    day = parts[2];
+                }
 
-            const dash = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-            if (dash) {
-                return `${dash[1]}-${dash[2].padStart(2, '0')}-${dash[3].padStart(2, '0')}`;
+                if (year && month && day) {
+                    // Normalize to YYYY-MM-DD
+                    const m = String(month).padStart(2, '0');
+                    const d = String(day).padStart(2, '0');
+                    return `${year}-${m}-${d}`;
+                }
             }
 
             return '';
         },
 
-        normalizeOcrText(value) {
-            return String(value || '')
-                .toUpperCase()
-                .replace(/\r/g, '')
-                .replace(/[^A-Z0-9,./\-\+\n\s]/g, ' ')
-                .replace(/[ \t]+/g, ' ')
-                .replace(/\n{2,}/g, '\n')
-                .trim();
-        },
-
-        async buildQcCanvas(file) {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const scale = Math.max(1, 2800 / Math.max(img.width, img.height));
-                    canvas.width = Math.round(img.width * scale);
-                    canvas.height = Math.round(img.height * scale);
-
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    const data = imageData.data;
-                    for (let i = 0; i < data.length; i += 4) {
-                        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-                        const contrast = Math.min(255, Math.max(0, ((gray - 128) * 1.7) + 128));
-                        data[i] = contrast;
-                        data[i + 1] = contrast;
-                        data[i + 2] = contrast;
-                    }
-                    ctx.putImageData(imageData, 0, 0);
-
-                    resolve(canvas);
-                };
-                img.onerror = () => resolve(null);
-                img.src = URL.createObjectURL(file);
+        async getBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
             });
-        },
-
-        createQcCropCanvas(sourceCanvas, rect, threshold = false) {
-            const crop = document.createElement('canvas');
-            const sx = Math.max(0, Math.round(sourceCanvas.width * rect.x));
-            const sy = Math.max(0, Math.round(sourceCanvas.height * rect.y));
-            const sw = Math.max(1, Math.round(sourceCanvas.width * rect.w));
-            const sh = Math.max(1, Math.round(sourceCanvas.height * rect.h));
-
-            crop.width = sw;
-            crop.height = sh;
-
-            const ctx = crop.getContext('2d');
-            ctx.drawImage(sourceCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
-
-            if (threshold) {
-                const imageData = ctx.getImageData(0, 0, sw, sh);
-                const data = imageData.data;
-                for (let i = 0; i < data.length; i += 4) {
-                    const value = data[i] > 145 ? 255 : 0;
-                    data[i] = value;
-                    data[i + 1] = value;
-                    data[i + 2] = value;
-                }
-                ctx.putImageData(imageData, 0, 0);
-            }
-
-            return crop;
-        },
-
-        async recognizeQcCanvas(canvas, ocrConfig = {}) {
-            const result = await window.Tesseract.recognize(canvas, 'eng', {
-                preserve_interword_spaces: '1',
-                ...ocrConfig,
-            });
-
-            return this.normalizeOcrText(result?.data?.text || '');
-        },
-
-        async collectSignupQcOcrText(file) {
-            const enhancedCanvas = await this.buildQcCanvas(file);
-            if (!enhancedCanvas) {
-                throw new Error('Unable to prepare the QC ID image for OCR.');
-            }
-
-            const fullText = await this.recognizeQcCanvas(enhancedCanvas, {
-                tessedit_pageseg_mode: 6,
-            });
-
-            const sparseText = await this.recognizeQcCanvas(enhancedCanvas, {
-                tessedit_pageseg_mode: 11,
-            });
-
-            const nameStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.23, y: 0.24, w: 0.45, h: 0.13 }, false);
-            const demographicStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.22, y: 0.33, w: 0.48, h: 0.16 }, true);
-            const issuedStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.34, y: 0.43, w: 0.19, h: 0.09 }, true);
-            const validStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.52, y: 0.43, w: 0.19, h: 0.09 }, true);
-            const addressStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.19, y: 0.54, w: 0.46, h: 0.19 }, true);
-            const idStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.60, y: 0.74, w: 0.36, h: 0.18 }, true);
-
-            const nameText = await this.recognizeQcCanvas(nameStrip, {
-                tessedit_pageseg_mode: 7,
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ,.- ',
-            });
-
-            const demographicsText = await this.recognizeQcCanvas(demographicStrip, {
-                tessedit_pageseg_mode: 6,
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/ -',
-            });
-
-            const issuedText = await this.recognizeQcCanvas(issuedStrip, {
-                tessedit_pageseg_mode: 7,
-                tessedit_char_whitelist: '0123456789/ -',
-            });
-
-            const validText = await this.recognizeQcCanvas(validStrip, {
-                tessedit_pageseg_mode: 7,
-                tessedit_char_whitelist: '0123456789/ -',
-            });
-
-            const addressText = await this.recognizeQcCanvas(addressStrip, {
-                tessedit_pageseg_mode: 6,
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.- ',
-            });
-
-            const idText = await this.recognizeQcCanvas(idStrip, {
-                tessedit_pageseg_mode: 6,
-                tessedit_char_whitelist: '0123456789 ',
-            });
-
-            const structuredLines = [fullText, sparseText];
-
-            if (nameText) {
-                structuredLines.push('LAST NAME, FIRST NAME, MIDDLE NAME');
-                structuredLines.push(nameText);
-            }
-
-            if (demographicsText) {
-                structuredLines.push(demographicsText);
-                structuredLines.push('SEX DATE OF BIRTH CIVIL STATUS');
-            }
-
-            if (issuedText) {
-                structuredLines.push(`DATE ISSUED ${issuedText}`);
-            }
-
-            if (validText) {
-                structuredLines.push(`VALID UNTIL ${validText}`);
-            }
-
-            if (addressText) {
-                structuredLines.push(`ADDRESS ${addressText}`);
-            }
-
-            if (idText) {
-                structuredLines.push(idText);
-            }
-
-            return this.normalizeOcrText(structuredLines.filter(Boolean).join('\n'));
         },
 
         async scanSignupQcId() {
@@ -645,23 +527,11 @@ function signupLoginApp(initialSignupOpen) {
                 return;
             }
 
-            if (!window.Tesseract) {
-                this.scan.error = 'OCR scanner is not available. Please refresh and try again.';
-                return;
-            }
-
             this.scan.isProcessing = true;
-            this.scan.status = 'Reading QC ID image...';
+            this.scan.status = 'Uploading and scanning QC ID...';
 
             try {
-                const ocrText = await this.collectSignupQcOcrText(this.scan.file);
-
-                if (ocrText.length < 20) {
-                    throw new Error('No readable text was found. Please upload a clearer QC ID image.');
-                }
-
-                this.signup.ocr_text = ocrText;
-                this.scan.status = 'Validating QC ID data...';
+                const base64Image = await this.getBase64(this.scan.file);
 
                 const response = await fetch(@json(route('signup.qcid.verify')), {
                     method: 'POST',
@@ -671,7 +541,7 @@ function signupLoginApp(initialSignupOpen) {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
                     },
                     body: JSON.stringify({
-                        ocr_text: ocrText,
+                        image_data: base64Image,
                         user_name: this.signup.name || null,
                     }),
                 });
@@ -681,8 +551,14 @@ function signupLoginApp(initialSignupOpen) {
 
                 if (!payload?.success) {
                     this.scan.error = payload?.message || 'QC ID verification failed. Please check the image and try again.';
+                    if (payload.verification?.is_fake) {
+                        this.scan.error = '⛔ FAKE/INVALID ID DETECTED: ' + (payload.message || 'This ID is not accepted.');
+                    }
                 } else {
-                    this.scan.status = 'QC ID verified and fields auto-filled. Please review before creating account.';
+                    this.scan.status = '✅ QC ID verified and fields auto-filled.';
+                    if (payload.ocr_text) {
+                        this.signup.ocr_text = payload.ocr_text;
+                    }
                 }
 
                 if (verification.cardholder_name) {

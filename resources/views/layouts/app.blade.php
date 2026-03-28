@@ -288,7 +288,7 @@
                 <div class="flex items-center gap-3">
                     <div class="relative h-12 w-12 flex items-center justify-center">
                         <span class="absolute inset-0 rounded-full bg-indigo-400/25 blur-md"></span>
-                        <img src="{{ asset('images/smartspace-mark.svg') }}" alt="SmartSpace" class="relative h-12 w-12 object-contain drop-shadow-[0_0_20px_rgba(129,140,248,0.55)]" onerror="this.onerror=null;this.src='{{ asset('images/smartspace-logo.svg') }}';">
+                        <img src="/images/smartspace-logo.png" alt="SmartSpace" class="relative h-14 w-auto object-contain logo-premium logo-glow-small">
                     </div>
                     <div class="sidebar-brand">
                         <span class="text-white font-bold text-lg tracking-tight">SmartSpace</span>

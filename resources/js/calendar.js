@@ -29,17 +29,35 @@ function todayDateString() {
     return new Date().toISOString().split('T')[0];
 }
 
-function buildUrl(base, params = {}) {
-    const url = new URL(base, window.location.origin);
+async function performQcIdVerification(file, userName, verifyUrl) {
+    const reader = new FileReader();
+    const base64Promise = new Promise((resolve) => {
+        reader.onload = () => resolve(reader.result);
+    });
+    reader.readAsDataURL(file);
+    const base64Image = await base64Promise;
 
-    Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-            url.searchParams.set(key, value);
-        }
+    const response = await fetch(verifyUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+        },
+        body: JSON.stringify({
+            image: base64Image,
+            user_name: userName,
+        }),
     });
 
-    return url.toString();
+    const payload = await response.json();
+    if (!response.ok || !payload.success) {
+        throw new Error(payload.message || 'ID verification failed.');
+    }
+    return payload;
 }
+
+
 
 function formatClockValue(value) {
     if (!value) {
@@ -115,11 +133,11 @@ function filterPastTimeSlots(slots, selectedDate) {
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
-    const currentTotalMinutes = (currentHour * 60) + currentMinute;
 
     return slots.filter((slot) => {
         const startMinutes = parseTimeToMinutes(slot.start_time);
-        return startMinutes !== null && startMinutes > currentTotalMinutes;
+        // Allow slot if it starts at least 15 minutes from now
+        return startMinutes !== null && startMinutes > ((currentHour * 60) + currentMinute + 15);
     });
 }
 
@@ -172,6 +190,9 @@ function buildBookingDateOptions(daysAhead = BOOKING_DATE_RANGE_DAYS) {
     for (let dayOffset = 0; dayOffset <= daysAhead; dayOffset += 1) {
         const date = new Date(today);
         date.setDate(today.getDate() + dayOffset);
+
+        // Skip Sunday
+        if (date.getDay() === 0) continue;
 
         const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         options.push({
@@ -652,308 +673,42 @@ export function createRoomCalendarApp(config = {}) {
                 .trim();
         },
 
-        async buildQcCanvas(file) {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const scale = Math.max(1, 2800 / Math.max(img.width, img.height));
-                    canvas.width = Math.round(img.width * scale);
-                    canvas.height = Math.round(img.height * scale);
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    const data = imageData.data;
-                    for (let i = 0; i < data.length; i += 4) {
-                        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-                        const contrast = Math.min(255, Math.max(0, ((gray - 128) * 1.7) + 128));
-                        data[i] = contrast;
-                        data[i + 1] = contrast;
-                        data[i + 2] = contrast;
-                    }
-                    ctx.putImageData(imageData, 0, 0);
-
-                    resolve(canvas);
-                };
-                img.onerror = () => resolve(null);
-                img.src = URL.createObjectURL(file);
-            });
-        },
-
-        createQcCropCanvas(sourceCanvas, rect, threshold = false) {
-            const crop = document.createElement('canvas');
-            const sx = Math.max(0, Math.round(sourceCanvas.width * rect.x));
-            const sy = Math.max(0, Math.round(sourceCanvas.height * rect.y));
-            const sw = Math.max(1, Math.round(sourceCanvas.width * rect.w));
-            const sh = Math.max(1, Math.round(sourceCanvas.height * rect.h));
-
-            crop.width = sw;
-            crop.height = sh;
-
-            const ctx = crop.getContext('2d');
-            ctx.drawImage(sourceCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
-
-            if (threshold) {
-                const imageData = ctx.getImageData(0, 0, sw, sh);
-                const data = imageData.data;
-                for (let i = 0; i < data.length; i += 4) {
-                    const value = data[i] > 145 ? 255 : 0;
-                    data[i] = value;
-                    data[i + 1] = value;
-                    data[i + 2] = value;
-                }
-                ctx.putImageData(imageData, 0, 0);
-            }
-
-            return crop;
-        },
-
-        async recognizeQcCanvas(canvas, ocrConfig = {}, withProgress = false) {
-            const options = {
-                preserve_interword_spaces: '1',
-                ...ocrConfig,
-            };
-
-            if (withProgress) {
-                options.logger = (message) => {
-                    if (message.status) {
-                        this.qcIdStatusMessage = message.status;
-                    }
-
-                    if (typeof message.progress === 'number') {
-                        this.qcIdProgress = message.progress * 100;
-                    }
-                };
-            }
-
-            const result = await window.Tesseract.recognize(canvas, 'eng', options);
-            return this.normalizeOcrText(result?.data?.text || '');
-        },
-
-        async collectQcOcrText(file) {
-            const enhancedCanvas = await this.buildQcCanvas(file);
-            if (!enhancedCanvas) {
-                throw new Error('Unable to prepare the QC ID image for OCR.');
-            }
-
-            const fullText = await this.recognizeQcCanvas(enhancedCanvas, {
-                tessedit_pageseg_mode: 6,
-            }, true);
-
-            const sparseText = await this.recognizeQcCanvas(enhancedCanvas, {
-                tessedit_pageseg_mode: 11,
-            });
-
-            const nameStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.23, y: 0.24, w: 0.45, h: 0.13 }, false);
-            const demographicStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.22, y: 0.33, w: 0.48, h: 0.16 }, true);
-            const issuedStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.34, y: 0.43, w: 0.19, h: 0.09 }, true);
-            const validStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.52, y: 0.43, w: 0.19, h: 0.09 }, true);
-            const addressStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.19, y: 0.54, w: 0.46, h: 0.19 }, true);
-            const idStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.60, y: 0.74, w: 0.36, h: 0.18 }, true);
-            const bottomStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.62, y: 0.76, w: 0.34, h: 0.14 }, true);
-            const dateStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.25, y: 0.39, w: 0.48, h: 0.15 }, true);
-
-            const nameText = await this.recognizeQcCanvas(nameStrip, {
-                tessedit_pageseg_mode: 7,
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ,.- ',
-            });
-
-            const demographicsText = await this.recognizeQcCanvas(demographicStrip, {
-                tessedit_pageseg_mode: 6,
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/ -',
-            });
-
-            const issuedText = await this.recognizeQcCanvas(issuedStrip, {
-                tessedit_pageseg_mode: 7,
-                tessedit_char_whitelist: '0123456789/ -',
-            });
-
-            const validText = await this.recognizeQcCanvas(validStrip, {
-                tessedit_pageseg_mode: 7,
-                tessedit_char_whitelist: '0123456789/ -',
-            });
-
-            const addressText = await this.recognizeQcCanvas(addressStrip, {
-                tessedit_pageseg_mode: 6,
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.- ',
-            });
-
-            const idText = await this.recognizeQcCanvas(idStrip, {
-                tessedit_pageseg_mode: 6,
-                tessedit_char_whitelist: '0123456789 ',
-            });
-
-            const bottomText = await this.recognizeQcCanvas(bottomStrip, {
-                tessedit_pageseg_mode: 7,
-                tessedit_char_whitelist: '0123456789 ',
-            });
-
-            const dateText = await this.recognizeQcCanvas(dateStrip, {
-                tessedit_pageseg_mode: 7,
-                tessedit_char_whitelist: '0123456789/ -',
-            });
-
-            const structuredLines = [fullText, sparseText];
-
-            if (nameText) {
-                structuredLines.push('LAST NAME, FIRST NAME, MIDDLE NAME');
-                structuredLines.push(nameText);
-            }
-
-            if (demographicsText) {
-                structuredLines.push(demographicsText);
-                structuredLines.push('SEX DATE OF BIRTH CIVIL STATUS');
-            }
-
-            if (issuedText) {
-                structuredLines.push(`DATE ISSUED ${issuedText}`);
-            }
-
-            if (validText) {
-                structuredLines.push(`VALID UNTIL ${validText}`);
-            }
-
-            if (dateText) {
-                structuredLines.push(`DATE ISSUED VALID UNTIL ${dateText}`);
-            }
-
-            if (addressText) {
-                structuredLines.push(`ADDRESS ${addressText}`);
-            }
-
-            if (idText) {
-                structuredLines.push(idText);
-            }
-
-            if (bottomText && bottomText !== idText) {
-                structuredLines.push(bottomText);
-            }
-
-            return this.normalizeOcrText(structuredLines.filter(Boolean).join('\n'));
-        },
-
-        namesMatch(first, second) {
-            const firstTokens = this.normalizeName(first).split(' ').filter((token) => token.length >= 2);
-            const secondTokens = this.normalizeName(second).split(' ').filter((token) => token.length >= 2);
-
-            if (!firstTokens.length || !secondTokens.length) {
-                return false;
-            }
-
-            const overlap = firstTokens.filter((token) => secondTokens.includes(token));
-            const threshold = Math.min(firstTokens.length, secondTokens.length);
-
-            return threshold <= 2 ? overlap.length === threshold : overlap.length >= 2;
-        },
-
-        resetQcIdState({ keepPreview = true } = {}) {
-            this.qcIdIsProcessing = false;
-            this.qcIdProgress = 0;
-            this.qcIdStatusMessage = '';
-            this.qcIdError = '';
-            this.qcIdVerification = null;
-            this.bookingForm.qc_id_ocr_text = '';
-            this.bookingForm.qc_id_cardholder_name = '';
-
-            if (!keepPreview) {
-                if (this.qcIdPreviewUrl) {
-                    URL.revokeObjectURL(this.qcIdPreviewUrl);
-                }
-
-                this.qcIdPreviewUrl = '';
-                this.qcIdFile = null;
-            }
-        },
-
-        async handleQcIdUpload(event) {
-            const file = event.target?.files?.[0];
-            this.resetQcIdState({ keepPreview: false });
-
-            if (!file) {
-                return;
-            }
-
-            if (!file.type.startsWith('image/')) {
-                this.qcIdError = 'Please upload an image file for the QC ID.';
-                return;
-            }
-
-            this.qcIdFile = file;
-            this.qcIdPreviewUrl = URL.createObjectURL(file);
-
-            await this.runQcIdVerification(file);
-        },
-
-        async reprocessQcId() {
-            if (!this.qcIdFile) {
-                this.qcIdError = 'Upload a QC ID image first.';
-                return;
-            }
-
-            this.resetQcIdState();
-            await this.runQcIdVerification(this.qcIdFile);
-        },
-
         async runQcIdVerification(file) {
-            if (!window.Tesseract) {
-                this.qcIdError = 'OCR is not available right now. Please refresh the page and try again.';
-                return;
-            }
-
             this.qcIdIsProcessing = true;
-            this.qcIdStatusMessage = 'Reading QC ID image...';
-            this.qcIdProgress = 0;
+            this.qcIdStatusMessage = 'Scanning ID...';
+            this.qcIdProgress = 20;
 
             try {
-                this.qcIdStatusMessage = 'Enhancing image for OCR...';
-                const extractedText = await this.collectQcOcrText(file);
-                if (!extractedText) {
-                    throw new Error('No readable text was found in the uploaded QC ID image.');
-                }
+                this.qcIdProgress = 50;
+                this.qcIdStatusMessage = 'Verifying with server...';
 
-                this.bookingForm.qc_id_ocr_text = extractedText;
-                this.qcIdStatusMessage = 'Validating QC ID format...';
+                const payload = await performQcIdVerification(file, this.bookingForm.user_name, verifyQcIdUrl);
 
-                const response = await fetch(verifyQcIdUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Accept: 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                    },
-                    body: JSON.stringify({
-                        ocr_text: extractedText,
-                        user_name: this.bookingForm.user_name,
-                    }),
-                });
-
-                const payload = await response.json();
-                const verification = payload.verification || null;
-
-                this.qcIdVerification = verification;
-                if (verification?.cardholder_name) {
-                    this.bookingForm.qc_id_cardholder_name = verification.cardholder_name;
-                    this.bookingForm.user_name = verification.cardholder_name;
-                }
-
-                if (!payload.success) {
-                    this.qcIdError = payload.message || 'The uploaded image is not recognized as a QC ID.';
-                    return;
-                }
-
-                this.qcIdError = '';
                 this.qcIdProgress = 100;
-                this.qcIdStatusMessage = 'QC ID verified.';
+                this.qcIdVerification = payload.verification;
+                
+                if (payload.verification?.cardholder_name) {
+                    this.bookingForm.user_name = payload.verification.cardholder_name;
+                    this.bookingForm.qc_id_cardholder_name = payload.verification.cardholder_name;
+                }
+                
+                this.bookingForm.qc_id_ocr_text = payload.verification.normalized_text || 'VERIFIED';
+
+                this.qcIdStatusMessage = 'ID Verified successfully';
+                this.qcIdError = '';
             } catch (error) {
-                console.error('QC ID verification failed:', error);
-                this.qcIdError = error?.message || 'Unable to read the QC ID image. Please upload a clearer photo.';
-                this.qcIdVerification = null;
-                this.bookingForm.qc_id_cardholder_name = '';
-                this.bookingForm.qc_id_ocr_text = '';
+                console.error('OCR Error:', error);
+                this.qcIdError = error.message;
+                this.qcIdStatusMessage = 'Verification failed';
             } finally {
                 this.qcIdIsProcessing = false;
             }
+        },
+
+        namesMatch(a, b) {
+            const n1 = String(a || '').toUpperCase().replace(/[^A-Z]/g, '');
+            const n2 = String(b || '').toUpperCase().replace(/[^A-Z]/g, '');
+            return n1 === n2 || n1.includes(n2) || n2.includes(n1);
         },
 
         initCalendar() {
@@ -1637,12 +1392,43 @@ export function createDashboardApp(config = {}) {
             }
         },
 
-        applySuggestedTimeSlot(slotValue) {
-            applyBookingTimeSlot(this.bookingForm, slotValue);
-            this.clearTimeConflictSuggestions();
-            this.qcIdError = '';
+        async runQcIdVerification(file) {
+            this.qcIdIsProcessing = true;
+            this.qcIdStatusMessage = 'Scanning ID...';
+            this.qcIdProgress = 20;
+
+            try {
+                this.qcIdProgress = 50;
+                this.qcIdStatusMessage = 'Verifying with server...';
+
+                const payload = await performQcIdVerification(file, this.bookingForm.user_name, verifyQcIdUrl);
+
+                this.qcIdProgress = 100;
+                this.qcIdVerification = payload.verification;
+                
+                if (payload.verification?.cardholder_name) {
+                    this.bookingForm.user_name = payload.verification.cardholder_name;
+                    this.bookingForm.qc_id_cardholder_name = payload.verification.cardholder_name;
+                }
+                
+                this.bookingForm.qc_id_ocr_text = payload.verification.normalized_text || 'VERIFIED';
+
+                this.qcIdStatusMessage = 'ID Verified successfully';
+                this.qcIdError = '';
+            } catch (error) {
+                console.error('OCR Error:', error);
+                this.qcIdError = error.message;
+                this.qcIdStatusMessage = 'Verification failed';
+            } finally {
+                this.qcIdIsProcessing = false;
+            }
         },
 
+        namesMatch(a, b) {
+            const n1 = String(a || '').toUpperCase().replace(/[^A-Z]/g, '');
+            const n2 = String(b || '').toUpperCase().replace(/[^A-Z]/g, '');
+            return n1 === n2 || n1.includes(n2) || n2.includes(n1);
+        },
         async handleBookingConflict(response, payload) {
             const message = payload?.message || 'This time slot conflicts with an existing booking.';
             this.qcIdError = message;

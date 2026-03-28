@@ -85,8 +85,29 @@ class BookingController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'room_id' => 'required|exists:rooms,id',
-            'date' => 'required|date|after_or_equal:today',
-            'start_time' => 'required',
+            'date' => [
+                'required',
+                'date',
+                'after_or_equal:today',
+                function ($attribute, $value, $fail) {
+                    if (date('N', strtotime($value)) == 7) {
+                        $fail('Bookings are not allowed on Sundays.');
+                    }
+                },
+            ],
+            'start_time' => [
+                'required',
+                function ($attribute, $value, $fail) use ($request) {
+                    $selectedDate = $request->input('date');
+                    if ($selectedDate === date('Y-m-d')) {
+                        $now = now();
+                        $startTime = Carbon::parse($value);
+                        if ($startTime->lt($now->addMinutes(15))) {
+                            $fail('The selected time slot must be at least 15 minutes in the future.');
+                        }
+                    }
+                },
+            ],
             'end_time' => 'required|after:start_time',
             'attendees' => 'required|integer|min:1',
             'user_id' => 'nullable|exists:bookings,id',
@@ -134,10 +155,12 @@ class BookingController extends Controller
                 $validated['user_name'] ?? null,
             );
 
-            if (! $qcIdVerification['is_valid']) {
+            if (! $qcIdVerification['is_valid'] || ($qcIdVerification['is_fake'] ?? false)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Please upload a valid Quezon City Citizen ID (QC ID) before creating a booking.',
+                    'message' => ($qcIdVerification['is_fake'] ?? false) 
+                        ? 'FAKE QC ID DETECTED. Please upload a valid, authentic Quezon City Citizen ID.' 
+                        : 'Please upload a valid Quezon City Citizen ID (QC ID) before creating a booking.',
                     'verification' => $qcIdVerification,
                 ], 422);
             }

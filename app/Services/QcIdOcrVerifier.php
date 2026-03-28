@@ -121,6 +121,14 @@ class QcIdOcrVerifier
             }
         }
 
+        // ── Fake / Sample ID detection ───────────────────────────────
+        $isFake = $this->detectFakeId($normalized);
+        if ($isFake) {
+            $looksLikeQcId = false;
+            $confidenceScore = 0;
+            $rejectedIdType = 'Fake/Sample ID Detected';
+        }
+
         return [
             'is_valid' => $looksLikeQcId,
             'confidence_score' => $confidenceScore,
@@ -137,6 +145,7 @@ class QcIdOcrVerifier
             'id_number' => $fields['id_number'] ?? null,
             'name_matches' => $nameMatches,
             'rejected_id_type' => $rejectedIdType,
+            'is_fake' => $isFake,
             'normalized_text' => $normalized,
         ];
     }
@@ -399,10 +408,10 @@ class QcIdOcrVerifier
             'cardholder_name' => $this->extractCardholderName($normalized, $lines),
             'sex' => ($layoutFields['sex'] ?? null) ?? $this->extractSex($normalized),
             'blood_type' => ($layoutFields['blood_type'] ?? null) ?? $this->extractBloodType($normalized),
-            'date_of_birth' => ($layoutFields['date_of_birth'] ?? null) ?? $this->extractDate('DATE\s*(?:OF)?\s*BIRTH\s*[:\s]*', $normalized),
+            'date_of_birth' => ($layoutFields['date_of_birth'] ?? null) ?? $this->extractDate($normalized, $lines),
             'civil_status' => ($layoutFields['civil_status'] ?? null) ?? $this->extractCivilStatus($normalized),
-            'date_issued' => ($layoutFields['date_issued'] ?? null) ?? $this->extractDate('DATE\s*ISSUED\s*[:\s]*', $normalized),
-            'valid_until' => ($layoutFields['valid_until'] ?? null) ?? $this->extractDate('VALID\s*UNTIL\s*[:\s]*', $normalized),
+            'date_issued' => ($layoutFields['date_issued'] ?? null) ?? $this->extractDate($normalized, $lines),
+            'valid_until' => ($layoutFields['valid_until'] ?? null) ?? $this->extractDate($normalized, $lines),
             'address' => $this->extractAddress($lines, $normalized),
             'id_number' => $this->extractIdNumber($normalized, $lines),
         ];
@@ -579,63 +588,7 @@ class QcIdOcrVerifier
         return null;
     }
 
-    /**
-     * Extract a date that follows $labelPattern. Tolerates multiple
-     * date formats commonly produced by OCR.
-     *
-     * @param  string  $labelPattern  Raw regex fragment (no delimiters)
-     */
-    private function extractDate(string $labelPattern, string $normalized): ?string
-    {
-        // Try: LABEL  YYYY/MM/DD  or  YYYY-MM-DD
-        if (preg_match('/' . $labelPattern . '(\d{4}[\/-]\d{2}[\/-]\d{2})/', $normalized, $m)) {
-            return $m[1];
-        }
 
-        // Try: LABEL  YYYY/M/D or YYYY/MM/D etc.
-        if (preg_match('/' . $labelPattern . '(\d{4}[\/-]\d{1,2}[\/-]\d{1,2})/', $normalized, $m)) {
-            return $m[1];
-        }
-
-        // Try: LABEL  MM/DD/YYYY  or  DD/MM/YYYY
-        if (preg_match('/' . $labelPattern . '(\d{2}[\/-]\d{2}[\/-]\d{4})/', $normalized, $m)) {
-            return $m[1];
-        }
-
-        // Try: LABEL  M/D/YYYY or MM/D/YYYY
-        if (preg_match('/' . $labelPattern . '(\d{1,2}[\/-]\d{1,2}[\/-]\d{4})/', $normalized, $m)) {
-            return $m[1];
-        }
-
-        // Try: LABEL followed by digits without separators (e.g. 20030101)
-        if (preg_match('/' . $labelPattern . '(\d{8})/', $normalized, $m)) {
-            $raw = $m[1];
-
-            return substr($raw, 0, 4) . '/' . substr($raw, 4, 2) . '/' . substr($raw, 6, 2);
-        }
-
-        // Try: LABEL followed by compact date with one separator (e.g. 2022/1205)
-        if (preg_match('/' . $labelPattern . '(\d{4}[\/\-]\d{4})/', $normalized, $m)) {
-            $raw = str_replace('-', '/', $m[1]);
-            return substr($raw, 0, 4) . '/' . substr($raw, 5, 2) . '/' . substr($raw, 7, 2);
-        }
-
-        // Try: LABEL followed by compact date with merged year-month (e.g. 202212/05)
-        if (preg_match('/' . $labelPattern . '(\d{6}[\/\-]\d{2})/', $normalized, $m)) {
-            $raw = str_replace('-', '/', $m[1]);
-            return substr($raw, 0, 4) . '/' . substr($raw, 4, 2) . '/' . substr($raw, 7, 2);
-        }
-
-        // Try: LABEL followed by garbled date (e.g. 20030/01 or 2003/0101)
-        if (preg_match('/' . $labelPattern . '(\d[\d\/\-]{4,10}\d)/', $normalized, $m)) {
-            $parsed = $this->parseGarbledDate($m[1]);
-            if ($parsed !== null) {
-                return $parsed;
-            }
-        }
-
-        return null;
-    }
 
     /**
      * Collect all date-like strings from the normalized text in order of
@@ -1216,46 +1169,41 @@ class QcIdOcrVerifier
      */
     private function extractCardholderName(string $normalized, array $lines): ?string
     {
-        // Strategy 1: LAST NAME, FIRST NAME, MIDDLE NAME followed by a
-        // name-like string before the next field label.
-        if (preg_match('/LAST\s*NAME,?\s*FIRST\s*NAME,?\s*MIDDLE\s*NAME\s+([A-Z][A-Z\s,\.\-]{5,}?)\s+(?:SEX|DATE\s+OF\s+BIRTH|CIVIL\s+STATUS)/', $normalized, $matches) === 1) {
-            return $this->cleanName($matches[1]);
-        }
-
-        // Strategy 2: Line after "LAST NAME" / "FIRST NAME" label.
+        // Strategy 1: Look for the line ABOVE the Sex/DOB/Civil Status labels.
+        // On QC IDs, the name is typically the largest text block above the demographic fields.
         foreach ($lines as $index => $line) {
-            if (str_contains($line, 'LAST NAME') || str_contains($line, 'FIRST NAME')) {
+            if (preg_match('/\b(?:SEX|DATE\s*OF\s*BIRTH|CIVIL\s*STATUS)\b/', $line)) {
+                // Check up to 3 lines above
                 for ($offset = 1; $offset <= 3; $offset++) {
-                    $candidate = $lines[$index + $offset] ?? null;
-                    if (! $candidate || $this->looksLikeLabel($candidate)) {
-                        continue;
-                    }
-
-                    if (preg_match('/[A-Z]{2,}/', $candidate) === 1 && mb_strlen($candidate) >= 5) {
-                        return $this->cleanName($candidate);
+                    $idx = $index - $offset;
+                    if ($idx >= 0) {
+                        $candidate = $lines[$idx];
+                        if (!$this->looksLikeLabel($candidate) && preg_match('/[A-Z]{3,}/', $candidate)) {
+                            return $this->cleanName($candidate);
+                        }
                     }
                 }
             }
         }
 
+        // Strategy 2: LAST NAME, FIRST NAME, MIDDLE NAME followed by a
+        // name-like string before the next field label.
+        if (preg_match('/LAST\s*NAME,?\s*FIRST\s*NAME,?\s*MIDDLE\s*NAME\s+([A-Z][A-Z\s,\.\-]{4,}?)\b/', $normalized, $matches) === 1) {
+            return $this->cleanName($matches[1]);
+        }
+
         // Strategy 3: Look for comma-separated name pattern (SURNAME, FIRST MIDDLE)
         foreach ($lines as $line) {
-            if ($this->looksLikeLabel($line)) {
-                continue;
-            }
-
-            if (preg_match('/^([A-Z]{2,}),\s*([A-Z]{2,}(?:\s+[A-Z]{2,})*)$/', trim($line), $m)) {
+            if ($this->looksLikeLabel($line)) continue;
+            if (preg_match('/^([A-Z\s]{2,}),\s*([A-Z\s]{2,}(?:\s+[A-Z\s]{2,})*)$/', trim($line), $m)) {
                 return $this->cleanName($m[0]);
             }
         }
 
-        // Strategy 4: Any line that is all-caps with 2+ words and 8+ chars.
+        // Strategy 4: Any line starting with common QC surnames or having name structure
         foreach ($lines as $line) {
-            if ($this->looksLikeLabel($line)) {
-                continue;
-            }
-
-            if (preg_match('/^[A-Z][A-Z\s,\.\-]{7,}$/', $line) === 1 && str_word_count(str_replace(',', ' ', $line)) >= 2) {
+            if ($this->looksLikeLabel($line)) continue;
+            if (preg_match('/^[A-Z]{3,}\s+[A-Z]{2,}(?:\s+[A-Z\s]{2,})*$/', trim($line))) {
                 return $this->cleanName($line);
             }
         }
@@ -1268,88 +1216,37 @@ class QcIdOcrVerifier
      */
     private function extractAddress(array $lines, string $normalized): ?string
     {
-        if (preg_match('/ADDRESS\s+([A-Z0-9,\.\-\s]+?QUEZON\s*CITY)/', $normalized, $m)) {
-            $candidate = $this->cleanAddress($m[1]);
-            if ($this->looksPlausibleAddress($candidate)) {
-                return $candidate;
-            }
-        }
-
-        // Prefer explicit city-anchored chunks and avoid field-label contamination.
-        if (preg_match('/((?:BLK\-?\d*|LOT\-?\d*|UNIT\-?\d*|#\d+)[A-Z0-9,\.\-\s]{8,}?QUEZON\s*CITY)/', $normalized, $m)) {
-            $candidate = $this->cleanAddress($m[1]);
-            if ($this->looksPlausibleAddress($candidate)) {
-                return $candidate;
-            }
-        }
-
-        // Strategy 1: Line containing "QUEZON CITY"
+        // Strategy 1: Explicit ADDRESS label followed by multiline capture
         foreach ($lines as $index => $line) {
-            if (! preg_match('/QUEZON\s*CITY/', $line)) {
-                continue;
-            }
-
-            $parts = [];
-            // Collect up to 2 preceding non-label lines (street + area)
-            for ($back = min(2, $index); $back >= 1; $back--) {
-                $prev = $lines[$index - $back] ?? null;
-                if ($prev && ! $this->looksLikeLabel($prev)
-                    && ! str_contains($prev, 'VALID UNTIL')
-                    && ! str_contains($prev, 'DATE ISSUED')
-                    && ! preg_match('/^\d{4}[\/\-]\d{2}[\/\-]\d{2}/', $prev)) {
-                    $parts[] = $prev;
-                }
-            }
-
-            $parts[] = $line;
-
-            $next = $lines[$index + 1] ?? null;
-            if ($next && ! $this->looksLikeLabel($next) && ! str_contains($next, 'IN CASE OF EMERGENCY')) {
-                $parts[] = $next;
-            }
-
-            return $this->cleanAddress(implode(', ', array_unique($parts)));
-        }
-
-        // Strategy 2: Line containing CONSTITUENCY or BARANGAY / KINGSPOINT / BAGBAG
-        foreach ($lines as $index => $line) {
-            if (! preg_match('/CONSTITUENCY|BARANGAY|BRGY|KINGSPOINT|BAGBAG/', $line)) {
-                continue;
-            }
-
-            $parts = [];
-            // Collect preceding line (street)
-            $previous = $lines[$index - 1] ?? null;
-            if ($previous && ! $this->looksLikeLabel($previous)
-                && ! preg_match('/^\d{4}[\/\-]\d{2}/', $previous)) {
-                $parts[] = $previous;
-            }
-
-            $parts[] = $line;
-
-            $next = $lines[$index + 1] ?? null;
-            if ($next && ! $this->looksLikeLabel($next)) {
-                $parts[] = $next;
-            }
-
-            return $this->cleanAddress(implode(', ', array_unique($parts)));
-        }
-
-        // Strategy 3: Look for street-like pattern (number + name + ST/AVE/RD/BLVD)
-        foreach ($lines as $index => $line) {
-            if (preg_match('/\d+[\-A-Z]*\s+[A-Z]+.*?\b(?:ST|STREET|AVE|AVENUE|RD|ROAD|BLVD|DRIVE|DR)\b/i', $line)) {
-                $parts = [$line];
-                // Include next 1-2 non-label lines
-                for ($fwd = 1; $fwd <= 2; $fwd++) {
-                    $next = $lines[$index + $fwd] ?? null;
-                    if ($next && ! $this->looksLikeLabel($next)
-                        && ! str_contains($next, 'IN CASE OF EMERGENCY')) {
-                        $parts[] = $next;
-                    } else {
-                        break;
+            if (preg_match('/\bADDRESS\b/', $line)) {
+                $addressParts = [];
+                // Check current and next 3 lines
+                for ($offset = 0; $offset <= 3; $offset++) {
+                    $idx = $index + $offset;
+                    $candidate = $lines[$idx] ?? '';
+                    // Clean "ADDRESS" label from the first line
+                    if ($offset === 0) $candidate = trim(preg_replace('/\bADDRESS\b/', '', $candidate));
+                    
+                    if ($candidate && !$this->looksLikeLabel($candidate)) {
+                        $addressParts[] = $candidate;
                     }
+                    if (preg_match('/QUEZON\s*CITY/i', $candidate)) break;
                 }
-                return $this->cleanAddress(implode(', ', $parts));
+                if ($addressParts) return $this->cleanAddress(implode(', ', $addressParts));
+            }
+        }
+
+        // Strategy 2: Search for QUEZON CITY anchor
+        foreach ($lines as $index => $line) {
+            if (preg_match('/QUEZON\s*CITY/i', $line)) {
+                $parts = [];
+                // Grab 2 lines above
+                for ($back = 2; $back >= 1; $back--) {
+                    $prev = $lines[$index - $back] ?? null;
+                    if ($prev && !$this->looksLikeLabel($prev)) $parts[] = $prev;
+                }
+                $parts[] = $line;
+                return $this->cleanAddress(implode(', ', array_unique($parts)));
             }
         }
 
@@ -1495,12 +1392,56 @@ class QcIdOcrVerifier
      * @param  list<string>  $lines
      * @return array<string, string|null>
      */
+    private function extractDate(string $normalized, array $lines = []): ?string
+    {
+        // Strategy 1: Scrub the normalized text to find any date-like string.
+        // Handling the "straight line" problem (OCR misreading / or | as 1).
+        $scrubbed = preg_replace('/[\|1I]/', '/', $normalized) ?? $normalized;
+        $scrubbed = preg_replace('/\s+/', '', $scrubbed) ?? $scrubbed;
+
+        // Pattern: YYYY/MM/DD or DD/MM/YYYY with flexible separators
+        if (preg_match('/(\d{4}[\/\-]\d{2}[\/\-]\d{2})|(\d{2}[\/\-]\d{2}[\/\-]\d{4})/', $scrubbed, $m)) {
+            return $this->formatDateString($m[0]);
+        }
+
+        // Strategy 2: Look for 8 digits in a row and try to format as YYYYMMDD
+        if (preg_match('/(\d{8})/', $normalized, $m)) {
+            return $this->formatDateString($m[1]);
+        }
+
+        // Strategy 3: Search lines specifically for dates
+        foreach ($lines as $line) {
+            $lineScrubbed = preg_replace('/[\|1I]/', '/', $line);
+            if (preg_match('/(\d{2,4}[\/\-]\d{1,2}[\/\-]\d{2,4})/', $lineScrubbed, $m)) {
+                return $this->formatDateString($m[0]);
+            }
+        }
+
+        return null;
+    }
+
+    private function formatDateString(string $date): ?string
+    {
+        $date = str_replace('-', '/', $date);
+        $parts = explode('/', $date);
+        
+        if (count($parts) === 3) {
+            if (strlen($parts[0]) === 4) return "$parts[0]/$parts[1]/$parts[2]";
+            if (strlen($parts[2]) === 4) return "$parts[2]/$parts[0]/$parts[1]";
+        }
+        
+        if (strlen($date) === 8) {
+             return substr($date, 0, 4) . '/' . substr($date, 4, 2) . '/' . substr($date, 6, 2);
+        }
+        
+        return null;
+    }
+
     private function extractQcIdLayoutFields(string $normalized, array $lines): array
     {
         $fields = [];
         $civilStatuses = 'SINGLE|MARRIED|WIDOW(?:ED)?|SEPARATED|DIVORCED|ANNULLED';
-        $datePat = '(\d{2,4}[\/\-]\d{2}[\/\-]\d{2,4})';
-        // Also match 8-digit dates with no separators (e.g. 20030101)
+        $datePat = '(\d{2,4}[\/\-]\d{2,4}[\/\-]\d{2,4})';
         $datePat8 = '(\d{8})';
 
         // ── Normalized-text patterns ───
@@ -1787,5 +1728,36 @@ class QcIdOcrVerifier
         }
 
         return null;
+    }
+
+    /**
+     * Detect if the text contains markers of a fake or sample ID.
+     */
+    public function detectFakeId(string $normalized): bool
+    {
+        $fakeKeywords = [
+            'SAMPLE',
+            'SPECIMEN',
+            'FAKE',
+            'VOID',
+            'TEMPLATE',
+            'EXAMP',
+            'NOT\s*VALID',
+            'DO\s*NOT\s*USE',
+            'TESTING\s*ONLY',
+            '1234567890', // Common placeholder
+            '000\s*000\s*00000000', // Common placeholder ID
+            'JANE\s*DOE',
+            'JUAN\s+DELA\s+CRUZ',
+            'INVALID',
+        ];
+
+        foreach ($fakeKeywords as $kw) {
+            if (preg_match('/\b' . $kw . '\b/i', $normalized)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

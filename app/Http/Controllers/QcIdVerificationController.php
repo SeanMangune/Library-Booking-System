@@ -8,15 +8,26 @@ use Illuminate\Http\Request;
 
 class QcIdVerificationController extends Controller
 {
-    public function __invoke(Request $request, QcIdOcrVerifier $verifier): JsonResponse
+    public function __invoke(Request $request, QcIdOcrVerifier $verifier, \App\Services\OcrSpaceService $ocrService): JsonResponse
     {
         $validated = $request->validate([
-            'ocr_text' => 'required|string|min:20|max:12000',
+            'image_data' => 'required|string',
             'user_name' => 'nullable|string|max:255',
         ]);
 
+        // 1. Perform OCR on the image data
+        $ocrText = $ocrService->scanBase64($validated['image_data']);
+
+        if (! $ocrText) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to read text from the image. Please ensure the photo is clear and well-lit.',
+            ], 200);
+        }
+
+        // 2. Verify the extracted text
         $verification = $verifier->verify(
-            $validated['ocr_text'],
+            $ocrText,
             $validated['user_name'] ?? null,
         );
 
@@ -29,13 +40,15 @@ class QcIdVerificationController extends Controller
                 'success' => false,
                 'message' => $message,
                 'verification' => $verification,
-            ], 200);  // 200 so client can still read the partial data
+                'ocr_text' => $ocrText, // Return text so frontend can store it
+            ], 200);
         }
 
         return response()->json([
             'success' => true,
             'message' => 'QC ID detected and verified successfully.',
             'verification' => $verification,
+            'ocr_text' => $ocrText, // Return text so frontend can store it
         ]);
     }
 }

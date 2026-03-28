@@ -98,20 +98,49 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z\s,.\-]+$/'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:15', 'max:50', 'confirmed'],
+            'phone_number' => ['nullable', 'string', 'max:20'],
+            'qcid_number' => ['required', 'string', 'max:50'],
+            'user_type' => ['nullable', 'string'],
+            'employee_category' => ['nullable', 'string'],
+            'course' => ['nullable', 'string'],
+            'sex' => ['nullable', 'string'],
+            'civil_status' => ['nullable', 'string'],
+            'date_of_birth' => ['nullable', 'date'],
+            'date_issued' => ['nullable', 'date'],
+            'valid_until' => ['nullable', 'date'],
             'address' => ['nullable', 'string', 'max:100'],
-            'sex' => ['nullable', 'string', 'in:MALE,FEMALE'],
-            'civil_status' => ['nullable', 'string', 'in:SINGLE,MARRIED,WIDOWED,DIVORCED,SEPARATED'],
-        ], [
-            'name.regex' => 'Name can only contain letters, spaces, commas, periods, and hyphens.',
-            'password.min' => 'Password must be at least 15 characters.',
-            'password.max' => 'Password must not exceed 50 characters.',
+            'ocr_text' => ['required', 'string'],
         ]);
+
+        $ocrText = $validated['ocr_text'];
+        $ocrVerifier = app(\App\Services\QcIdOcrVerifier::class);
+        if ($ocrVerifier->detectFakeId($ocrText)) {
+            return back()->withErrors(['ocr_text' => 'The provided QC ID is invalid or a sample ID. Registration denied.'])->withInput();
+        }
 
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => 'user',
+        ]);
+
+        // Create the initial verified registration record
+        $user->qcidRegistration()->create([
+            'full_name' => $validated['name'],
+            'email' => $validated['email'],
+            'contact_number' => $validated['phone_number'],
+            'qcid_number' => $validated['qcid_number'],
+            'sex' => $validated['sex'],
+            'civil_status' => $validated['civil_status'],
+            'date_of_birth' => $validated['date_of_birth'],
+            'date_issued' => $validated['date_issued'],
+            'valid_until' => $validated['valid_until'],
+            'address' => $validated['address'],
+            'ocr_text' => $validated['ocr_text'],
+            'verification_status' => 'verified', // Auto-verified since it came through the portal
+            'submitted_at' => now(),
+            'reviewed_at' => now(),
         ]);
 
         Auth::login($user);
