@@ -41,25 +41,31 @@ class QcIdVerificationController extends Controller
             $validated['user_name'] ?? null,
         );
 
-        // === QR Code Cross-Validation ===
+        // === QR Code Full Profile Extraction ===
         $qrData = trim((string) ($validated['qr_data'] ?? ''));
-        $qrIdNumber = $this->extractQcIdFromQrData($qrData);
+        $qrProfile = $this->extractProfileFromQrData($qrData);
+        $qrIdNumber = $qrProfile['id_number'] ?? null;
 
-        if ($qrIdNumber !== null) {
-            // QR is authoritative — override OCR-extracted ID
-            $ocrId = $verification['id_number'] ?? null;
-
-            if ($ocrId !== null && $ocrId !== $qrIdNumber) {
-                // ID mismatch: QR wins, mark that correction happened
-                $verification['id_number'] = $qrIdNumber;
-                $verification['id_corrected_by_qr'] = true;
-                $verification['ocr_id_before_correction'] = $ocrId;
-            } elseif ($ocrId === null) {
-                $verification['id_number'] = $qrIdNumber;
+        if ($qrProfile !== null) {
+            // QR is authoritative — merge fields into verification result
+            foreach ($qrProfile as $key => $value) {
+                if ($value !== null && $value !== '') {
+                    // Normalize dates if they came from the QR result
+                    if (in_array($key, ['date_of_birth', 'date_issued', 'valid_until'])) {
+                        $value = $verifier->normalizeDateToYmd($value);
+                    }
+                    
+                    // Mark as corrected/validated by QR if it differs from OCR or was missing
+                    if (($verification[$key] ?? null) !== $value) {
+                        $verification[$key] = $value;
+                        $verification['qr_overwritten_' . $key] = true;
+                    }
+                }
             }
 
-            // QR validation confirms this is a real QC ID (it has a valid QR code)
+            // QR validation confirms this is a real QC ID (contains a valid QR structure)
             $verification['qr_validated'] = true;
+            $verification['qr_profile_extracted'] = true;
         }
 
         if (! $verification['is_valid']) {
@@ -98,36 +104,110 @@ class QcIdVerificationController extends Controller
      * Extract a QC ID number from QR code data.
      * The QR may contain: a plain number, a URL, JSON, or key=value pairs.
      */
-    private function extractQcIdFromQrData(string $qrData): ?string
+    /**
+     * Extract a full profile from QR code data.
+     * The QR may contain: JSON, urlencoded strings, or a plain QC ID number.
+     *
+     * @return array<string, string|null>|null
+     */
+    private function extractProfileFromQrData(string $qrData): ?array
     {
         if ($qrData === '') {
             return null;
         }
 
-        // Pattern: 3-3-8 digit QC ID number with optional separators
-        if (preg_match('/(\d{3})\s*(\d{3})\s*(\d{8})/', $qrData, $m)) {
-            return $m[1] . ' ' . $m[2] . ' ' . $m[3];
+        $profile = [];
+
+        // 1. Try JSON parsing
+        if (str_starts_with($qrData, '{') || str_starts_with($qrData, '[')) {
+            $data = json_decode($qrData, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
+                $mappings = [
+                    'id_number' => ['qcid', 'id_number', 'id', 'qc_id', 'card_number', 'id_no', 'id_num'],
+                    'cardholder_name' => ['full_name', 'name', 'cardholder_name', 'cardholder', 'card_holder', 'beneficiary', 'fullname'],
+                    'sex' => ['sex', 'gender', 'sex_type'],
+                    'date_of_birth' => ['date_of_birth', 'dob', 'birth_date', 'birthdate', 'bday', 'birth_day'],
+                    'civil_status' => ['civil_status', 'status', 'marital_status'],
+                    'date_issued' => ['date_issued', 'issued', 'issue_date'],
+                    'valid_until' => ['valid_until', 'expiry', 'valid', 'expiry_date', 'expiration'],
+                    'address' => ['address', 'residence', 'home_address', 'current_address'],
+                ];
+
+                foreach ($mappings as $targetKey => $sourceKeys) {
+                    foreach ($sourceKeys as $sKey) {
+                        // Case-insensitive check for key
+                        foreach ($data as $k => $v) {
+                            if (strtolower($k) === strtolower($sKey) && !empty($v)) {
+                                $profile[$targetKey] = (string) $v;
+                                break 2;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        // Continuous 14-digit number
-        if (preg_match('/(\d{14})/', $qrData, $m)) {
-            $d = $m[1];
-            return substr($d, 0, 3) . ' ' . substr($d, 3, 3) . ' ' . substr($d, 6, 8);
+        // 1b. Try pipe-separated strings (common on some cards: id|name|address|...)
+        if (empty($profile) && str_contains($qrData, '|')) {
+            $parts = explode('|', $qrData);
+            if (count($parts) >= 2) {
+                // Heuristic: if first part looks like a QC ID number, assume id|name|...
+                $first = trim($parts[0]);
+                if (preg_match('/^(\d{3})\D*(\d{3})\D*(\d{8})$/', $first) || preg_match('/^\d{13,16}$/', $first)) {
+                    $profile['id_number'] = $first;
+                    $profile['cardholder_name'] = trim($parts[1]);
+                    if (isset($parts[2])) $profile['address'] = trim($parts[2]);
+                    if (isset($parts[3])) $profile['sex'] = trim($parts[3]);
+                    if (isset($parts[4])) $profile['date_of_birth'] = trim($parts[4]);
+                }
+            }
         }
 
-        // 13-digit number (missing leading zero)
-        if (preg_match('/(\d{13})/', $qrData, $m)) {
-            $d = '0' . $m[1];
-            return substr($d, 0, 3) . ' ' . substr($d, 3, 3) . ' ' . substr($d, 6, 8);
+        // 2. Try URL Query/Key-Value parsing (if it looks like key=value pair)
+        if (empty($profile) && str_contains($qrData, '=') && !str_starts_with($qrData, '{')) {
+            $parts = [];
+            // Parse as query string
+            parse_str(parse_url($qrData, PHP_URL_QUERY) ?? $qrData, $parts);
+            
+            if (!empty($parts)) {
+                $mappings = [
+                    'id_number' => ['qcid', 'id_number', 'id', 'qc_id', 'card_number'],
+                    'cardholder_name' => ['name', 'full_name', 'cardholder', 'beneficiary'],
+                    'sex' => ['sex', 'gender'],
+                    'date_of_birth' => ['dob', 'birthdate', 'birth_date', 'bday'],
+                    'civil_status' => ['status', 'civil_status'],
+                    'address' => ['address', 'residence'],
+                    'date_issued' => ['issued', 'issue_date'],
+                    'valid_until' => ['expiry', 'valid'],
+                ];
+                foreach ($mappings as $targetKey => $sourceKeys) {
+                    foreach ($sourceKeys as $sKey) {
+                        // Case-insensitive check for key in $parts
+                        foreach ($parts as $k => $v) {
+                            if (strtolower((string)$k) === strtolower($sKey) && !empty($v)) {
+                                $profile[$targetKey] = (string) $v;
+                                break 2;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        // Any 10-14 digit number (from URL etc.)
-        if (preg_match('/(\d{10,14})/', $qrData, $m)) {
-            $d = str_pad($m[1], 14, '0', STR_PAD_LEFT);
-            $d = substr($d, 0, 14);
-            return substr($d, 0, 3) . ' ' . substr($d, 3, 3) . ' ' . substr($d, 6, 8);
+        // 3. Fallback: Try plain QC ID number extraction
+        if (empty($profile['id_number'])) {
+            // Pattern: 3-3-8 digit QC ID number
+            if (preg_match('/(\d{3})\s*(\d{3})\s*(\d{8})/', $qrData, $m)) {
+                $profile['id_number'] = $m[1] . ' ' . $m[2] . ' ' . $m[3];
+            } elseif (preg_match('/(\d{14})/', $qrData, $m)) {
+                $d = $m[1];
+                $profile['id_number'] = substr($d, 0, 3) . ' ' . substr($d, 3, 3) . ' ' . substr($d, 6, 8);
+            } elseif (preg_match('/(\d{13})/', $qrData, $m)) {
+                $d = '0' . $m[1];
+                $profile['id_number'] = substr($d, 0, 3) . ' ' . substr($d, 3, 3) . ' ' . substr($d, 6, 8);
+            }
         }
 
-        return null;
+        return !empty($profile) ? $profile : null;
     }
 }

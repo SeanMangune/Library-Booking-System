@@ -278,15 +278,16 @@
                                                     <div class="flex items-center justify-between gap-3"><dt class="text-slate-500">Cardholder</dt><dd class="font-medium text-slate-800" x-text="signup.name || '—'"></dd></div>
                                                     <div class="flex items-center justify-between gap-3"><dt class="text-slate-500">QC ID number</dt><dd class="font-medium text-slate-800" x-text="signup.qcid_number || '—'"></dd></div>
                                                     <div class="flex items-center justify-between gap-3"><dt class="text-slate-500">Birth date</dt><dd class="font-medium text-slate-800" x-text="signup.date_of_birth || '—'"></dd></div>
+                                                    <div class="flex items-center justify-between gap-3"><dt class="text-slate-500">Sex</dt><dd class="font-medium text-slate-800" x-text="signup.sex || '—'"></dd></div>
                                                     <div class="flex items-center justify-between gap-3">
                                                         <dt class="text-slate-500">QR Validation</dt>
                                                         <dd>
-                                                            <span x-show="scan.qrIdNumber" x-cloak class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                                                            <span x-show="scan.isQrVerified" x-cloak class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
                                                                 <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                                                                QR Verified
+                                                                Verified
                                                             </span>
-                                                            <span x-show="scan.status && !scan.qrIdNumber" x-cloak class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                                                                OCR Only
+                                                            <span x-show="scan.status && !scan.isQrVerified" x-cloak class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                                                                No QR Found
                                                             </span>
                                                             <span x-show="!scan.status" x-cloak class="text-slate-400">—</span>
                                                         </dd>
@@ -598,20 +599,40 @@ function signupLoginApp($persist, initialSignupOpen) {
         },
 
         init() {
-            // Server-side validation errors take precedence over cached state
+            // URL synchronization: ?auth=signup or ?auth=login
+            const urlParams = new URLSearchParams(window.location.search);
+            const authMode = urlParams.get('auth');
+            
+            if (authMode === 'signup') {
+                this.signupOpen = true;
+            } else if (authMode === 'login') {
+                this.signupOpen = false;
+            }
+
+            // Server-side validation errors take precedence
             if (initialSignupOpen) {
                 this.signupOpen = true;
                 
-                // Merge old inputs dynamically over what was locally stored
+                // Merge old inputs dynamically
                 for (const key in window.signupOldInput) {
                     if (window.signupOldInput[key]) {
                         this.signup[key] = window.signupOldInput[key];
                     }
                 }
             } else if (!this.signup) {
-                // Failsafe initialization
                 this.signup = { ...window.signupOldInput };
             }
+
+            // Persistence: Sync to URL on change
+            this.$watch('signupOpen', (val) => {
+                const url = new URL(window.location.href);
+                if (val) {
+                    url.searchParams.set('auth', 'signup');
+                } else {
+                    url.searchParams.set('auth', 'login');
+                }
+                window.history.replaceState({}, '', url);
+            });
         },
 
         validateAndSubmitSignup(formEl) {
@@ -637,6 +658,19 @@ function signupLoginApp($persist, initialSignupOpen) {
             this.scan.idAssessment = '';
             this.scan.confidenceLabel = '';
             this.scan.isVerified = false;
+            this.scan.qrData = '';
+            this.scan.qrIdNumber = '';
+
+            // Reset registration fields (excluding account info)
+            this.signup.name = '';
+            this.signup.qcid_number = '';
+            this.signup.sex = '';
+            this.signup.civil_status = '';
+            this.signup.date_of_birth = '';
+            this.signup.date_issued = '';
+            this.signup.valid_until = '';
+            this.signup.address = '';
+            this.signup.ocr_text = '';
 
             if (!file) {
                 this.scan.previewUrl = '';
@@ -1074,10 +1108,11 @@ function signupLoginApp($persist, initialSignupOpen) {
                     this.signup.valid_until = '';
                     this.signup.address = '';
 
-                    // Use the server's specific message (e.g., "This ID is invalid because it's a Postal ID")
+                    // Use the server's specific message or fake reason
+                    const fakeReason = verification?.fake_reason || '';
                     this.scan.error = payload?.message || (
                         this.scan.idAssessment === 'Fake QC ID'
-                            ? 'This ID is FAKE. Please upload a genuine Quezon City Citizen ID.'
+                            ? (fakeReason ? `FAKE ID DETECTED: ${fakeReason}` : 'This ID is FAKE. Please upload a genuine Quezon City Citizen ID.')
                             : 'This ID is INVALID. Only Quezon City Citizen IDs (QC IDs) are accepted.'
                     );
                     this.scan.status = this.scan.idAssessment === 'Fake QC ID' ? 'Fake QC ID detected.' : 'Invalid ID detected.';
@@ -1097,21 +1132,27 @@ function signupLoginApp($persist, initialSignupOpen) {
 
                     // === QR Code Cross-Validation ===
                     // If QR data was decoded, extract the QC ID number from it
-                    const qrIdNumber = this.extractQcIdFromQr(this.scan.qrData) ||
-                                       (payload?.qr_id_number || '');
+                    const qrIdNumber = payload?.qr_id_number || this.extractQcIdFromQr(this.scan.qrData);
 
-                    if (qrIdNumber) {
+                    if (verification.qr_validated) {
                         this.scan.qrIdNumber = qrIdNumber;
+                        this.scan.isQrVerified = true;
 
-                        // QR is authoritative — use it over OCR
-                        if (ocrIdNumber && ocrIdNumber !== qrIdNumber) {
+                        // QR is authoritative — providing high-accuracy status message
+                        if (verification.qr_profile_extracted) {
+                            this.scan.status = 'QR code verified. All ID details auto-filled with 100% accuracy from QR data.';
+                        } else if (ocrIdNumber && ocrIdNumber !== qrIdNumber) {
                             this.scan.status = `QR code verified. QC ID auto-corrected from "${ocrIdNumber}" to "${qrIdNumber}".`;
+                        } else {
+                            this.scan.status = 'QR code verified successfully.';
                         }
-                        this.signup.qcid_number = qrIdNumber;
                     } else {
-                        // No QR found — use OCR result
-                        this.signup.qcid_number = ocrIdNumber;
+                        this.scan.isQrVerified = false;
                     }
+
+                    // Always prioritize QR results for any field provided
+                    this.signup.name = (verification.cardholder_name || this.signup.name || '').trim();
+                    this.signup.qcid_number = (qrIdNumber || ocrIdNumber || '').trim();
 
                     if (verification.sex) {
                         // Server returns 'M'/'F', dropdown expects 'MALE'/'FEMALE'

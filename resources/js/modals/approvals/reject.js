@@ -1,6 +1,6 @@
 export function createApprovalRejectModalState() {
     return {
-        showRejectModal: false,
+        showRejectModal: this.$persist(false).as('approve_showRejectModal'),
 
         closeRejectModal() {
             this.showRejectModal = false;

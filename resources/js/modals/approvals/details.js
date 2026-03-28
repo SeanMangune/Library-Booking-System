@@ -4,8 +4,8 @@ function csrfToken() {
 
 export function createApprovalDetailsModalState() {
     return {
-        showModal: false,
-        selectedBooking: null,
+        showModal: this.$persist(false).as('approve_showModal'),
+        selectedBooking: this.$persist(null).as('approve_selectedBooking'),
         isLoading: false,
         actionType: null,
         showExceptionInput: false,

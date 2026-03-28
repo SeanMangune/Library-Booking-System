@@ -1162,16 +1162,16 @@ export function createDashboardApp(config = {}) {
 
     return {
         dashboardCalendar: null,
-        showBookingModal: false,
-        showViewModal: false,
-        showDayEventsModal: false,
-        selectedBooking: null,
-        selectedDay: null,
+        showBookingModal: this.$persist(false).as('student_showBookingModal'),
+        showViewModal: this.$persist(false).as('student_showViewModal'),
+        showDayEventsModal: this.$persist(false).as('student_showDayEventsModal'),
+        selectedBooking: this.$persist(null).as('student_selectedBooking'),
+        selectedDay: this.$persist(null).as('student_selectedDay'),
         isSubmitting: false,
-        calendarView: 'dayGridMonth',
+        calendarView: this.$persist('dayGridMonth').as('student_calendarView'),
         calendarTitle: '',
-        currentMonth: new Date().getMonth(),
-        currentYear: new Date().getFullYear(),
+        currentMonth: this.$persist(new Date().getMonth()).as('student_currentMonth'),
+        currentYear: this.$persist(new Date().getFullYear()).as('student_currentYear'),
         calendarData: initialCalendarData,
         monthNames,
         bookingsPanelOpen: true,
@@ -1193,8 +1193,7 @@ export function createDashboardApp(config = {}) {
         timeConflictSuggestions: [],
         timeConflictMessage: '',
         isLoadingTimeConflictSuggestions: false,
-
-        bookingForm: createDashboardBookingForm(config),
+        bookingForm: this.$persist(createDashboardBookingForm(config)).as('student_bookingForm_draft'),
 
         get calendarWeeks() {
             const weeks = [];
@@ -1270,6 +1269,10 @@ export function createDashboardApp(config = {}) {
         },
 
         init() {
+            if (this.showBookingModal || this.showViewModal || this.showDayEventsModal) {
+                document.body.style.overflow = 'hidden';
+            }
+
             try {
                 const storedPanelState = window.localStorage.getItem(bookingsPanelPreferenceKey);
                 if (storedPanelState !== null) {
@@ -1281,6 +1284,11 @@ export function createDashboardApp(config = {}) {
 
             window.addEventListener('layout:sidebar-toggled', () => {
                 this.resizeDashboardCalendar();
+            });
+
+            // Restore calendar view immediately on reload
+            this.$nextTick(() => {
+                this.initDashboardCalendar(this.calendarView);
             });
 
             window.addEventListener('resize', () => {

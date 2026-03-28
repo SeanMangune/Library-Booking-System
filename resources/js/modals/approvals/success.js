@@ -1,7 +1,7 @@
 export function createApprovalSuccessModalState() {
     return {
-        showSuccessModal: false,
-        approvedBooking: null,
+        showSuccessModal: this.$persist(false).as('approve_showSuccessModal'),
+        approvedBooking: this.$persist(null).as('approve_approvedBooking'),
         qrImageFailed: false,
         isDownloading: false,
 

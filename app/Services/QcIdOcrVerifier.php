@@ -159,7 +159,7 @@ class QcIdOcrVerifier
         array $matchedMarkers,
         ?string $rejectedIdType
     ): ?string {
-        if (preg_match('/\b(FAKE|SAMPLE|SPECIMEN|NOT\s+VALID|FOR\s+DISPLAY\s+ONLY|DEMO|MOCK\s*UP|DUMMY|PROTOTYPE)\b/', $normalized) === 1) {
+        if (preg_match('/\b(FAKE|SAMPLE|SPECIMEN|NOT\s+VALID|FOR\s+DISPLAY\s+ONLY|DEMO|MOCK\s*UP|DUMMY|PROTOTYPE|VOID|TESTING\s*ONLY|FOR\s*SYSTEM\s*TESTING|MOCK)\b/i', $normalized) === 1) {
             return 'Image text contains fake/sample markers.';
         }
 
@@ -189,7 +189,7 @@ class QcIdOcrVerifier
         }
 
         // Known sample QC ID numbers used in training/testing
-        $knownFakeIds = ['00000000000000', '12345678901234', '99999999999999', '11111111111111'];
+        $knownFakeIds = ['00000000000000', '12345678901234', '99999999999999', '11111111111111', '9990009876543210'];
         if ($idNumber !== null) {
             $cleanId = preg_replace('/[\s\-]/', '', $idNumber) ?? '';
             if (in_array($cleanId, $knownFakeIds, true)) {
@@ -458,11 +458,6 @@ class QcIdOcrVerifier
      */
     private function extractFields(string $normalized, array $lines): array
     {
-        // QC ID layout-aware extraction (value row appears above label row)
-        // Prioritise layout results because the forward-match (label→value)
-        // can pick up the wrong date when values sit above their labels.
-        $layoutFields = $this->extractQcIdLayoutFields($normalized, $lines);
-
         $fields = [
             'cardholder_name' => $this->extractCardholderName($normalized, $lines),
             'sex' => ($layoutFields['sex'] ?? null) ?? $this->extractSex($normalized),
@@ -471,7 +466,6 @@ class QcIdOcrVerifier
             'civil_status' => ($layoutFields['civil_status'] ?? null) ?? $this->extractCivilStatus($normalized),
             'date_issued' => ($layoutFields['date_issued'] ?? null) ?? $this->extractDate($normalized, $lines),
             'valid_until' => ($layoutFields['valid_until'] ?? null) ?? $this->extractDate($normalized, $lines),
-            'address' => $this->extractAddress($lines, $normalized),
             'id_number' => $this->extractIdNumber($normalized, $lines),
         ];
 
@@ -480,6 +474,13 @@ class QcIdOcrVerifier
                 $fields[$dateKey] = $this->normalizeDateToYmd((string) $fields[$dateKey]);
             }
         }
+
+        // Now extract address with known date context for cleaning
+        $fields['address'] = $this->extractAddress($lines, $normalized, [
+            $fields['date_of_birth'],
+            $fields['date_issued'],
+            $fields['valid_until'],
+        ]);
 
         // Positional fallback: if dates are still missing, collect all
         // date-like strings in the text and assign using year heuristics.
@@ -827,7 +828,10 @@ class QcIdOcrVerifier
 
     }
 
-    private function normalizeDateToYmd(?string $value): ?string
+    /**
+     * Normalize a date (MM/DD/YYYY or YYYY-MM-DD) into YYYY-MM-DD.
+     */
+    public function normalizeDateToYmd(?string $value): ?string
     {
         if ($value === null) {
             return null;
@@ -1299,36 +1303,40 @@ class QcIdOcrVerifier
     /**
      * @param  list<string>  $lines
      */
-    private function extractAddress(array $lines, string $normalized): ?string
+    private function extractAddress(array $lines, string $normalized, array $knownDates = []): ?string
     {
         // Strategy 1: Explicit ADDRESS label followed by multiline capture
         foreach ($lines as $index => $line) {
             if (preg_match('/\bADDRESS\b/', $line)) {
                 $addressParts = [];
-                for ($offset = 0; $offset <= 3; $offset++) {
+                // Increase offset to 5 to handle sparse OCR lines
+                for ($offset = 0; $offset <= 5; $offset++) {
                     $idx = $index + $offset;
-                    $candidate = $lines[$idx] ?? '';
+                    if (!isset($lines[$idx])) break;
+                    
+                    $candidate = $lines[$idx];
                     if ($offset === 0) $candidate = trim(preg_replace('/\bADDRESS\b/', '', $candidate));
                     
                     if ($candidate && !$this->looksLikeLabel($candidate)) {
                         $addressParts[] = $candidate;
                     }
-                    if (preg_match('/QUEZON\s*CITY/i', $candidate)) break;
+                    // Fuzzy anchor break
+                    if (preg_match('/QUEZON\s*(CITY|C\s*ITY|C1TY|ITY)/i', $candidate)) break;
                 }
-                if ($addressParts) return $this->cleanAddress(implode(', ', $addressParts));
+                if ($addressParts) return $this->cleanAddress(implode(', ', $addressParts), $knownDates);
             }
         }
 
         // Strategy 2: Search for QUEZON CITY anchor
         foreach ($lines as $index => $line) {
-            if (preg_match('/QUEZON\s*CITY/i', $line)) {
+            if (preg_match('/QUEZON\s*(CITY|C\s*ITY|C1TY|ITY)/i', $line)) {
                 $parts = [];
-                for ($back = 2; $back >= 1; $back--) {
+                for ($back = 3; $back >= 1; $back--) {
                     $prev = $lines[$index - $back] ?? null;
                     if ($prev && !$this->looksLikeLabel($prev)) $parts[] = $prev;
                 }
                 $parts[] = $line;
-                return $this->cleanAddress(implode(', ', array_unique($parts)));
+                return $this->cleanAddress(implode(', ', array_unique($parts)), $knownDates);
             }
         }
 
@@ -1400,7 +1408,7 @@ class QcIdOcrVerifier
         return trim($value, ' ,.-');
     }
 
-    private function cleanAddress(string $value): string
+    private function cleanAddress(string $value, array $knownDates = []): string
     {
         $value = mb_strtoupper($value, 'UTF-8');
         $value = preg_replace('/[^A-Z0-9,\.\-\s]/u', ' ', $value) ?? $value;
@@ -1412,6 +1420,23 @@ class QcIdOcrVerifier
         // Remove dates (YYYY/MM/DD or MM/DD/YYYY patterns)
         $value = preg_replace('/\b\d{4}[\/-]\d{2}[\/-]\d{2}\b/', ' ', $value) ?? $value;
         $value = preg_replace('/\b\d{2}[\/-]\d{2}[\/-]\d{4}\b/', ' ', $value) ?? $value;
+        
+        // Remove space-separated dates (YYYY MM DD or MM DD YYYY)
+        $value = preg_replace('/\b\d{4}\s\d{2}\s\d{2}\b/', ' ', $value) ?? $value;
+        $value = preg_replace('/\b\d{2}\s\d{2}\s\d{4}\b/', ' ', $value) ?? $value;
+
+        // Strip specific known dates if they sit in the string
+        foreach ($knownDates as $date) {
+            if (!$date) continue;
+            $numericOnly = preg_replace('/\D/', '', $date);
+            if (strlen($numericOnly) === 8) {
+                // Try YYYY MM DD pieces
+                $y = substr($numericOnly, 0, 4);
+                $m = substr($numericOnly, 4, 2);
+                $d = substr($numericOnly, 6, 2);
+                $value = str_replace(["$y $m $d", "$m $d $y", $numericOnly], ' ', $value);
+            }
+        }
 
         // Remove phone numbers (e.g. 0998 954 6210)
         $value = preg_replace('/\b0\d{3}\s*\d{3}\s*\d{4}\b/', ' ', $value) ?? $value;
@@ -1422,14 +1447,18 @@ class QcIdOcrVerifier
 
         $value = preg_replace('/\s+/', ' ', trim($value)) ?? trim($value);
 
-        // Anchor on street/address number pattern before QUEZON CITY
-        if (preg_match('/(\d{1,5}\s*[A-Z]?\s+[A-Z][A-Z0-9\s,\.\-]*?QUEZON\s*CITY)/', $value, $m)) {
+        // Anchor on street/address number pattern before QUEZON CITY (fuzzy)
+        $cityPattern = 'QUEZON\s*(?:CITY|C\s*ITY|C1TY|ITY)';
+        if (preg_match('/(\d{1,5}\s*[A-Z]?\s+[A-Z][A-Z0-9\s,\.\-]*?'.$cityPattern.')/', $value, $m)) {
             $value = $m[1];
-        } elseif (preg_match('/((?:BLK\-?\d*|LOT\-?\d*|UNIT\-?\d*|#\d+)\s*[A-Z0-9,\.\-\s]+?QUEZON\s*CITY)/', $value, $m)) {
+        } elseif (preg_match('/((?:BLK\-?\d*|LOT\-?\d*|UNIT\-?\d*|#\d+)\s*[A-Z0-9,\.\-\s]+?'.$cityPattern.')/', $value, $m)) {
             $value = $m[1];
-        } elseif (preg_match('/([A-Z0-9,\.\-\s]+?QUEZON\s*CITY)/', $value, $m)) {
+        } elseif (preg_match('/([A-Z0-9,\.\-\s]+?'.$cityPattern.')/', $value, $m)) {
             $value = $m[1];
         }
+
+        // Standardize QUEZON CITY at the end
+        $value = preg_replace('/'.$cityPattern.'$/', 'QUEZON CITY', $value);
 
         $value = preg_replace('/\s*,\s*/', ', ', $value) ?? $value;
         $value = preg_replace('/\s{2,}/', ' ', $value) ?? $value;
@@ -1456,6 +1485,12 @@ class QcIdOcrVerifier
 
     private function looksLikeLabel(string $value): bool
     {
+        // Add pattern to exclude rows that are clearly just values sitting above labels
+        // e.g. "M SINGLE 10/01/2003" sits above "SEX CIVIL STATUS DATE OF BIRTH"
+        if (preg_match('/^(?:[MF]\s+)?(?:SINGLE|MARRIED|WIDOWED|DIVORCED|SEPARATED)\s+\d{2,4}/i', $value)) {
+            return true;
+        }
+
         return preg_match('/LAST\s*NAME|FIRST\s*NAME|MIDDLE\s*NAME|DATE\s*(OF)?\s*BIRTH|DATE\s*ISSUED|VALID\s*UNTIL|\bSEX\b|CIVIL\s*STATUS|CARD\s*HOLDER\s*S?\s*IGNATURE|REPUBLIC\s+OF\s+THE\s+PHILIPPINES|CITIZEN\s*CARD|KASAMA\s+KA\s+SA\s+PAG/', $value) === 1;
     }
 
@@ -1860,6 +1895,7 @@ class QcIdOcrVerifier
             '000\s*000\s*00000000', // Common placeholder ID
             '11111111111111',
             '99999999999999',
+            '999\s*000\s*98765432\s*10',
             'JANE\s*DOE',
             'JOHN\s*DOE',
             'JUAN\s+DELA\s+CRUZ',
@@ -1868,6 +1904,7 @@ class QcIdOcrVerifier
             'TEST\s+USER',
             'SAMPLE\s+NAME',
             'INVALID',
+            'FOR\s*SYSTEM\s*TESTING',
         ];
 
         foreach ($fakeKeywords as $kw) {
