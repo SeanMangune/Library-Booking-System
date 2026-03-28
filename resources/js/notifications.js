@@ -44,12 +44,14 @@ window.LaravelLogoutUrl = (typeof window.LaravelLogoutUrl !== 'undefined') ? win
 
 function buildUnreadNotificationItem(item, isStaff) {
     const url = escapeHtml(normalizeUserUrl(item?.url || '#', isStaff));
+    const rawId = item?.id != null ? String(item.id) : '';
+    const idAttr = escapeHtml(rawId);
     const title = escapeHtml(item?.title || 'Notification');
     const message = escapeHtml(item?.message || '');
     const createdAtHuman = escapeHtml(item?.created_at_human || 'Just now');
 
     return `
-        <a href="${url}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
+        <a href="${url}" data-notification-id="${idAttr}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
             <p class="text-sm font-medium text-gray-900">${title}</p>
             <p class="text-xs text-gray-600 mt-1">${message}</p>
             <p class="text-xs text-gray-400 mt-1">${createdAtHuman}</p>
@@ -58,7 +60,9 @@ function buildUnreadNotificationItem(item, isStaff) {
 }
 
 function showNotificationToast(payload) {
-    const message = payload?.message;
+    const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
+    const message = data?.message ?? payload?.message;
+    const title = data?.title ?? payload?.title ?? 'Notification';
 
     if (!message) {
         return;
@@ -68,7 +72,7 @@ function showNotificationToast(payload) {
         new CustomEvent('show-notification', {
             detail: {
                 type: 'info',
-                title: payload?.title || 'Notification',
+                title,
                 message,
             },
         }),
@@ -245,6 +249,47 @@ function initializeRealtimeNotifications() {
                 await refreshStateSafe();
             } catch (error) {
                 markAllReadForm.submit();
+            }
+        });
+    }
+
+    if (unreadList) {
+        unreadList.addEventListener('click', async (event) => {
+            const link = event.target.closest('a[data-notification-id]');
+            if (!link) {
+                return;
+            }
+
+            const notificationId = link.getAttribute('data-notification-id');
+            if (!notificationId) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const href = link.getAttribute('href') || '#';
+
+            if (window.axios) {
+                try {
+                    await window.axios.post(
+                        `/notifications/${encodeURIComponent(notificationId)}/read`,
+                        {},
+                        {
+                            headers: {
+                                Accept: 'application/json',
+                                ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+                            },
+                        },
+                    );
+                } catch {
+                    // Still navigate; mark-read is best-effort.
+                }
+            }
+
+            if (href && href !== '#') {
+                window.location.assign(href);
+            } else {
+                await refreshStateSafe();
             }
         });
     }

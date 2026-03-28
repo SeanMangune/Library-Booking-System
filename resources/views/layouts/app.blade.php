@@ -543,6 +543,11 @@
 
             <!-- Page Content -->
             <main class="p-4 sm:p-6 min-w-0">
+                @if(session('status'))
+                    <div class="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 shadow-sm">
+                        {{ session('status') }}
+                    </div>
+                @endif
                 @yield('content')
             </main>
         </div>

@@ -85,6 +85,23 @@ class NotificationController extends Controller
         ]);
     }
 
+    public function markRead(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user || ! Schema::hasTable('notifications')) {
+            return response()->json(['success' => false], 404);
+        }
+
+        $notification = $user->notifications()->where('id', $id)->first();
+
+        if ($notification) {
+            $notification->markAsRead();
+        }
+
+        return response()->json(['success' => true]);
+    }
+
     public function markAllRead(Request $request): RedirectResponse|JsonResponse
     {
         $user = $request->user();

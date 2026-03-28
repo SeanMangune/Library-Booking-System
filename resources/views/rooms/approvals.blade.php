@@ -28,7 +28,7 @@
                 <div class="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
                     <i class="w-6 h-6 text-amber-600 fa-icon fa-solid fa-clock text-2xl leading-none"></i>
                 </div>
-                <span class="text-3xl font-bold text-gray-900">{{ $stats['pending'] }}</span>
+                <span class="text-3xl font-bold text-gray-900" data-approvals-stat="pending">{{ $stats['pending'] }}</span>
             </div>
             <p class="mt-3 text-sm font-medium text-gray-600">Pending Reviews</p>
         </a>
@@ -40,7 +40,7 @@
                 <div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
                     <i class="w-6 h-6 text-green-600 fa-icon fa-solid fa-circle-check text-2xl leading-none"></i>
                 </div>
-                <span class="text-3xl font-bold text-gray-900">{{ $stats['approved'] }}</span>
+                <span class="text-3xl font-bold text-gray-900" data-approvals-stat="approved">{{ $stats['approved'] }}</span>
             </div>
             <p class="mt-3 text-sm font-medium text-gray-600">Approved</p>
         </a>
@@ -82,7 +82,7 @@
             Pending Bookings
         @endif
     </h2>
-    <div class="space-y-4">
+    <div class="space-y-4" data-role="approvals-bookings-list">
         @forelse($bookings as $booking)
         @php
             $bookingData = [
@@ -118,6 +118,7 @@
             ][$booking->status] ?? 'bg-gray-100 text-gray-700';
         @endphp
         <div class="booking-card bg-white rounded-xl border border-gray-200 shadow-sm p-5 hover:shadow-md transition-all cursor-pointer"
+             data-booking-id="{{ $booking->id }}"
              x-on:click="openApprovalModal({{ Js::from($bookingData) }})">
             <div class="flex items-start justify-between gap-4">
                 <div class="flex items-start gap-4">

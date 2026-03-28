@@ -405,8 +405,8 @@ function createRoomBookingForm(config, dateOverride = null) {
         start_time: defaultSlot.start_time,
         end_time: defaultSlot.end_time,
         attendees: 1,
-        user_name: config.userName || '',
-        user_email: '',
+        user_name: config.verifiedRegistrationName || config.userName || '',
+        user_email: config.userEmail || '',
         description: '',
         qc_id_ocr_text: '',
         qc_id_cardholder_name: config.verifiedRegistrationName || '',
@@ -434,6 +434,10 @@ export function createRoomCalendarApp(config = {}) {
         hasVerifiedRegistration: Boolean(config.hasVerifiedRegistration),
         verifiedRegistrationName: config.verifiedRegistrationName || '',
         verifiedRegistrationQcidNumber: config.verifiedRegistrationQcidNumber || '',
+        verifiedRegistrationEmail: config.verifiedRegistrationEmail || '',
+        verifiedRegistrationValidUntil: config.verifiedRegistrationValidUntil || '',
+        userName: config.userName || '',
+        userEmail: config.userEmail || '',
         isStaffUser: Boolean(config.isStaffUser),
         rooms: Array.isArray(config.rooms) ? config.rooms : [],
         bookingTimeSlots: BOOKING_TIME_SLOTS,
@@ -454,24 +458,22 @@ export function createRoomCalendarApp(config = {}) {
         init() {
             // Autofill user_name and QC ID if available
             if (this.hasVerifiedRegistration) {
-                if (config.userName) {
-                    this.bookingForm.user_name = config.userName;
-                }
+                this.bookingForm.user_name = config.verifiedRegistrationName || config.userName || '';
+                this.bookingForm.user_email = config.userEmail || '';
                 if (config.verifiedRegistrationName) {
                     this.bookingForm.qc_id_cardholder_name = config.verifiedRegistrationName;
                 }
-                // Mark QC ID as verified in the form state
                 this.qcIdVerification = {
                     is_valid: true,
                     cardholder_name: config.verifiedRegistrationName || config.userName || '',
+                    id_number: config.verifiedRegistrationQcidNumber || '',
+                    valid_until: config.verifiedRegistrationValidUntil || '',
                     confidence_score: 100,
                     source: 'registration',
                 };
                 this.qcIdError = '';
-            } else {
-                if (this.bookingForm && config.userName) {
-                    this.bookingForm.user_name = config.userName;
-                }
+            } else if (this.bookingForm && config.userName) {
+                this.bookingForm.user_name = config.userName;
             }
             this.$nextTick(() => {
                 this.initCalendar();
@@ -527,7 +529,9 @@ export function createRoomCalendarApp(config = {}) {
             if (this.hasVerifiedRegistration) {
                 this.qcIdVerification = {
                     is_valid: true,
-                    cardholder_name: this.verifiedRegistrationName || '',
+                    cardholder_name: this.verifiedRegistrationName || this.userName || '',
+                    id_number: this.verifiedRegistrationQcidNumber || '',
+                    valid_until: this.verifiedRegistrationValidUntil || '',
                     confidence_score: 100,
                     source: 'registration',
                 };
@@ -993,9 +997,14 @@ export function createRoomCalendarApp(config = {}) {
             this.qcIdError = '';
 
             if (this.hasVerifiedRegistration) {
+                this.bookingForm.user_name = this.verifiedRegistrationName || this.userName || '';
+                this.bookingForm.user_email = this.userEmail || '';
+                this.bookingForm.qc_id_cardholder_name = this.verifiedRegistrationName || '';
                 this.qcIdVerification = {
                     is_valid: true,
-                    cardholder_name: this.verifiedRegistrationName || '',
+                    cardholder_name: this.verifiedRegistrationName || this.userName || '',
+                    id_number: this.verifiedRegistrationQcidNumber || '',
+                    valid_until: this.verifiedRegistrationValidUntil || '',
                     confidence_score: 100,
                     source: 'registration',
                 };
@@ -1124,11 +1133,11 @@ function createDashboardBookingForm(config, dateOverride = null) {
         start_time: defaultSlot.start_time,
         end_time: defaultSlot.end_time,
         attendees: 1,
-        user_name: '',
-        user_email: '',
+        user_name: config.verifiedRegistrationName || config.userName || '',
+        user_email: config.userEmail || '',
         description: '',
         qc_id_ocr_text: '',
-        qc_id_cardholder_name: '',
+        qc_id_cardholder_name: config.verifiedRegistrationName || '',
     };
 }
 
@@ -1161,6 +1170,11 @@ export function createDashboardApp(config = {}) {
         bookingsPanelOpen: true,
         hasVerifiedRegistration: Boolean(config.hasVerifiedRegistration),
         verifiedRegistrationName: config.verifiedRegistrationName || '',
+        verifiedRegistrationQcidNumber: config.verifiedRegistrationQcidNumber || '',
+        verifiedRegistrationEmail: config.verifiedRegistrationEmail || '',
+        verifiedRegistrationValidUntil: config.verifiedRegistrationValidUntil || '',
+        userName: config.userName || '',
+        userEmail: config.userEmail || '',
         isStaffUser: Boolean(config.isStaffUser),
         rooms: Array.isArray(config.rooms) ? config.rooms : [],
         bookingTimeSlots: BOOKING_TIME_SLOTS,
@@ -1309,7 +1323,9 @@ export function createDashboardApp(config = {}) {
             if (this.hasVerifiedRegistration) {
                 this.qcIdVerification = {
                     is_valid: true,
-                    cardholder_name: this.verifiedRegistrationName || '',
+                    cardholder_name: this.verifiedRegistrationName || this.userName || '',
+                    id_number: this.verifiedRegistrationQcidNumber || '',
+                    valid_until: this.verifiedRegistrationValidUntil || '',
                     confidence_score: 100,
                     source: 'registration',
                 };
@@ -1922,9 +1938,14 @@ export function createDashboardApp(config = {}) {
             this.qcIdError = '';
 
             if (this.hasVerifiedRegistration) {
+                this.bookingForm.user_name = this.verifiedRegistrationName || this.userName || '';
+                this.bookingForm.user_email = this.userEmail || this.verifiedRegistrationEmail || '';
+                this.bookingForm.qc_id_cardholder_name = this.verifiedRegistrationName || '';
                 this.qcIdVerification = {
                     is_valid: true,
-                    cardholder_name: this.verifiedRegistrationName || '',
+                    cardholder_name: this.verifiedRegistrationName || this.userName || '',
+                    id_number: this.verifiedRegistrationQcidNumber || '',
+                    valid_until: this.verifiedRegistrationValidUntil || '',
                     confidence_score: 100,
                     source: 'registration',
                 };

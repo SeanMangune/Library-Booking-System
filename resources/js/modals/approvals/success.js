@@ -8,7 +8,6 @@ export function createApprovalSuccessModalState() {
         closeSuccessModal() {
             this.showSuccessModal = false;
             this.approvedBooking = null;
-            window.location.reload();
         },
 
         async downloadQr(url, filename = 'booking-qr.png') {

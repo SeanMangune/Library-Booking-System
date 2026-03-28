@@ -417,6 +417,13 @@
                             </h3>
                             
                             <div class="space-y-4">
+                                <div x-show="userEmail || verifiedRegistrationEmail" x-cloak class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Signed in as</p>
+                                    <p class="mt-1 font-semibold text-slate-900" x-text="userName || '—'"></p>
+                                    <p class="text-slate-600 break-all" x-text="userEmail || verifiedRegistrationEmail || '—'"></p>
+                                    <p x-show="hasVerifiedRegistration" x-cloak class="mt-2 text-xs font-medium text-emerald-700">Your QC ID is verified on file for bookings.</p>
+                                </div>
+
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
                                         Purpose <span class="text-red-500">*</span>
@@ -431,19 +438,21 @@
                                         Book for User <span class="text-red-500">*</span>
                                     </label>
                                     <input type="text" x-model="bookingForm.user_name" required
-                                           :value="verifiedRegistrationName || bookingForm.user_name || ''"
                                            placeholder="Enter user name..."
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                 </div>
 
                                 <div class="rounded-xl border border-gray-200 bg-gray-50/80 p-4">
                                     <label class="block text-sm font-semibold text-gray-700 mb-1">
-                                        QC ID Verification <span class="text-red-500">*</span>
+                                        <span x-text="hasVerifiedRegistration ? 'QC ID (verified on file)' : 'QC ID Verification'"></span>
+                                        <span x-show="!hasVerifiedRegistration" class="text-red-500">*</span>
                                     </label>
-                                    <p class="text-xs text-gray-600 mb-2">Upload a clear photo of a Quezon City Citizen ID. The system will read the card using OCR and reject non-QC IDs.</p>
-                                    <input type="file" name="qcid_image" accept="image/*" required
-                                        class="block w-full text-sm text-gray-700 border border-gray-300 rounded-lg cursor-pointer focus:ring-2 focus:ring-teal-500 focus:border-teal-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
-                                        @change="handleQcIdUpload($event)">
+                                    <p x-show="!hasVerifiedRegistration" x-cloak class="text-xs text-gray-600 mb-2">Upload a clear photo of a Quezon City Citizen ID. The system will read the card using OCR and reject non-QC IDs.</p>
+                                    <div x-show="!hasVerifiedRegistration" x-cloak>
+                                        <input type="file" name="qcid_image" accept="image/*" :required="!hasVerifiedRegistration"
+                                            class="block w-full text-sm text-gray-700 border border-gray-300 rounded-lg cursor-pointer focus:ring-2 focus:ring-teal-500 focus:border-teal-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+                                            @change="handleQcIdUpload($event)">
+                                    </div>
 
                                     <template x-if="qcIdPreviewUrl">
                                         <div class="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
@@ -451,7 +460,7 @@
                                         </div>
                                     </template>
 
-                                    <div x-show="qcIdIsProcessing" x-cloak class="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-4 mt-4">
+                                    <div x-show="!hasVerifiedRegistration && qcIdIsProcessing" x-cloak class="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-4 mt-4">
                                         <div class="flex items-center justify-between gap-4">
                                             <div>
                                                 <p class="text-sm font-semibold text-teal-800" x-text="qcIdStatusMessage || 'Reading QC ID…'"></p>
@@ -470,7 +479,7 @@
                                         <div class="flex items-center justify-between gap-3">
                                             <div>
                                                 <p class="text-sm font-semibold text-gray-900">Verification snapshot</p>
-                                                <p class="text-xs text-gray-500">Detected details from the uploaded card.</p>
+                                                <p class="text-xs text-gray-500" x-text="hasVerifiedRegistration ? 'Details from your saved QC ID registration.' : 'Detected details from the uploaded card.'"></p>
                                             </div>
                                             <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
                                                 :class="qcIdVerification?.is_valid ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
@@ -634,6 +643,7 @@
 @php
     $verifiedRegistration = auth()->user()?->qcidRegistration;
     $hasVerifiedRegistration = $verifiedRegistration && $verifiedRegistration->verification_status === 'verified';
+    $authUser = auth()->user();
 
     $roomOptions = $rooms->map(function ($room) {
         return [
@@ -650,7 +660,12 @@
 {!! json_encode([
     'hasVerifiedRegistration' => $hasVerifiedRegistration,
     'verifiedRegistrationName' => $verifiedRegistration?->full_name,
-    'isStaffUser' => auth()->user()?->isStaff() ?? false,
+    'verifiedRegistrationEmail' => $verifiedRegistration?->email,
+    'verifiedRegistrationQcidNumber' => $verifiedRegistration?->qcid_number,
+    'verifiedRegistrationValidUntil' => $verifiedRegistration?->valid_until?->format('Y/m/d'),
+    'userName' => $authUser?->name,
+    'userEmail' => $authUser?->email,
+    'isStaffUser' => $authUser?->isStaff() ?? false,
     'rooms' => $roomOptions,
     'defaultDate' => now()->format('Y-m-d'),
     'initialCalendarData' => $calendarData,

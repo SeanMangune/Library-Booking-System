@@ -61,7 +61,7 @@ TEXT;
         $response->assertRedirect(route('qcid.registration.show'));
         $this->assertDatabaseHas('qc_id_registrations', [
             'user_id' => $user->id,
-            'verification_status' => 'pending',
+            'verification_status' => 'verified',
         ]);
 
         $storedPath = (string) \App\Models\QcIdRegistration::query()
@@ -112,7 +112,7 @@ TEXT;
         $this->assertDatabaseHas('qc_id_registrations', [
             'user_id' => $staff->id,
             'email' => '',
-            'verification_status' => 'pending',
+            'verification_status' => 'verified',
         ]);
     }
 

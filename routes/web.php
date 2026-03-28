@@ -47,6 +47,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 Route::middleware('auth')->group(function () {
     Route::get('/rooms', [RoomDashboardController::class, 'index'])->name('dashboard');
     Route::get('/notifications/unread', [NotificationController::class, 'unread'])->name('notifications.unread');
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
     Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
 
     Route::get('/qcid-registration', [QcIdRegistrationController::class, 'show'])->name('qcid.registration.show');

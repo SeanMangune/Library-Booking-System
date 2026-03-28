@@ -4,7 +4,6 @@ export function createApprovalRejectModalState() {
 
         closeRejectModal() {
             this.showRejectModal = false;
-            window.location.reload();
         },
     };
 }
