@@ -115,6 +115,28 @@
                         <button type="button" @click="signupOpen = true" class="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition-colors shadow-lg shadow-teal-700/20">
                             Sign Up
                         </button>
+<<<<<<< HEAD
+=======
+
+                        <a href="{{ route('google.redirect') }}" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-sm font-semibold text-gray-800 transition-colors">
+                            <span class="w-5 h-5 inline-flex items-center justify-center rounded-full border border-gray-300 bg-white text-xs font-extrabold text-gray-900">G</span>
+                            Continue with Google
+                        </a>
+
+                        <div id="installPromptContainer" class="hidden">
+                            <button id="installBtn" type="button" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors">
+                                <span>Install App</span>
+                            </button>
+                        </div>
+
+                        <p id="desktopInstallHint" class="hidden rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700">
+                            Use your browser install menu, or open SmartSpace on your phone to install.
+                        </p>
+
+                        <div id="iosInstallHint" class="hidden rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm text-blue-800">
+                            Tap Share -> Add to Home Screen
+                        </div>
+>>>>>>> a677b3ce29aad4bf91cb96b12dd908f7f7529e61
                     </div>
                         </div>
                     </div>
@@ -436,6 +458,7 @@ window.signupOldInput = {
 window.signupQcidVerifyUrl = @json(route('signup.qcid.verify'));
 </script>
 <script>
+<<<<<<< HEAD
 function signupLoginApp(initialSignupOpen) {
     return {
         signupOpen: !!initialSignupOpen,
@@ -847,7 +870,130 @@ function signupLoginApp(initialSignupOpen) {
         },
     };
 }
+=======
+    let deferredInstallPrompt;
+    const isMobileBrowser = /android|iphone|ipad|ipod|mobile|blackberry|iemobile|opera mini/i.test(window.navigator.userAgent);
+    const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    const iosInstallHint = document.getElementById('iosInstallHint');
+    const desktopInstallHint = document.getElementById('desktopInstallHint');
+    const installBtn = document.getElementById('installBtn');
+    const installContainer = document.getElementById('installPromptContainer');
+    const installToast = document.getElementById('installToast');
+
+    const showInstallToast = (message) => {
+        if (!installToast) {
+            return;
+        }
+
+        installToast.textContent = message;
+        installToast.classList.remove('hidden', 'opacity-0', 'translate-y-3');
+
+        window.setTimeout(() => {
+            installToast.classList.add('opacity-0', 'translate-y-3');
+            window.setTimeout(() => {
+                installToast.classList.add('hidden');
+            }, 250);
+        }, 2600);
+    };
+
+    const markAppInstalled = () => {
+        try {
+            window.localStorage.setItem('smartspace_pwa_installed', '1');
+        } catch (error) {
+            console.warn('Unable to persist install state', error);
+        }
+    };
+
+    const isAppInstalled = () => {
+        if (isStandalone) {
+            return true;
+        }
+
+        try {
+            return window.localStorage.getItem('smartspace_pwa_installed') === '1';
+        } catch (error) {
+            console.warn('Unable to read install state', error);
+            return false;
+        }
+    };
+
+    const updateInstallUiState = () => {
+        const installed = isAppInstalled();
+        const canShowInstallButton = isMobileBrowser && !installed;
+        const shouldShowDesktopHint = !isMobileBrowser && !installed;
+
+        if (installContainer) {
+            installContainer.classList.toggle('hidden', !canShowInstallButton);
+        }
+
+        if (desktopInstallHint) {
+            desktopInstallHint.classList.toggle('hidden', !shouldShowDesktopHint);
+        }
+    };
+
+    updateInstallUiState();
+
+    if (isIos && !isStandalone && iosInstallHint) {
+        iosInstallHint.classList.remove('hidden');
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+        updateInstallUiState();
+    });
+
+    installBtn?.addEventListener('click', async () => {
+        if (!deferredInstallPrompt) {
+            if (!isMobileBrowser) {
+                showInstallToast('Use your browser install menu, or open SmartSpace on your phone to install.');
+            } else {
+                showInstallToast('Use your browser install menu to add SmartSpace to home screen.');
+            }
+
+            if (isIos && iosInstallHint) {
+                iosInstallHint.classList.remove('hidden');
+            }
+
+            return;
+        }
+
+        deferredInstallPrompt.prompt();
+        const { outcome } = await deferredInstallPrompt.userChoice;
+
+        if (outcome === 'accepted') {
+            markAppInstalled();
+            updateInstallUiState();
+            showInstallToast('SmartSpace app installed successfully.');
+        }
+
+        deferredInstallPrompt = null;
+    });
+
+    window.addEventListener('appinstalled', () => {
+        deferredInstallPrompt = null;
+        markAppInstalled();
+        updateInstallUiState();
+
+        if (iosInstallHint) {
+            iosInstallHint.classList.add('hidden');
+        }
+
+        showInstallToast('SmartSpace app installed successfully.');
+    });
+
+    document.addEventListener('keydown', function (e) {
+        const key = (e.key || '').toLowerCase();
+        if ((e.ctrlKey || e.metaKey) && key === 'k') {
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('toggle-admin-login'));
+        }
+    });
+>>>>>>> a677b3ce29aad4bf91cb96b12dd908f7f7529e61
 </script>
+
+<div id="installToast" class="hidden fixed left-1/2 bottom-6 z-50 w-[90%] max-w-sm -translate-x-1/2 rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white shadow-lg opacity-0 translate-y-3 transition-all duration-200"></div>
 @endpush
 
 @push('styles')

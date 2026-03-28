@@ -20,6 +20,12 @@ Route::get('/', function () {
         : redirect()->route('login');
 });
 
+Route::get('/pwa', function () {
+    return Auth::check()
+        ? redirect()->route('dashboard')
+        : view('pwa.landing');
+})->name('pwa.landing');
+
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])
