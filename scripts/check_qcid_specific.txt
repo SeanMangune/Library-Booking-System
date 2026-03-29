@@ -1,0 +1,6 @@
+=== Users with MAN ===
+User ID: 12 | Email: seancalimangune@gmail.com | Name: MANGUNE, SEAN MICHAEL CALINAWAN | Provider: 
+User ID: 13 | Email: seancalimangune11@gmail.com | Name: MANGUNE, SEAN MICHAEL CALINAWAN | Provider: 
+User ID: 14 | Email: seancalimangune1@gmail.com | Name: MANGUNE, SEAN MICHAEL CALINAWAN | Provider: 
+User ID: 16 | Email: seancalimangune12@gmail.com | Name: MANGUNE, SEAN MICHAEL CALINAWAN | Provider: 
+  -> QC ID Registration: ID 2 | QCID# 32-1123-1234567-8 | Email seanm@example.com

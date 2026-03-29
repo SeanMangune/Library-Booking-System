@@ -92,8 +92,16 @@ class RoomDashboardController extends Controller
             'approved' => Booking::where('user_id', $user->id)->where('status', 'approved')->count(),
         ];
 
+        $allUserBookings = Booking::with('room')->where('user_id', $user->id)->orderBy('date', 'desc')->orderBy('start_time', 'desc')->get();
+        $userStatsBookings = [
+            'total' => $allUserBookings,
+            'upcoming' => $upcomingBookings,
+            'pending' => $allUserBookings->filter(fn($b) => $b->status === 'pending')->values(),
+            'approved' => $allUserBookings->filter(fn($b) => $b->status === 'approved')->values(),
+        ];
+
         $qcIdRegistration = QcIdRegistration::where('user_id', $user->id)->first();
-        $isVerified = $qcIdRegistration !== null;
+        $isVerified = $qcIdRegistration !== null && $qcIdRegistration->verification_status === 'verified';
 
         $collabRoomBookings = Booking::with('room')
             ->where('status', 'approved')
@@ -122,6 +130,7 @@ class RoomDashboardController extends Controller
             'userBookings',
             'upcomingBookings',
             'userStats',
+            'userStatsBookings',
             'isVerified',
             'qcIdRegistration',
         ));

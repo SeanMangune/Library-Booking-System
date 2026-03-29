@@ -56,10 +56,10 @@ class QcIdRegistrationController extends Controller
 
         $verification = $verifier->verify($validated['ocr_text'], $validated['full_name']);
 
-        if (! $verification['is_valid']) {
+        if (!$verification['is_valid']) {
             $message = ($verification['id_assessment'] ?? 'INVALID') === 'Fake QC ID'
                 ? 'Fake QC ID detected. Please upload a genuine Quezon City Citizen ID.'
-                : (! empty($verification['rejected_id_type'])
+                : (!empty($verification['rejected_id_type'])
                     ? "This appears to be a {$verification['rejected_id_type']}. Only a valid Quezon City Citizen ID is accepted."
                     : 'Only a valid Quezon City Citizen ID is accepted. Please upload a QC ID Image.');
 

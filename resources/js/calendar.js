@@ -26,7 +26,8 @@ window.FullCalendarPlugins = {
 };
 
 function todayDateString() {
-    return new Date().toISOString().split('T')[0];
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function buildUrl(base, params) {
@@ -202,8 +203,8 @@ function buildBookingDateOptions(daysAhead = BOOKING_DATE_RANGE_DAYS) {
         const date = new Date(today);
         date.setDate(today.getDate() + dayOffset);
 
-        // Skip Sunday
-        if (date.getDay() === 0) continue;
+        // Skip Sunday - Removed to allow same day booking if it's Sunday
+        // if (date.getDay() === 0) continue;
 
         const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         options.push({
@@ -1175,6 +1176,14 @@ export function createDashboardApp(config = {}) {
         showBookingModal: false,
         showViewModal: false,
         showDayEventsModal: false,
+        showStatsModal: false,
+        statsModalTitle: '',
+        statsModalList: [],
+        openStatsModal(title, list) {
+            this.statsModalTitle = title;
+            this.statsModalList = list || [];
+            this.showStatsModal = true;
+        },
         selectedBooking: null,
         selectedDay: null,
         isSubmitting: false,
@@ -1445,6 +1454,7 @@ export function createDashboardApp(config = {}) {
                 this.qcIdVerification = {
                     is_valid: true,
                     cardholder_name: this.verifiedRegistrationName || '',
+                    id_number: config.verifiedQcIdNumber || '',
                     confidence_score: 100,
                     source: 'registration',
                 };
