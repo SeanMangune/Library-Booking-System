@@ -10,9 +10,15 @@
 @section('content')
 <div class="space-y-6" id="reports-page-top">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-8 animate-slide-in-up stagger-1">
-        <div>
-            <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Detailed Reports</h1>
-            <p class="text-base text-gray-500 mt-1">Track bookings, approvals, room usage, and collaborative-room exceptions in real-time.</p>
+        <!-- Header Banner -->
+        <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl border border-indigo-500/20 shadow-lg p-6 sm:p-8 relative overflow-hidden group/header">
+            <div class="absolute -right-4 -bottom-4 opacity-20 transform rotate-12 group-hover/header:scale-110 transition-transform duration-500 pointer-events-none">
+                <i class="fa-solid fa-chart-pie text-9xl text-white"></i>
+            </div>
+            <div class="relative z-10">
+                <h1 class="text-3xl font-extrabold text-white tracking-tight">Detailed Reports</h1>
+                <p class="text-indigo-100 mt-2 text-base">Track bookings, approvals, room usage, and collaborative-room exceptions in real-time.</p>
+            </div>
         </div>
         <div class="flex items-center gap-3 print:hidden">
             <button type="button"

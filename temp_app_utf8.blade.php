@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <link rel="manifest" href="/manifest.json">
@@ -249,7 +249,7 @@
     </style>
     @stack('styles')
 </head>
-<body class="min-h-screen bg-white text-gray-900 antialiased">
+<body class="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100 text-gray-900 antialiased">
     @php
         $currentUser = auth()->user();
         $isStaff = $currentUser?->isStaff() ?? false;

@@ -13,9 +13,15 @@
 <div x-data="approvalsApp()" x-init="init()">
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-            <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Booking Approvals</h1>
-            <p class="text-base text-gray-500 mt-1">Review and manage pending booking requests with real-time updates.</p>
+        <!-- Header Banner -->
+        <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl border border-indigo-500/20 shadow-lg p-6 sm:p-8 relative overflow-hidden group/header flex-1">
+            <div class="absolute -right-4 -bottom-4 opacity-20 transform rotate-12 group-hover/header:scale-110 transition-transform duration-500 pointer-events-none">
+                <i class="fa-solid fa-calendar-check text-9xl text-white"></i>
+            </div>
+            <div class="relative z-10">
+                <h1 class="text-3xl font-extrabold text-white tracking-tight">Booking Approvals</h1>
+                <p class="text-indigo-100 mt-2 text-base">Review and manage pending booking requests with real-time updates.</p>
+            </div>
         </div>
     </div>
 
@@ -72,18 +78,50 @@
         </form>
     </div>
 
-    <!-- Bookings List -->
-    <div class="flex items-center justify-between mb-4">
-        <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
-            @if($status === 'approved')
-                <i class="fa-solid fa-circle-check text-green-500"></i> Approved Bookings
-            @elseif($status === 'rejected')
-                <i class="fa-solid fa-circle-xmark text-red-500"></i> Rejected Bookings
-            @else
-                <i class="fa-solid fa-clock text-amber-500"></i> Pending Requests
-            @endif
-            <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 ml-1">{{ $bookings->total() }} total</span>
-        </h2>
+    <!-- Bookings List Header Banner -->
+    @php
+        $bannerGradient = match($status) {
+            'approved' => 'from-emerald-600 to-teal-700',
+            'rejected' => 'from-rose-600 to-red-700',
+            default => 'from-amber-600 to-orange-600',
+        };
+        $bannerIcon = match($status) {
+            'approved' => 'fa-circle-check',
+            'rejected' => 'fa-circle-xmark',
+            default => 'fa-clock',
+        };
+        $bannerTitle = match($status) {
+            'approved' => 'Approved Bookings',
+            'rejected' => 'Rejected Bookings',
+            default => 'Pending Requests',
+        };
+        $bannerBgIcon = match($status) {
+            'approved' => 'fa-check-double',
+            'rejected' => 'fa-ban',
+            default => 'fa-hourglass-half',
+        };
+    @endphp
+
+    <div class="bg-gradient-to-r {{ $bannerGradient }} px-6 py-5 rounded-2xl shadow-md mb-6 flex items-center justify-between relative overflow-hidden group">
+        <div class="absolute -right-4 -bottom-6 opacity-10 transform -rotate-12 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
+            <i class="fa-solid {{ $bannerBgIcon }} text-8xl text-white"></i>
+        </div>
+        <div class="relative z-10 flex items-center gap-4">
+            <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md shadow-inner shrink-0 hidden sm:flex">
+                <i class="fa-solid {{ $bannerIcon }} text-white text-2xl"></i>
+            </div>
+            <div>
+                <h2 class="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight flex items-center gap-2">
+                    <i class="fa-solid {{ $bannerIcon }} sm:hidden text-white/90"></i>
+                    {{ $bannerTitle }}
+                </h2>
+                <p class="text-white/80 text-xs sm:text-sm mt-0.5 font-medium">Review and manage these specific bookings.</p>
+            </div>
+        </div>
+        <div class="relative z-10 flex flex-col items-end justify-center bg-black/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/10 shadow-sm shrink-0">
+            <span class="text-3xl font-black text-white leading-none drop-shadow-md">{{ $bookings->total() }}</span>
+            <span class="text-[10px] uppercase tracking-widest text-white/80 font-bold mt-1">Total</span>
+        </div>
     </div>
 
     <!-- Content with smooth entrance -->

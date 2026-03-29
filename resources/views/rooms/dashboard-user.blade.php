@@ -201,20 +201,37 @@
             <div class="lg:col-span-8 space-y-6">
                 <!-- Calendar -->
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all duration-300">
-                    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div>
-                            <h3 class="font-bold text-gray-900 text-lg">Availability Calendar</h3>
-                            <p class="text-xs text-gray-500" x-text="calendarTitle"></p>
+                    <div class="bg-gradient-to-r from-purple-700 to-blue-600 px-6 py-4 grid grid-cols-1 sm:grid-cols-3 items-center gap-4 relative overflow-hidden">
+                        <div class="absolute -right-2 -bottom-4 opacity-10 transform -rotate-12 pointer-events-none">
+                            <i class="fa-solid fa-calendar-days text-7xl text-white"></i>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <div class="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
-                                <button @click="prevMonth()" class="p-1.5 rounded-lg hover:bg-white transition-all"><i class="fa-solid fa-chevron-left text-xs"></i></button>
-                                <button @click="goToToday()" class="px-2 py-1 text-[10px] font-black uppercase text-gray-600 hover:text-gray-900">TODAY</button>
-                                <button @click="nextMonth()" class="p-1.5 rounded-lg hover:bg-white transition-all"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+                        
+                        <!-- Left: Main Title -->
+                        <div class="relative z-10 flex items-center gap-3">
+                            <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md shadow-sm shrink-0">
+                                <i class="fa-solid fa-calendar text-white text-lg"></i>
                             </div>
-                            <div class="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
-                                <button @click="changeDashboardView('dayGridMonth')" :class="calendarView === 'dayGridMonth' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500'" class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all">Month</button>
-                                <button @click="changeDashboardView('listWeek')" :class="calendarView === 'listWeek' ? 'bg-white shadow-sm text-teal-600' : 'text-gray-500'" class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all">List</button>
+                            <div>
+                                <h3 class="font-bold text-white text-lg tracking-tight leading-tight">Availability Calendar</h3>
+                                <p class="text-[10px] text-purple-100 uppercase tracking-widest font-semibold sm:hidden" x-text="calendarTitle"></p>
+                            </div>
+                        </div>
+
+                        <!-- Middle: Month & Year (Hidden on mobile) -->
+                        <div class="relative z-10 hidden sm:flex justify-center text-center">
+                            <h2 class="text-2xl font-black text-white tracking-widest drop-shadow-md" x-text="calendarTitle"></h2>
+                        </div>
+
+                        <!-- Right: Controls -->
+                        <div class="flex items-center justify-start sm:justify-end gap-2 relative z-10">
+                            <div class="flex items-center gap-1 bg-black/20 backdrop-blur-md rounded-xl p-1 border border-white/10">
+                                <button @click="prevMonth()" class="p-1.5 rounded-lg text-white hover:bg-white/20 transition-all"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                                <button @click="goToToday()" class="px-2 py-1 text-[10px] font-black uppercase text-purple-100 hover:text-white tracking-widest">TODAY</button>
+                                <button @click="nextMonth()" class="p-1.5 rounded-lg text-white hover:bg-white/20 transition-all"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+                            </div>
+                            <div class="flex items-center gap-1 bg-black/20 backdrop-blur-md rounded-xl p-1 border border-white/10">
+                                <button @click="changeDashboardView('dayGridMonth')" :class="calendarView === 'dayGridMonth' ? 'bg-white/20 shadow-sm text-white' : 'text-purple-100 hover:text-white'" class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all">Month</button>
+                                <button @click="changeDashboardView('listWeek')" :class="calendarView === 'listWeek' ? 'bg-white/20 shadow-sm text-white' : 'text-purple-100 hover:text-white'" class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all">List</button>
                             </div>
                         </div>
                     </div>

@@ -11,6 +11,24 @@
 
 @section('content')
 <div x-data="roomManagement()" x-init="init()">
+    <!-- Header Banner -->
+    <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl border border-indigo-500/20 shadow-lg p-6 sm:p-8 relative overflow-hidden group/header mb-6">
+        <div class="absolute -right-4 -bottom-4 opacity-20 transform rotate-12 group-hover/header:scale-110 transition-transform duration-500 pointer-events-none">
+            <i class="fa-solid fa-list-check text-9xl text-white"></i>
+        </div>
+        <div class="relative z-10 w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold text-white tracking-tight">Manage Rooms</h1>
+                <p class="text-indigo-100 mt-2 text-base">Configure capacities, statuses, and details for all library rooms.</p>
+            </div>
+            <button @click="openAddModal()"
+                    class="inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-sm font-semibold rounded-xl transition-all shadow-sm backdrop-blur-sm">
+                <i class="w-4 h-4 fa-icon fa-solid fa-plus text-base leading-none"></i>
+                Add New Room
+            </button>
+        </div>
+    </div>
+
     <!-- Filters -->
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -49,19 +67,12 @@
 
     <!-- Room Management Table -->
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
-        <div class="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <h2 class="text-lg font-semibold text-gray-900">Room Management</h2>
-            <div class="flex items-center gap-3">
-                <div class="relative">
-                    <input type="text" x-model="searchQuery" @input="searchRooms()" placeholder="Search..."
-                           class="w-48 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
-                    <i class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 fa-icon fa-solid fa-magnifying-glass text-base leading-none"></i>
-                </div>
-                <button @click="openAddModal()"
-                        class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors">
-                    <i class="w-4 h-4 fa-icon fa-solid fa-plus text-base leading-none"></i>
-                    Add New Room
-                </button>
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-gray-900">Room List</h2>
+            <div class="relative">
+                <input type="text" x-model="searchQuery" @input="searchRooms()" placeholder="Search rooms..."
+                       class="w-48 xl:w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                <i class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 fa-icon fa-solid fa-magnifying-glass text-base leading-none"></i>
             </div>
         </div>
 
@@ -130,137 +141,144 @@
     <div x-show="showModal" x-cloak class="modal p-4" :class="{ 'modal-open': showModal }" @keydown.escape.window="closeModal()">
             <div class="modal-box w-11/12 max-w-lg p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
                 <!-- Modal Header -->
-                <div class="bg-gradient-to-r from-amber-500 to-yellow-500 px-6 py-4 rounded-t-2xl">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                <i class="w-5 h-5 text-white fa-icon fa-solid fa-building text-xl leading-none"></i>
+                <div class="bg-gradient-to-r from-indigo-600 to-purple-700 px-6 py-6 rounded-t-2xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                        <i class="fa-solid fa-building-circle-check text-8xl text-white"></i>
+                    </div>
+                    <div class="flex items-center justify-between relative z-10">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md shadow-lg">
+                                <i class="w-6 h-6 text-white fa-icon fa-solid fa-building text-2xl leading-none"></i>
                             </div>
                             <div>
-                                <h2 class="text-lg font-bold text-white" x-text="isEditing ? 'Edit Room' : 'Add New Room'"></h2>
-                                <p class="text-amber-100 text-sm" x-text="isEditing ? 'Update room details and configurations.' : 'Add a new room'"></p>
+                                <h2 class="text-xl font-black text-white tracking-tight" x-text="isEditing ? 'Edit Room' : 'Add New Room'"></h2>
+                                <p class="text-indigo-100 mt-0.5 text-xs font-medium" x-text="isEditing ? 'Update room details and configurations.' : 'Add a new room to the library.'"></p>
                             </div>
                         </div>
-                        <button @click="closeModal()" class="text-white/80 hover:text-white">
+                        <button @click="closeModal()" class="text-white/80 hover:text-white bg-white/10 p-2 rounded-xl hover:bg-white/20 transition-all">
                             <i class="w-6 h-6 fa-icon fa-solid fa-xmark text-2xl leading-none"></i>
                         </button>
                     </div>
                 </div>
 
                 <!-- Modal Body -->
-                <form @submit.prevent="submitRoom()" class="p-6 flex-1 min-h-0 overflow-y-auto">
-                    <!-- Room Information -->
-                    <h3 class="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-4">
-                        <span class="w-1 h-4 bg-amber-500 rounded"></span>
-                        Room Information
-                    </h3>
-                    
-                    <div class="grid grid-cols-3 gap-4 mb-6">
-                        <div class="col-span-1">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                Room Name <span class="text-red-500">*</span>
-                            </label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                    <i class="w-4 h-4 fa-icon fa-solid fa-tag text-base leading-none"></i>
-                                </span>
-                                <input type="text" x-model="roomForm.name" required
-                                       placeholder="e.g., Conference Room A"
-                                       class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm">
+                <form @submit.prevent="submitRoom()" class="flex flex-col min-h-0">
+                    <div class="p-6 flex-1 min-h-0 overflow-y-auto">
+                        <!-- Room Information -->
+                        <h3 class="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-4">
+                            <span class="w-1 h-4 bg-indigo-600 rounded"></span>
+                            Room Information
+                        </h3>
+                        
+                        <div class="grid grid-cols-3 gap-4 mb-6">
+                            <div class="col-span-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Room Name <span class="text-red-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                                        <i class="w-4 h-4 fa-icon fa-solid fa-tag text-base leading-none"></i>
+                                    </span>
+                                    <input type="text" x-model="roomForm.name" required
+                                           placeholder="e.g., Conf. Room A"
+                                           class="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm max-w-full">
+                                </div>
+                            </div>
+                            <div class="col-span-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Capacity <span class="text-red-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                                        <i class="w-4 h-4 fa-icon fa-solid fa-users text-base leading-none"></i>
+                                    </span>
+                                    <input type="number" x-model="roomForm.capacity" min="1" required
+                                           class="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm max-w-full">
+                                </div>
+                            </div>
+                            <div class="col-span-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Location <span class="text-red-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                                        <i class="w-4 h-4 fa-icon fa-solid fa-location-dot text-base leading-none"></i>
+                                    </span>
+                                    <input type="text" x-model="roomForm.location"
+                                           placeholder="e.g., 2F"
+                                           class="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm max-w-full">
+                                </div>
                             </div>
                         </div>
-                        <div class="col-span-1">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                Capacity <span class="text-red-500">*</span>
-                            </label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                    <i class="w-4 h-4 fa-icon fa-solid fa-users text-base leading-none"></i>
-                                </span>
-                                <input type="number" x-model="roomForm.capacity" min="1" required
-                                       class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm">
-                            </div>
-                        </div>
-                        <div class="col-span-1">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                Location <span class="text-red-500">*</span>
-                            </label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                    <i class="w-4 h-4 fa-icon fa-solid fa-location-dot text-base leading-none"></i>
-                                </span>
-                                <input type="text" x-model="roomForm.location"
-                                       placeholder="e.g., 2nd Floor, Building A"
-                                       class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm">
-                            </div>
-                        </div>
-                    </div>
 
-                    <div class="mb-6">
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" x-model="roomForm.requires_approval"
-                                   class="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500">
-                            <span class="text-sm text-gray-700">Requires Approval</span>
-                        </label>
-                    </div>
-
-                    <!-- Initial Status -->
-                    <h3 class="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-4">
-                        <span class="w-1 h-4 bg-amber-500 rounded"></span>
-                        Initial Status
-                    </h3>
-
-                    <div class="grid grid-cols-3 gap-4 mb-6">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                Status <span class="text-red-500">*</span>
+                        <div class="mb-6 bg-gray-50/80 rounded-xl p-4 border border-gray-200">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <div class="relative flex items-center">
+                                    <input type="checkbox" x-model="roomForm.requires_approval"
+                                           class="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 transition-all">
+                                </div>
+                                <div>
+                                    <span class="text-sm font-semibold text-gray-900 block">Requires Approval</span>
+                                    <span class="text-xs text-gray-500">Bookings in this room will need librarian approval before confirmation.</span>
+                                </div>
                             </label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                    <i class="w-4 h-4 fa-icon fa-solid fa-circle-check text-base leading-none"></i>
-                                </span>
-                                <select x-model="roomForm.status" required
-                                        class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm appearance-none bg-white">
-                                    <option value="">Choose status</option>
-                                    <option value="operational">Operational</option>
-                                    <option value="maintenance">Maintenance</option>
-                                    <option value="closed">Closed</option>
-                                </select>
-                            </div>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Start Date/Time</label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                    <i class="w-4 h-4 fa-icon fa-solid fa-calendar-days text-base leading-none"></i>
-                                </span>
-                                <input type="datetime-local" x-model="roomForm.status_start_at"
-                                       class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm bg-gray-50">
+
+                        <!-- Initial Status -->
+                        <h3 class="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-4">
+                            <span class="w-1 h-4 bg-indigo-600 rounded"></span>
+                            Initial Status
+                        </h3>
+
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Status <span class="text-red-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                                        <i class="w-4 h-4 fa-icon fa-solid fa-circle-check text-base leading-none"></i>
+                                    </span>
+                                    <select x-model="roomForm.status" required
+                                            class="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm appearance-none bg-white">
+                                        <option value="">Choose status</option>
+                                        <option value="operational">Operational</option>
+                                        <option value="maintenance">Maintenance</option>
+                                        <option value="closed">Closed</option>
+                                    </select>
+                                </div>
                             </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">End Date/Time</label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                    <i class="w-4 h-4 fa-icon fa-solid fa-calendar-days text-base leading-none"></i>
-                                </span>
-                                <input type="datetime-local" x-model="roomForm.status_end_at"
-                                       class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm bg-gray-50">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Start Date/Time</label>
+                                <div class="relative">
+                                    <span class="absolute text-gray-400" style="left: 0.75rem; top: 0.65rem;">
+                                        <i class="w-4 h-4 fa-icon fa-solid fa-calendar-days text-base leading-none"></i>
+                                    </span>
+                                    <input type="datetime-local" x-model="roomForm.status_start_at"
+                                           class="w-full pl-[2.1rem] pr-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs sm:text-sm bg-gray-50">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">End Date/Time</label>
+                                <div class="relative">
+                                    <span class="absolute text-gray-400" style="left: 0.75rem; top: 0.65rem;">
+                                        <i class="w-4 h-4 fa-icon fa-solid fa-calendar-days text-base leading-none"></i>
+                                    </span>
+                                    <input type="datetime-local" x-model="roomForm.status_end_at"
+                                           class="w-full pl-[2.1rem] pr-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs sm:text-sm bg-gray-50">
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Footer -->
-                    <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+                    <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-white shrink-0">
                         <button type="button" @click="closeModal()"
                                 class="px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
-                            <span class="flex items-center gap-2">
-                                <i class="w-4 h-4 fa-icon fa-solid fa-xmark text-base leading-none"></i>
-                                Cancel
-                            </span>
+                            Cancel
                         </button>
                         <button type="submit" :disabled="isSubmitting"
-                                class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50">
+                                class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50">
                             <span class="flex items-center gap-2">
                                 <i x-show="!isSubmitting" class="w-4 h-4 fa-icon fa-solid fa-floppy-disk text-base leading-none"></i>
                                 <i x-show="isSubmitting" class="animate-spin w-4 h-4 fa-icon fa-solid fa-spinner text-base leading-none"></i>
@@ -277,70 +295,72 @@
     <div x-show="showDeleteModal" x-cloak class="modal p-4" :class="{ 'modal-open': showDeleteModal }" @keydown.escape.window="closeDeleteModal()">
             <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
                 <!-- Modal Header -->
-                <div class="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 rounded-t-2xl">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                <i class="w-5 h-5 text-white fa-icon fa-solid fa-trash-can text-xl leading-none"></i>
+                <div class="bg-gradient-to-r from-rose-600 to-red-700 px-6 py-6 rounded-t-2xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                        <i class="fa-solid fa-triangle-exclamation text-8xl text-white"></i>
+                    </div>
+                    <div class="flex items-center justify-between relative z-10">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md shadow-lg">
+                                <i class="w-6 h-6 text-white fa-icon fa-solid fa-trash-can text-2xl leading-none"></i>
                             </div>
                             <div>
-                                <h2 class="text-lg font-bold text-white">Delete Room</h2>
-                                <p class="text-red-100 text-sm">Confirm deletion of this room</p>
+                                <h2 class="text-lg font-bold text-white tracking-tight">Delete Room</h2>
+                                <p class="text-rose-100 text-sm">This action cannot be undone.</p>
                             </div>
                         </div>
-                        <button @click="closeDeleteModal()" class="text-white/80 hover:text-white">
+                        <button @click="closeDeleteModal()" class="text-white/80 hover:text-white bg-white/10 p-2 rounded-xl hover:bg-white/20 transition-all">
                             <i class="w-6 h-6 fa-icon fa-solid fa-xmark text-2xl leading-none"></i>
                         </button>
                     </div>
                 </div>
 
                 <!-- Modal Body -->
-                <div class="p-6 flex-1 min-h-0 overflow-y-auto">
-                    <div class="grid grid-cols-2 gap-4 mb-6">
-                        <div class="p-4 bg-green-50 rounded-xl">
-                            <div class="flex items-center gap-2 text-green-600 text-xs font-medium mb-1">
-                                <i class="w-4 h-4 fa-icon fa-solid fa-circle-check text-base leading-none"></i>
-                                STATUS
+                <div class="flex flex-col min-h-0">
+                    <div class="p-6 flex-1 min-h-0 overflow-y-auto">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="p-4 bg-green-50 rounded-xl">
+                                <div class="flex items-center gap-2 text-green-600 text-xs font-medium mb-1">
+                                    <i class="w-4 h-4 fa-icon fa-solid fa-circle-check text-base leading-none"></i>
+                                    STATUS
+                                </div>
+                                <p class="text-gray-900 font-semibold" x-text="deleteRoom?.status ? deleteRoom.status.charAt(0).toUpperCase() + deleteRoom.status.slice(1) : ''"></p>
                             </div>
-                            <p class="text-gray-900 font-semibold" x-text="deleteRoom?.status ? deleteRoom.status.charAt(0).toUpperCase() + deleteRoom.status.slice(1) : ''"></p>
-                        </div>
-                        <div class="p-4 bg-blue-50 rounded-xl">
-                            <div class="flex items-center gap-2 text-blue-600 text-xs font-medium mb-1">
-                                <i class="w-4 h-4 fa-icon fa-solid fa-building text-base leading-none"></i>
-                                ROOM NAME
+                            <div class="p-4 bg-indigo-50 rounded-xl border border-indigo-100/50">
+                                <div class="flex items-center gap-2 text-indigo-600 text-xs font-semibold mb-1">
+                                    <i class="w-4 h-4 fa-icon fa-solid fa-building text-base leading-none"></i>
+                                    ROOM NAME
+                                </div>
+                                <p class="text-gray-900 font-bold" x-text="deleteRoom?.name"></p>
                             </div>
-                            <p class="text-gray-900 font-semibold" x-text="deleteRoom?.name"></p>
-                        </div>
-                        <div class="p-4 bg-gray-50 rounded-xl">
-                            <div class="flex items-center gap-2 text-gray-600 text-xs font-medium mb-1">
-                                <i class="w-4 h-4 fa-icon fa-solid fa-location-dot text-base leading-none"></i>
-                                LOCATION
+                            <div class="p-4 bg-gray-50 rounded-xl">
+                                <div class="flex items-center gap-2 text-gray-600 text-xs font-medium mb-1">
+                                    <i class="w-4 h-4 fa-icon fa-solid fa-location-dot text-base leading-none"></i>
+                                    LOCATION
+                                </div>
+                                <p class="text-gray-900 font-semibold" x-text="deleteRoom?.location || '-'"></p>
                             </div>
-                            <p class="text-gray-900 font-semibold" x-text="deleteRoom?.location || '-'"></p>
-                        </div>
-                        <div class="p-4 bg-gray-50 rounded-xl">
-                            <div class="flex items-center gap-2 text-gray-600 text-xs font-medium mb-1">
-                                <i class="w-4 h-4 fa-icon fa-solid fa-users text-base leading-none"></i>
-                                CAPACITY
+                            <div class="p-4 bg-gray-50 rounded-xl">
+                                <div class="flex items-center gap-2 text-gray-600 text-xs font-medium mb-1">
+                                    <i class="w-4 h-4 fa-icon fa-solid fa-users text-base leading-none"></i>
+                                    CAPACITY
+                                </div>
+                                <p class="text-gray-900 font-semibold" x-text="deleteRoom?.capacity"></p>
                             </div>
-                            <p class="text-gray-900 font-semibold" x-text="deleteRoom?.capacity"></p>
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-white shrink-0">
                         <button @click="closeDeleteModal()"
-                                class="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors">
-                            <span class="flex items-center justify-center gap-2">
-                                <i class="w-4 h-4 fa-icon fa-solid fa-xmark text-base leading-none"></i>
-                                No, Keep Room
-                            </span>
+                                class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors">
+                            Cancel
                         </button>
                         <button @click="confirmDelete()" :disabled="isDeleting"
-                                class="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50">
+                                class="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 shadow-sm shadow-rose-600/20">
                             <span class="flex items-center justify-center gap-2">
                                 <i x-show="!isDeleting" class="w-4 h-4 fa-icon fa-solid fa-trash-can text-base leading-none"></i>
                                 <i x-show="isDeleting" class="animate-spin w-4 h-4 fa-icon fa-solid fa-spinner text-base leading-none"></i>
-                                <span x-text="isDeleting ? 'Deleting...' : 'Yes, Delete Room'"></span>
+                                <span x-text="isDeleting ? 'Deleting...' : 'Delete Room'"></span>
                             </span>
                         </button>
                     </div>

@@ -42,9 +42,18 @@
 <div x-data="reservationsApp()">
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">{{ $canViewAllReservations ? 'All Reservations' : 'My Reservations' }}</h1>
-            <p class="text-sm text-gray-500 mt-1">{{ $canViewAllReservations ? 'View and manage all room reservations' : 'View and manage your room reservations' }}</p>
+        <!-- Header Banner -->
+        <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl border border-indigo-500/20 shadow-lg p-6 sm:p-8 relative overflow-hidden group/header w-full">
+            <div class="absolute -right-4 -bottom-4 opacity-20 transform rotate-12 group-hover/header:scale-110 transition-transform duration-500 pointer-events-none">
+                <i class="fa-solid fa-calendar-days text-9xl text-white"></i>
+            </div>
+            <div class="relative z-10 w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h1 class="text-3xl font-extrabold text-white tracking-tight">{{ $canViewAllReservations ? 'All Reservations' : 'My Reservations' }}</h1>
+                    <p class="text-indigo-100 mt-2 text-base">{{ $canViewAllReservations ? 'View and manage all room reservations' : 'View and manage your room reservations' }}</p>
+                </div>
+                <!-- Action Buttons could go here if needed -->
+            </div>
         </div>
     </div>
 
