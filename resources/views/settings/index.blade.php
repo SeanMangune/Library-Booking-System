@@ -138,7 +138,7 @@
                 </div>
             </div>
 
-            @if($user->isAdmin())
+            @if($user->isSuperAdmin())
                 <div class="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
                     <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                         <div>

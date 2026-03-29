@@ -116,32 +116,39 @@
         .gradient-text { background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         /* Staggered entrance animations for dashboard cards */
         @keyframes slideInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; transform: translateY(24px) scale(0.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
         }
         @keyframes slideInLeft {
-            from { opacity: 0; transform: translateX(-20px); }
+            from { opacity: 0; transform: translateX(-24px); }
             to { opacity: 1; transform: translateX(0); }
         }
         @keyframes slideInRight {
-            from { opacity: 0; transform: translateX(20px); }
+            from { opacity: 0; transform: translateX(24px); }
             to { opacity: 1; transform: translateX(0); }
         }
         @keyframes scaleIn {
-            from { opacity: 0; transform: scale(0.95); }
+            from { opacity: 0; transform: scale(0.92); }
             to { opacity: 1; transform: scale(1); }
         }
-        .animate-slide-in-up { animation: slideInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-        .animate-slide-in-left { animation: slideInLeft 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-        .animate-slide-in-right { animation: slideInRight 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-        .animate-scale-in { animation: scaleIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-        /* Stagger delays */
-        .stagger-1 { animation-delay: 0.05s; opacity: 0; }
-        .stagger-2 { animation-delay: 0.1s; opacity: 0; }
-        .stagger-3 { animation-delay: 0.15s; opacity: 0; }
-        .stagger-4 { animation-delay: 0.2s; opacity: 0; }
-        .stagger-5 { animation-delay: 0.25s; opacity: 0; }
-        .stagger-6 { animation-delay: 0.3s; opacity: 0; }
+        .animate-slide-in-up { animation: slideInUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .animate-slide-in-left { animation: slideInLeft 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .animate-slide-in-right { animation: slideInRight 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .animate-scale-in { animation: scaleIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        
+        /* Premium Wave Stagger delays (30ms increments for smoothness) */
+        .stagger-1 { animation-delay: 0.03s; opacity: 0; }
+        .stagger-2 { animation-delay: 0.06s; opacity: 0; }
+        .stagger-3 { animation-delay: 0.09s; opacity: 0; }
+        .stagger-4 { animation-delay: 0.12s; opacity: 0; }
+        .stagger-5 { animation-delay: 0.15s; opacity: 0; }
+        .stagger-6 { animation-delay: 0.18s; opacity: 0; }
+        .stagger-7 { animation-delay: 0.21s; opacity: 0; }
+        .stagger-8 { animation-delay: 0.24s; opacity: 0; }
+        .stagger-9 { animation-delay: 0.27s; opacity: 0; }
+        .stagger-10 { animation-delay: 0.3s; opacity: 0; }
+        .stagger-11 { animation-delay: 0.33s; opacity: 0; }
+        .stagger-12 { animation-delay: 0.36s; opacity: 0; }
         /* Skeleton loading */
         @keyframes shimmer {
             0% { background-position: -200% 0; }

@@ -1326,27 +1326,43 @@ class QcIdOcrVerifier
             }
         }
 
-        // Strategy 2: Search for address markers (PUROK, BARANGAY, etc.)
+        // Strategy 2: Search for address markers (PUROK, BARANGAY, etc.) or Quezon City Barangay Anchors
+        $barangayAnchors = 'BAGBAG|NOVALICHES|KINGSPOINT|FAIRVIEW|COMMONWEALTH|BATASAN|GULOD|SAN\s*BARTOLOME|TALIPAPA|PAYATAS|CUBAO|PROJECT\s*[4678]|MATANDANG\s*BALARA|PASONG\s*TAMO|HOLY\s*SPIRIT|TANDANG\s*SORA|BAESA';
+        
         foreach ($lines as $index => $line) {
-            if (preg_match('/\b(PUROK|BARANGAY|BRGY|SITIO|STREET|AVE|AVENUE|UNIT|BLK|LOT|PHASE|SUBD|VILLAGE)\b/i', $line)) {
+            $isLocationMarker = preg_match('/\b(PUROK|BARANGAY|BRGY|SITIO|STREET|EXT|AVE|AVENUE|UNIT|BLK|LOT|PHASE|SUBD|VILLAGE)\b/i', $line);
+            $isBarangayAnchor = preg_match('/\b(' . $barangayAnchors . ')\b/i', $line);
+
+            if ($isLocationMarker || $isBarangayAnchor) {
                 $addressParts = [];
-                // Look forward 3 lines for the city anchor
-                for ($offset = 0; $offset <= 3; $offset++) {
+                // Look forward 4 lines for the city anchor
+                for ($offset = 0; $offset <= 4; $offset++) {
                     $idx = $index + $offset;
                     if (!isset($lines[$idx])) break;
                     $candidate = $lines[$idx];
+                    
                     if ($candidate && !$this->looksLikeLabel($candidate)) {
                         $addressParts[] = $candidate;
                     }
-                    if (preg_match('/QUEZON\s*(CITY|C\s*ITY|C1TY|ITY)/i', $candidate)) break;
+                    
+                    // Break if we find the city anchor
+                    if (preg_match('/QUEZON\s*(CITY|C\s*ITY|C1TY|1TY|ITY|LITY|CTY)/i', $candidate)) break;
                 }
-                if ($addressParts) return $this->cleanAddress(implode(', ', $addressParts), $knownDates);
+                
+                if ($addressParts) {
+                    $combined = implode(', ', $addressParts);
+                    // If we found a barangay anchor but no city, add the city for completeness
+                    if ($isBarangayAnchor && !preg_match('/QUEZON\s*CITY/i', $combined)) {
+                        $combined .= ', QUEZON CITY';
+                    }
+                    return $this->cleanAddress($combined, $knownDates);
+                }
             }
         }
 
         // Strategy 3: Search for QUEZON CITY anchor
         foreach ($lines as $index => $line) {
-            if (preg_match('/QUEZON\s*(CITY|C\s*ITY|C1TY|ITY)/i', $line)) {
+            if (preg_match('/QUEZON\s*(CITY|C\s*ITY|C1TY|1TY|ITY|LITY|CTY)/i', $line)) {
                 $parts = [];
                 for ($back = 4; $back >= 1; $back--) {
                     $prev = $lines[$index - $back] ?? null;
@@ -1425,6 +1441,27 @@ class QcIdOcrVerifier
         return trim($value, ' ,.-');
     }
 
+    /**
+     * Specifically repair common QC OCR artifacts like "ITY" or "INGSPOINT".
+     */
+    private function fixOcrNoise(string $text): string
+    {
+        if (empty($text)) return $text;
+
+        // Fix "QUEZON CITY" misreads and prevent doubling
+        // This regex looks for any garbled version of "QUEZON CITY" at the end and replaces it entirely
+        $text = preg_replace('/\b(?:QUEZON\s*)?(?:QUEZON\s*)?(?:CITY|C\s*ITY|C1TY|1TY|ITY|LITY|CTY)\b$/i', ' QUEZON CITY', $text);
+        
+        // Remove duplicate "QUEZON" if it appears twice due to OCR overlap
+        $text = preg_replace('/\b(QUEZON)\s+\1\b/i', '$1', $text);
+        
+        // Fix specific local misreads
+        $text = preg_replace('/\b(?:K\s*)?INGS?POINT\b/i', 'KINGSPOINT', $text);
+        $text = preg_replace('/\b(?:B\s*)?AGBAG\b/i', 'BAGBAG', $text);
+        
+        return preg_replace('/,\s*,/', ',', $text);
+    }
+
     private function cleanAddress(string $value, array $knownDates = []): string
     {
         $value = mb_strtoupper($value, 'UTF-8');
@@ -1479,8 +1516,9 @@ class QcIdOcrVerifier
 
         $value = preg_replace('/\s*,\s*/', ', ', $value) ?? $value;
         $value = preg_replace('/\s{2,}/', ' ', $value) ?? $value;
+        $value = trim($value, ' ,.-');
 
-        return trim($value, ' ,.-');
+        return $this->fixOcrNoise($value);
     }
 
     private function looksPlausibleAddress(?string $value): bool

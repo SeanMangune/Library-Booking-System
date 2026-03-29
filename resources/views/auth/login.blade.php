@@ -91,6 +91,7 @@
         @php
             $signupFields = [
                 'name',
+                'username',
                 'email',
                 'phone_number',
                 'user_type',
@@ -283,14 +284,25 @@
                                                     <div class="flex items-center justify-between gap-3">
                                                         <dt class="text-slate-500">QR Validation</dt>
                                                         <dd>
-                                                            <span x-show="scan.isQrVerified" x-cloak class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                                                                <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                                                                Verified
-                                                            </span>
-                                                            <span x-show="scan.status && !scan.isQrVerified" x-cloak class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                                                                No QR Found
-                                                            </span>
-                                                            <span x-show="!scan.status" x-cloak class="text-slate-400">—</span>
+                                                            <template x-if="scan.isQrVerified === true">
+                                                                <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 animate-in fade-in zoom-in duration-300">
+                                                                    <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                                                    Verified
+                                                                </span>
+                                                            </template>
+                                                            <template x-if="scan.isQrVerified === false">
+                                                                <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 animate-in fade-in slide-in-from-right-2 duration-300">
+                                                                    No QR Found
+                                                                </span>
+                                                            </template>
+                                                            <template x-if="scan.isQrVerified === null && scan.status">
+                                                                <span class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700 animate-pulse">
+                                                                    Verifying...
+                                                                </span>
+                                                            </template>
+                                                            <template x-if="!scan.status">
+                                                                <span class="text-slate-400">—</span>
+                                                            </template>
                                                         </dd>
                                                     </div>
                                                 </dl>
@@ -316,6 +328,12 @@
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Email</label>
                                                 <input name="email" type="email" value="{{ old('email') }}" required autocomplete="email"
+                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-semibold text-slate-700">Username</label>
+                                                <input name="username" type="text" value="{{ old('username') }}" x-model="signup.username" required autocomplete="username"
+                                                       placeholder="Unique handle (e.g. juan_dela_cruz)"
                                                        class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                             </div>
                                             <div>
@@ -562,6 +580,7 @@
 // Blade: Hide signupOldInput and signupQcidVerifyUrl from page output
 window.signupOldInput = {
     name: @json(old('name', '')),
+    username: @json(old('username', '')),
     user_type: @json(old('user_type', '')),
     employee_category: @json(old('employee_category', '')),
     course: @json(old('course', '')),
@@ -901,14 +920,32 @@ function signupLoginApp($persist, initialSignupOpen) {
                 .replace(/^\d{1,2}\s+(?=\d{1,4}\s+[A-Z])/, '')
                 .trim();
 
-            const streetAnchor = address.match(/((?:\d{1,4}[A-Z\-]?\s+[A-Z][A-Z0-9\s,.\-]{6,})QUEZON\s+CITY)/);
+            const brgyAnchors = 'BAGBAG|NOVALICHES|KINGSPOINT|FAIRVIEW|COMMONWEALTH|BATASAN|GULOD|SAN BARTOLOME|TALIPAPA|PAYATAS|CUBAO|PROJECT [4678]|MATANDANG BALARA|PASONG TAMO|HOLY SPIRIT|TANDANG SORA|BAESA';
+            const cityPattern = '(?:QUEZON\\s*(?:CITY|C\\s*ITY|C1TY|1TY|ITY|LITY|CTY))';
+            
+            const fullRegex = new RegExp(`((?:\\d{1,4}[A-Z\\-]?\\s+[A-Z][A-Z0-9\\s,.\-]{4,})(?:${brgyAnchors}|${cityPattern}))`, 'i');
+            const streetAnchor = address.match(fullRegex);
             if (streetAnchor?.[1]) {
                 address = streetAnchor[1];
             }
 
-            const qcChunk = address.match(/([A-Z0-9,\-.\s]{8,}?QUEZON\s+CITY)/);
+            const chunkRegex = new RegExp(`([A-Z0-9,\\-.\s]{6,}?(?:${brgyAnchors}|${cityPattern}))`, 'i');
+            const qcChunk = address.match(chunkRegex);
             if (qcChunk?.[1]) {
                 address = qcChunk[1];
+            }
+
+            // Noise-Canceling: Fix common misreads and PREVENT DOUBLING
+            // This replaces any garbled QUEZON CITY at the end with a single clean one
+            address = address.replace(/\b(?:QUEZON\s*)?(?:QUEZON\s*)?(?:CITY|C\s*ITY|C1TY|1TY|ITY|LITY|CTY)\b$/i, ' QUEZON CITY')
+                             .replace(/\b(QUEZON)\s+\1\b/gi, '$1')
+                             .replace(/\b(?:K\s*)?INGS?POINT\b/gi, 'KINGSPOINT')
+                             .replace(/\b(?:B\s*)?AGBAG\b/gi, 'BAGBAG');
+
+            // Force city suffix if it's missing but look like a QC address
+            // Only append if "QUEZON CITY" isn't already there
+            if (!address.match(/QUEZON\s*CITY/i) && (address.match(new RegExp(brgyAnchors, 'i')) || address.match(/\d{1,4}\s+[A-Z]/))) {
+                address = address.replace(/,\s*$/, '') + ', QUEZON CITY';
             }
 
             return address.replace(/\s+,/g, ',').replace(/,{2,}/g, ',').replace(/\s{2,}/g, ' ').trim();
@@ -1054,11 +1091,18 @@ function signupLoginApp($persist, initialSignupOpen) {
 
             this.scan.isProcessing = true;
             this.scan.status = 'Scanning QR code & reading QC ID image...';
-            this.scan.idAssessment = '';
-            this.scan.confidenceLabel = '';
+            this.scan.idAssessment = 'Scanning...';
+            this.scan.confidenceLabel = '—';
             this.scan.isVerified = false;
+            this.scan.isQrVerified = null;
             this.scan.qrData = '';
             this.scan.qrIdNumber = '';
+
+            // Reset form fields to ensure a clean capture
+            this.signup.ocr_text = '';
+            this.signup.name = '';
+            this.signup.qcid_number = '';
+            this.signup.address = '';
 
             try {
                 // Step 1: Decode QR code from the uploaded image
@@ -1152,10 +1196,19 @@ function signupLoginApp($persist, initialSignupOpen) {
                     }
 
                     // Always prioritize QR results for any field provided
-                    this.signup.name = (verification.cardholder_name || this.signup.name || '').trim();
-                    this.signup.qcid_number = (qrIdNumber || ocrIdNumber || '').trim();
+                    if (verification._cardholder_name_source === 'qr') this.signup.name = verification.cardholder_name;
+                    else this.signup.name = (verification.cardholder_name || this.signup.name || '').trim();
+
+                    if (verification._id_number_source === 'qr') this.signup.qcid_number = verification.id_number;
+                    else this.signup.qcid_number = (qrIdNumber || ocrIdNumber || '').trim();
+
                     if (verification.address) {
-                        this.signup.address = this.improveAddress(verification.address);
+                        // QR-sourced address is already accurate, skip cleanup
+                        if (verification._address_source === 'qr') {
+                            this.signup.address = verification.address;
+                        } else {
+                            this.signup.address = this.improveAddress(verification.address);
+                        }
                     }
 
                     if (verification.sex) {

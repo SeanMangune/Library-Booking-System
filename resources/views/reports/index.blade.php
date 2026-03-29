@@ -9,53 +9,57 @@
 
 @section('content')
 <div class="space-y-6" id="reports-page-top">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-8 animate-slide-in-up stagger-1">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">Detailed Reports</h1>
-            <p class="text-sm text-gray-500 mt-1">Track bookings, approvals, room usage, and collaborative-room exceptions.</p>
+            <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Detailed Reports</h1>
+            <p class="text-base text-gray-500 mt-1">Track bookings, approvals, room usage, and collaborative-room exceptions in real-time.</p>
         </div>
-        <div class="flex items-center gap-2 print:hidden">
+        <div class="flex items-center gap-3 print:hidden">
             <button type="button"
                     onclick="window.print()"
-                    class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold transition-colors">
+                    class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold transition-all hover:shadow-sm">
                 <i class="w-4 h-4 fa-icon fa-solid fa-print text-base leading-none"></i>
                 Print Report
             </button>
 
             <a href="{{ route('reports.index', array_filter(array_merge($filters, ['export' => 'csv']))) }}"
-               class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-colors">
+               class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-all hover:shadow-lg hover:-translate-y-0.5">
                 <i class="w-4 h-4 fa-icon fa-solid fa-download text-base leading-none"></i>
                 Download CSV
             </a>
         </div>
     </div>
 
-<<<<<<< HEAD
-    <div class="print:hidden report-nav-shell bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 rounded-2xl p-5 text-white border border-slate-800 shadow-sm" id="report-nav-shell">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <!-- Report Navigator -->
+    <div class="print:hidden report-nav-shell bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 rounded-2xl p-6 text-white border border-slate-800 shadow-lg mb-8 animate-slide-in-up stagger-2" id="report-nav-shell">
+        <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-200">Report Navigator</p>
-                <h2 class="text-lg font-semibold mt-1">Jump directly to the section you need</h2>
+                <p class="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-300/80">Premium Analytics</p>
+                <h2 class="text-xl font-bold mt-1 tracking-tight">Report Navigator</h2>
+                <p class="text-xs text-indigo-200/60 mt-0.5">Jump directly to the data insights you need</p>
             </div>
-            <div class="flex flex-wrap gap-2">
-                <a href="#report-summary" class="report-nav-link inline-flex items-center rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20 transition-colors">Summary</a>
-                <a href="#room-breakdown" class="report-nav-link inline-flex items-center rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20 transition-colors">Room Breakdown</a>
-                <a href="#top-requesters" class="report-nav-link inline-flex items-center rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20 transition-colors">Top Requesters</a>
-                <a href="#daily-activity" class="report-nav-link inline-flex items-center rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20 transition-colors">Daily Activity</a>
-                <a href="#detailed-bookings" class="report-nav-link inline-flex items-center rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20 transition-colors">Detailed List</a>
+            <div class="flex flex-wrap gap-2.5">
+                <a href="#report-summary" class="report-nav-link inline-flex items-center rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold hover:bg-white/15 transition-all">Summary</a>
+                <a href="#room-breakdown" class="report-nav-link inline-flex items-center rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold hover:bg-white/15 transition-all">Room Breakdown</a>
+                <a href="#top-requesters" class="report-nav-link inline-flex items-center rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold hover:bg-white/15 transition-all">Top Requesters</a>
+                <a href="#daily-activity" class="report-nav-link inline-flex items-center rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold hover:bg-white/15 transition-all">Daily Activity</a>
+                <a href="#detailed-bookings" class="report-nav-link inline-flex items-center rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold hover:bg-white/15 transition-all">Detailed List</a>
             </div>
         </div>
     </div>
 
-    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 md:p-6 report-reveal report-filter-shell" id="report-filters">
-        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
+    <!-- Unified Filter Bar -->
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 md:p-8 mb-8 report-reveal report-filter-shell animate-slide-in-up stagger-3" id="report-filters">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8 pb-6 border-b border-gray-100">
             <div>
-                <h2 class="text-base font-semibold text-gray-900">Filters</h2>
-                <p class="text-sm text-gray-500 mt-0.5">Choose a date range preset, then fine-tune From and To with calendar selectors.</p>
+                <h2 class="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+                    <i class="fa-solid fa-filter text-indigo-500 text-sm"></i> Reports Engine
+                </h2>
+                <p class="text-sm text-gray-500 mt-1 font-medium">Precision filtering for your library data infrastructure.</p>
             </div>
-            <div class="w-full sm:w-64">
-                <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Date range preset</label>
-                <select id="date-range-select" class="w-full px-3 py-2.5 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <div class="w-full sm:w-72">
+                <label class="block text-[10px] font-black uppercase tracking-[0.15em] text-gray-400 mb-2">Smart Presets</label>
+                <select id="date-range-select" class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-bold text-gray-700 cursor-pointer hover:bg-white">
                     <option value="all">All time</option>
                     <option value="today">Today</option>
                     <option value="7">Last 7 days</option>
@@ -68,115 +72,130 @@
             </div>
         </div>
 
-        <form method="GET" action="{{ route('reports.index') }}" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4" id="reports-filter-form">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">From</label>
+        <form method="GET" action="{{ route('reports.index') }}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6" id="reports-filter-form">
+            <div class="space-y-1.5">
+                <label class="block text-xs font-black text-gray-500 uppercase tracking-widest">Date From</label>
                 <input type="date" name="date_from" id="date-from-input" value="{{ $filters['date_from'] }}"
-                       class="w-full px-3 py-2.5 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                <p class="mt-1 text-xs text-gray-500">Pick the first day to include.</p>
+                       class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 shadow-sm transition-all font-semibold text-gray-900">
             </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">To</label>
+            <div class="space-y-1.5">
+                <label class="block text-xs font-black text-gray-500 uppercase tracking-widest">Date To</label>
                 <input type="date" name="date_to" id="date-to-input" value="{{ $filters['date_to'] }}"
-                       class="w-full px-3 py-2.5 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                <p class="mt-1 text-xs text-gray-500">Pick the last day to include.</p>
-=======
-    <div class="bg-white rounded-2xl border border-gray-200 shadow-md p-4 mb-6">
-        <form method="GET" action="{{ route('reports.index') }}" class="flex flex-col gap-4 md:grid md:grid-cols-4 md:gap-4 items-end">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">From</label>
-                <input type="date" name="date_from" value="{{ $filters['date_from'] }}"
-                       class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                       class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 shadow-sm transition-all font-semibold text-gray-900">
             </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">To</label>
-                <input type="date" name="date_to" value="{{ $filters['date_to'] }}"
-                       class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
->>>>>>> ca25bc025b3782320ae4bd77168d19933eb1ba21
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Room</label>
-                <select name="room_id" class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+            <div class="space-y-1.5">
+                <label class="block text-xs font-black text-gray-500 uppercase tracking-widest">Room Filter</label>
+                <select name="room_id" class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 shadow-sm transition-all font-semibold text-gray-900 cursor-pointer">
                     <option value="">All rooms</option>
                     @foreach($rooms as $room)
                         <option value="{{ $room->id }}" @selected($filters['room_id'] === (string) $room->id)>{{ $room->name }}</option>
                     @endforeach
                 </select>
             </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select name="status" class="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+            <div class="space-y-1.5">
+                <label class="block text-xs font-black text-gray-500 uppercase tracking-widest">Booking Status</label>
+                <select name="status" class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 shadow-sm transition-all font-semibold text-gray-900 cursor-pointer">
                     <option value="">All statuses</option>
                     @foreach(['approved', 'pending', 'rejected', 'cancelled'] as $status)
                         <option value="{{ $status }}" @selected($filters['status'] === $status)>{{ ucfirst($status) }}</option>
                     @endforeach
                 </select>
             </div>
-            <div class="md:col-span-2 xl:col-span-1 flex flex-wrap xl:flex-col items-end justify-end gap-2">
-                <a href="{{ route('reports.index') }}" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold transition-colors">
-                    Reset filters
+            <div class="flex items-end gap-3">
+                <a href="{{ route('reports.index') }}" class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 text-xs font-black uppercase tracking-widest transition-all hover:shadow-sm">
+                    Reset
                 </a>
-                <button type="submit" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors">
-                    Apply filters
+                <button type="submit" class="flex-[1.5] inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-widest transition-all hover:shadow-indigo-200 hover:shadow-xl hover:-translate-y-0.5">
+                    Apply Filter
                 </button>
             </div>
         </form>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4" id="report-summary">
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 report-reveal">
-            <p class="text-sm text-gray-500">Total bookings</p>
-            <p class="mt-2 text-3xl font-bold text-gray-900">{{ $stats['total'] }}</p>
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 mb-8" id="report-summary">
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 report-reveal transition-all hover:shadow-md group">
+            <div class="flex items-center justify-between mb-4">
+                <p class="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Total Bookings</p>
+                <i class="fa-solid fa-list-ol text-gray-200 group-hover:text-indigo-200 transition-colors"></i>
+            </div>
+            <p class="text-4xl font-black text-gray-900 tracking-tight">{{ number_format($stats['total']) }}</p>
+            <div class="mt-4 h-1 w-12 bg-indigo-100 group-hover:w-full transition-all duration-500"></div>
         </div>
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 report-reveal">
-            <p class="text-sm text-gray-500">Approved</p>
-            <p class="mt-2 text-3xl font-bold text-emerald-600">{{ $stats['approved'] }}</p>
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 report-reveal transition-all hover:shadow-md group">
+            <div class="flex items-center justify-between mb-4">
+                <p class="text-xs font-black text-emerald-400 uppercase tracking-[0.2em]">Approved</p>
+                <i class="fa-solid fa-circle-check text-emerald-100 group-hover:text-emerald-200 transition-colors"></i>
+            </div>
+            <p class="text-4xl font-black text-emerald-600 tracking-tight">{{ number_format($stats['approved']) }}</p>
+            <div class="mt-4 h-1 w-12 bg-emerald-100 group-hover:w-full transition-all duration-500"></div>
         </div>
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 report-reveal">
-            <p class="text-sm text-gray-500">Pending</p>
-            <p class="mt-2 text-3xl font-bold text-amber-600">{{ $stats['pending'] }}</p>
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 report-reveal transition-all hover:shadow-md group">
+            <div class="flex items-center justify-between mb-4">
+                <p class="text-xs font-black text-amber-400 uppercase tracking-[0.2em]">Pending</p>
+                <i class="fa-solid fa-clock text-amber-100 group-hover:text-amber-200 transition-colors"></i>
+            </div>
+            <p class="text-4xl font-black text-amber-600 tracking-tight">{{ number_format($stats['pending']) }}</p>
+            <div class="mt-4 h-1 w-12 bg-amber-100 group-hover:w-full transition-all duration-500"></div>
         </div>
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 report-reveal">
-            <p class="text-sm text-gray-500">Rejected</p>
-            <p class="mt-2 text-3xl font-bold text-rose-600">{{ $stats['rejected'] }}</p>
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 report-reveal transition-all hover:shadow-md group">
+            <div class="flex items-center justify-between mb-4">
+                <p class="text-xs font-black text-rose-400 uppercase tracking-[0.2em]">Rejected</p>
+                <i class="fa-solid fa-circle-xmark text-rose-100 group-hover:text-rose-200 transition-colors"></i>
+            </div>
+            <p class="text-4xl font-black text-rose-600 tracking-tight">{{ number_format($stats['rejected']) }}</p>
+            <div class="mt-4 h-1 w-12 bg-rose-100 group-hover:w-full transition-all duration-500"></div>
         </div>
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 report-reveal">
-            <p class="text-sm text-gray-500">Cancelled</p>
-            <p class="mt-2 text-3xl font-bold text-slate-600">{{ $stats['cancelled'] }}</p>
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 report-reveal transition-all hover:shadow-md group">
+            <div class="flex items-center justify-between mb-4">
+                <p class="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Cancelled</p>
+                <i class="fa-solid fa-ban text-slate-100 group-hover:text-slate-200 transition-colors"></i>
+            </div>
+            <p class="text-4xl font-black text-slate-600 tracking-tight">{{ number_format($stats['cancelled']) }}</p>
+            <div class="mt-4 h-1 w-12 bg-slate-100 group-hover:w-full transition-all duration-500"></div>
         </div>
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 report-reveal">
-            <p class="text-sm text-gray-500">Capacity-permission requests</p>
-            <p class="mt-2 text-3xl font-bold text-blue-600">{{ $stats['capacity_exceptions'] }}</p>
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 report-reveal transition-all hover:shadow-md group">
+            <div class="flex items-center justify-between mb-4">
+                <p class="text-xs font-black text-indigo-400 uppercase tracking-[0.2em]">Capacity Requests</p>
+                <i class="fa-solid fa-users text-indigo-100 group-hover:text-indigo-200 transition-colors"></i>
+            </div>
+            <p class="text-4xl font-black text-indigo-600 tracking-tight">{{ number_format($stats['capacity_exceptions']) }}</p>
+            <div class="mt-4 h-1 w-12 bg-indigo-100 group-hover:w-full transition-all duration-500"></div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden report-reveal" id="room-breakdown">
-            <div class="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
-                <i class="fa-solid fa-door-open text-indigo-500"></i>
-                <h2 class="text-base font-bold text-gray-900">Room Breakdown</h2>
+    <!-- Data Tables Grid -->
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden report-reveal group hover:shadow-lg transition-all" id="room-breakdown">
+            <div class="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 shadow-inner">
+                        <i class="fa-solid fa-door-open"></i>
+                    </div>
+                    <h2 class="text-lg font-black text-gray-900 tracking-tight">Room Breakdown</h2>
+                </div>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full">
-                    <thead class="bg-white border-b border-gray-200">
+                    <thead class="bg-white border-b border-gray-100">
                         <tr>
-                            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Room</th>
-                            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Bookings</th>
-                            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Approved</th>
-                            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Permission</th>
+                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.25em]">Room</th>
+                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.25em]">Total</th>
+                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.25em]">Approved</th>
+                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.25em]">Exception</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200">
+                    <tbody class="divide-y divide-gray-100">
                         @forelse($roomBreakdown as $row)
-                            <tr>
-                                <td class="px-5 py-3 text-sm text-gray-900">{{ $row['room_name'] }}</td>
-                                <td class="px-5 py-3 text-sm text-gray-600">{{ $row['bookings'] }}</td>
-                                <td class="px-5 py-3 text-sm text-gray-600">{{ $row['approved'] }}</td>
-                                <td class="px-5 py-3 text-sm text-gray-600">{{ $row['capacity_exceptions'] }}</td>
+                            <tr class="hover:bg-indigo-50/30 transition-colors">
+                                <td class="px-6 py-4 text-sm font-bold text-gray-900">{{ $row['room_name'] }}</td>
+                                <td class="px-6 py-4 text-sm font-semibold text-gray-600">{{ number_format($row['bookings']) }}</td>
+                                <td class="px-6 py-4 text-sm font-semibold text-emerald-600">{{ number_format($row['approved']) }}</td>
+                                <td class="px-6 py-4 text-sm font-semibold text-blue-600">{{ number_format($row['capacity_exceptions']) }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="px-5 py-8 text-center text-sm text-gray-500">No report data found for the selected filters.</td>
+                                <td colspan="4" class="px-6 py-12 text-center text-sm font-bold text-gray-400 uppercase tracking-widest bg-gray-50/20 italic">No room profile data found.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -184,50 +203,69 @@
             </div>
         </div>
 
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden report-reveal" id="top-requesters">
-            <div class="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
-                <i class="fa-solid fa-user-group text-indigo-500"></i>
-                <h2 class="text-base font-bold text-gray-900">Top Requesters</h2>
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden report-reveal group hover:shadow-lg transition-all" id="top-requesters">
+            <div class="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 shadow-inner">
+                        <i class="fa-solid fa- ट्रॉफी"></i>
+                    </div>
+                    <h2 class="text-lg font-black text-gray-900 tracking-tight">Top Requesters</h2>
+                </div>
             </div>
-            <div class="divide-y divide-gray-200">
-                @forelse($topRequesters as $requester)
-                    <div class="px-5 py-4 flex items-center justify-between gap-4">
-                        <div class="text-sm font-semibold text-gray-900">{{ $requester['user_name'] }}</div>
-                        <div class="text-sm text-gray-500">{{ $requester['bookings'] }} bookings</div>
+            <div class="divide-y divide-gray-100">
+                @forelse($topRequesters as $index => $requester)
+                    <div class="px-6 py-5 flex items-center justify-between gap-4 hover:bg-emerald-50/30 transition-all group/item">
+                        <div class="flex items-center gap-4">
+                            <span class="text-xs font-black text-gray-300 group-hover/item:text-emerald-300 w-4 tracking-tighter">{{ $index + 1 }}</span>
+                            <div class="text-sm font-black text-gray-800 tracking-tight group-hover/item:text-emerald-700">{{ $requester['user_name'] }}</div>
+                        </div>
+                        <div class="text-xs font-bold px-3 py-1.5 rounded-xl bg-gray-100 text-gray-500 group-hover/item:bg-emerald-100 group-hover/item:text-emerald-700 transition-all">{{ number_format($requester['bookings']) }} Bookings</div>
                     </div>
                 @empty
-                    <div class="px-5 py-8 text-center text-sm text-gray-500">No requester data available.</div>
+                    <div class="px-6 py-12 text-center text-sm font-bold text-gray-400 uppercase tracking-widest bg-gray-50/20 italic">No requester activity records.</div>
                 @endforelse
             </div>
         </div>
     </div>
 
-    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden report-reveal" id="daily-activity">
-        <div class="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
-            <i class="fa-solid fa-calendar-day text-indigo-500"></i>
-            <h2 class="text-base font-bold text-gray-900">Daily Activity</h2>
+    <!-- Activity Feed Table -->
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden report-reveal mb-8 hover:shadow-lg transition-all" id="daily-activity">
+        <div class="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shadow-inner">
+                <i class="fa-solid fa-chart-line"></i>
+            </div>
+            <h2 class="text-lg font-black text-gray-900 tracking-tight">Temporal Activity Matrix</h2>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full">
-                <thead class="bg-white border-b border-gray-200">
+                <thead class="bg-white border-b border-gray-100">
                     <tr>
-                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Bookings</th>
-                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Approved</th>
-                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Pending</th>
+                        <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.25em]">Date Cycle</th>
+                        <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.25em]">Volume</th>
+                        <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.25em]">Approved</th>
+                        <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.25em]">Pending</th>
+                        <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.25em]">Intensity</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200">
+                <tbody class="divide-y divide-gray-100">
                     @forelse($dailyBreakdown as $row)
-                        <tr>
-                            <td class="px-5 py-3 text-sm text-gray-900">{{ \Carbon\Carbon::parse($row['date'])->format('M d, Y') }}</td>
-                            <td class="px-5 py-3 text-sm text-gray-600">{{ $row['bookings'] }}</td>
-                            <td class="px-5 py-3 text-sm text-gray-600">{{ $row['approved'] }}</td>
-                            <td class="px-5 py-3 text-sm text-gray-600">{{ $row['pending'] }}</td>
+                        @php
+                            $intensity = $stats['total'] > 0 ? ($row['bookings'] / $stats['total']) * 100 : 0;
+                        @endphp
+                        <tr class="hover:bg-amber-50/30 transition-colors group/row">
+                            <td class="px-6 py-4 text-sm font-bold text-gray-900">{{ \Carbon\Carbon::parse($row['date'])->format('M d, Y') }}</td>
+                            <td class="px-6 py-4 text-sm font-semibold text-gray-600">{{ number_format($row['bookings']) }}</td>
+                            <td class="px-6 py-4 text-sm font-bold text-emerald-600">{{ number_format($row['approved']) }}</td>
+                            <td class="px-6 py-4 text-sm font-bold text-amber-600">{{ number_format($row['pending']) }}</td>
+                            <td class="px-6 py-4">
+                                <div class="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden flex shadow-inner">
+                                    <div class="h-full bg-amber-400 group-hover/row:bg-amber-500 transition-all rounded-full" style="width: {{ $intensity }}%"></div>
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="px-5 py-8 text-center text-sm text-gray-500">No daily activity found.</td>
+                            <td colspan="5" class="px-6 py-12 text-center text-sm font-bold text-gray-400 uppercase tracking-widest bg-gray-50/20 italic">No activity data within specified parameters.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -235,41 +273,59 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden report-reveal" id="detailed-bookings">
-        <div class="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
-            <i class="fa-solid fa-list-check text-indigo-500"></i>
-            <h2 class="text-base font-bold text-gray-900">Detailed Booking List</h2>
+    <!-- Detailed Exportable List -->
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden report-reveal mb-8 hover:shadow-lg transition-all" id="detailed-bookings">
+        <div class="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 shadow-inner">
+                    <i class="fa-solid fa-database"></i>
+                </div>
+                <h2 class="text-lg font-black text-gray-900 tracking-tight">Granular Raw Data</h2>
+            </div>
+            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-3 py-1 rounded-full">{{ $bookings->total() }} records match</span>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full">
-                <thead class="bg-white border-b border-gray-200">
+                <thead class="bg-white border-b border-gray-100 shadow-sm relative z-10">
                     <tr>
-                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Room</th>
-                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Purpose</th>
-                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Booked By</th>
-                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Attendees</th>
-                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.25em]">Timestamp</th>
+                        <th class="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.25em]">Entity</th>
+                        <th class="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.25em]">Objective</th>
+                        <th class="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.25em]">Requester</th>
+                        <th class="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.25em]">Scale</th>
+                        <th class="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.25em]">System State</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200">
+                <tbody class="divide-y divide-gray-50">
                     @forelse($bookings as $booking)
-                        <tr>
-                            <td class="px-5 py-3 text-sm text-gray-900">{{ $booking->formatted_date }}</td>
-                            <td class="px-5 py-3 text-sm text-gray-600">{{ $booking->room?->name }}</td>
-                            <td class="px-5 py-3 text-sm text-gray-900">
-                                <div>{{ $booking->title ?: 'No purpose provided' }}</div>
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="px-6 py-4 text-[13px] font-bold text-slate-900 tabular-nums">{{ $booking->formatted_date }}</td>
+                            <td class="px-6 py-4 text-[13px] font-bold text-slate-600">{{ $booking->room?->name }}</td>
+                            <td class="px-6 py-4 text-[13px] font-semibold text-slate-900">
+                                <div>{{ $booking->title ?: 'N/A' }}</div>
                                 @if($booking->requiresCapacityPermission())
-                                    <div class="mt-1 inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700">Needs librarian permission</div>
+                                    <div class="mt-1.5 inline-flex items-center px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter bg-indigo-50 text-indigo-700 border border-indigo-100">Cap. Override Required</div>
                                 @endif
                             </td>
-                            <td class="px-5 py-3 text-sm text-gray-600">{{ $booking->user_name }}</td>
-                            <td class="px-5 py-3 text-sm text-gray-600">{{ $booking->attendees }}</td>
-                            <td class="px-5 py-3 text-sm text-gray-600">{{ ucfirst($booking->status) }}</td>
+                            <td class="px-6 py-4 text-[13px] font-bold text-slate-600">{{ $booking->user_name }}</td>
+                            <td class="px-6 py-4 text-[13px] font-black text-slate-900">{{ number_format($booking->attendees) }}</td>
+                            <td class="px-6 py-4">
+                                @php
+                                    $tokenClass = match($booking->status) {
+                                        'approved' => 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                                        'pending' => 'bg-amber-100 text-amber-800 border-amber-200',
+                                        'rejected' => 'bg-rose-100 text-rose-800 border-rose-200',
+                                        default => 'bg-slate-100 text-slate-700 border-slate-200',
+                                    };
+                                @endphp
+                                <span class="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border {{ $tokenClass }}">
+                                    {{ $booking->status }}
+                                </span>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-5 py-8 text-center text-sm text-gray-500">No bookings found for the selected filters.</td>
+                            <td colspan="6" class="px-6 py-24 text-center text-sm font-bold text-gray-400 uppercase tracking-widest bg-gray-50/20 italic">No historical data found for current logic.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -277,17 +333,17 @@
         </div>
 
         @if($bookings->hasPages())
-            <div class="px-5 py-4 border-t border-gray-200">
+            <div class="px-6 py-6 border-t border-gray-100 bg-gray-50/30">
                 {{ $bookings->links() }}
             </div>
         @endif
     </div>
 </div>
 
-<div class="print:hidden fixed bottom-5 right-5 z-40 flex flex-col gap-2" id="report-floating-nav">
-    <button type="button" id="report-back-top" class="hidden items-center justify-center gap-2 rounded-xl bg-indigo-600 text-white px-3.5 py-2.5 text-xs font-semibold shadow-lg hover:bg-indigo-700 transition-all">
-        <i class="w-3.5 h-3.5 fa-icon fa-solid fa-arrow-up text-sm leading-none"></i>
-        Back to top
+<div class="print:hidden fixed bottom-8 right-8 z-40 flex flex-col gap-3" id="report-floating-nav">
+    <button type="button" id="report-back-top" class="hidden items-center justify-center gap-2 rounded-2xl bg-indigo-600 text-white px-5 py-3.5 text-xs font-black uppercase tracking-widest shadow-2xl hover:bg-indigo-700 transition-all hover:scale-105 active:scale-95 group">
+        <i class="fa-solid fa-arrow-up text-sm group-hover:-translate-y-1 transition-transform"></i>
+        Ascend to Top
     </button>
 </div>
 
@@ -304,9 +360,7 @@
     const revealTargets = document.querySelectorAll('.report-reveal');
     let lastScrollY = window.scrollY;
 
-    if (!form || !fromInput || !toInput || !rangeSelect) {
-        return;
-    }
+    if (!form || !fromInput || !toInput || !rangeSelect) return;
 
     const toDateString = (value) => {
         const year = value.getFullYear();
@@ -336,7 +390,7 @@
             start = new Date(today.getFullYear(), today.getMonth(), 1);
         } else if (range === 'last_month') {
             const firstDayCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-            const lastDayPreviousMonth = new Date(firstDayCurrentMonth.getTime() - 24 * 60 * 60 * 1000);
+            const lastDayPreviousMonth = new Date(firstDayCurrentMonth.getTime() - 86400000);
             const firstDayPreviousMonth = new Date(lastDayPreviousMonth.getFullYear(), lastDayPreviousMonth.getMonth(), 1);
             fromInput.value = toDateString(firstDayPreviousMonth);
             toInput.value = toDateString(lastDayPreviousMonth);
@@ -344,10 +398,6 @@
         } else if (range === 'year') {
             start = new Date(today.getFullYear(), 0, 1);
         } else if (range === 'custom') {
-            if (!fromInput.value && !toInput.value) {
-                fromInput.value = toDateString(today);
-                toInput.value = toDateString(today);
-            }
             return;
         } else {
             const days = Number(range);
@@ -359,93 +409,57 @@
     };
 
     fromInput.addEventListener('change', () => {
-        if (fromInput.value && toInput.value && fromInput.value > toInput.value) {
-            toInput.value = fromInput.value;
-        }
+        if (fromInput.value && toInput.value && fromInput.value > toInput.value) toInput.value = fromInput.value;
     });
 
     toInput.addEventListener('change', () => {
-        if (fromInput.value && toInput.value && toInput.value < fromInput.value) {
-            fromInput.value = toInput.value;
-        }
+        if (fromInput.value && toInput.value && toInput.value < fromInput.value) fromInput.value = toInput.value;
     });
 
-    rangeSelect.addEventListener('change', () => {
-        setRange(rangeSelect.value || 'all');
-    });
-
-    if (!fromInput.value && !toInput.value) {
-        rangeSelect.value = 'all';
-    } else {
-        rangeSelect.value = 'custom';
-    }
+    rangeSelect.addEventListener('change', () => setRange(rangeSelect.value || 'all'));
 
     const toggleFloatingNav = () => {
-        const shouldShow = window.scrollY > 260;
+        const shouldShow = window.scrollY > 400;
         const isScrollingDown = window.scrollY > lastScrollY;
-
+        
         if (navShell) {
-            if (window.scrollY < 120) {
-                navShell.classList.remove('is-retracted');
-            } else {
-                navShell.classList.toggle('is-retracted', !isScrollingDown);
-            }
+            if (window.scrollY < 200) navShell.classList.remove('is-retracted');
+            else navShell.classList.toggle('is-retracted', !isScrollingDown);
         }
 
         if (backTopButton) {
             backTopButton.classList.toggle('hidden', !shouldShow);
             backTopButton.classList.toggle('inline-flex', shouldShow);
         }
-
         lastScrollY = window.scrollY;
     };
 
     navLinks.forEach((link) => {
         link.addEventListener('click', (event) => {
-            const href = link.getAttribute('href') || '';
-            if (!href.startsWith('#')) {
-                return;
-            }
-
+            const href = link.getAttribute('href');
+            if (!href.startsWith('#')) return;
             const target = document.querySelector(href);
-            if (!target) {
-                return;
-            }
-
+            if (!target) return;
             event.preventDefault();
-            window.history.replaceState(null, '', href);
             target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            toggleFloatingNav();
         });
     });
 
     if (backTopButton) {
-        backTopButton.addEventListener('click', () => {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
+        backTopButton.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
     }
 
     window.addEventListener('scroll', toggleFloatingNav, { passive: true });
-    toggleFloatingNav();
-
+    
     if ('IntersectionObserver' in window && revealTargets.length) {
         const revealObserver = new IntersectionObserver((entries, observer) => {
             entries.forEach((entry) => {
-                if (!entry.isIntersecting) {
-                    return;
-                }
-
+                if (!entry.isIntersecting) return;
                 entry.target.classList.add('is-visible');
                 observer.unobserve(entry.target);
             });
-        }, {
-            threshold: 0.12,
-            rootMargin: '0px 0px -36px 0px',
-        });
-
+        }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
         revealTargets.forEach((target) => revealObserver.observe(target));
-    } else {
-        revealTargets.forEach((target) => target.classList.add('is-visible'));
     }
 })();
 </script>
@@ -453,100 +467,37 @@
 
 @push('styles')
 <style>
-html {
-    scroll-behavior: smooth;
-}
-
-.report-nav-link {
-    position: relative;
-    overflow: hidden;
-    transform: translateY(0);
-}
-
+html { scroll-behavior: smooth; }
 .report-nav-shell {
     position: sticky;
-    top: 1rem;
-    z-index: 20;
-    transition: transform 260ms ease, opacity 220ms ease, box-shadow 260ms ease;
+    top: 1.5rem;
+    z-index: 30;
+    transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
 }
-
 .report-nav-shell.is-retracted {
-    transform: translateY(-110%);
+    transform: translateY(-130%) scale(0.95);
     opacity: 0;
     pointer-events: none;
 }
-
-.report-filter-shell {
-    position: relative;
-    overflow: hidden;
-}
-
-.report-filter-shell::before {
+.report-filter-shell { position: relative; overflow: hidden; }
+.report-filter-shell::after {
     content: '';
     position: absolute;
     inset: 0;
-    border-radius: 1rem;
-    background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.08), transparent 45%), radial-gradient(circle at bottom left, rgba(15, 23, 42, 0.04), transparent 40%);
+    background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.05), transparent 40%);
     pointer-events: none;
 }
-
-.report-nav-link::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.28) 45%, transparent 100%);
-    transform: translateX(-120%);
-    transition: transform 340ms ease;
-}
-
-.report-nav-link:hover {
-    transform: translateY(-1px);
-}
-
-.report-nav-link:hover::after {
-    transform: translateX(120%);
-}
-
 .report-reveal {
     opacity: 0;
-    transform: translateY(18px) scale(0.985);
-    filter: blur(2px);
-    transition: opacity 560ms ease, transform 560ms ease, filter 560ms ease;
+    transform: translateY(30px) scale(0.98);
+    filter: blur(4px);
+    transition: all 800ms cubic-bezier(0.4, 0, 0.2, 1);
     will-change: transform, opacity, filter;
 }
-
 .report-reveal.is-visible {
     opacity: 1;
     transform: translateY(0) scale(1);
     filter: blur(0);
-}
-
-#report-summary .report-reveal:nth-child(2) { transition-delay: 40ms; }
-#report-summary .report-reveal:nth-child(3) { transition-delay: 80ms; }
-#report-summary .report-reveal:nth-child(4) { transition-delay: 120ms; }
-#report-summary .report-reveal:nth-child(5) { transition-delay: 160ms; }
-#report-summary .report-reveal:nth-child(6) { transition-delay: 200ms; }
-
-@media print {
-    .print\:hidden {
-        display: none !important;
-    }
-
-    body {
-        background: #fff !important;
-    }
-
-    .shadow-sm,
-    .shadow-xl,
-    .rounded-2xl {
-        box-shadow: none !important;
-    }
-}
-
-@media (max-width: 768px) {
-    .report-nav-shell {
-        top: 0.5rem;
-    }
 }
 </style>
 @endpush

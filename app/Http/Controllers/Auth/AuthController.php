@@ -173,6 +173,7 @@ class AuthController extends Controller
         if (! $adminUser) {
             $adminUser = User::create([
                 'name' => 'Admin',
+                'username' => 'admin',
                 'email' => 'admin@local.test',
                 'password' => Hash::make('admin123'),
                 'role' => 'admin',
@@ -189,10 +190,16 @@ class AuthController extends Controller
         return $this->redirectFor($adminUser);
     }
 
+    public function showRegister()
+    {
+        return view('auth.login', ['openSignupOnLoad' => true]);
+    }
+
     public function register(Request $request)
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z\s,.\-]+$/'],
+            'username' => ['required', 'string', 'max:255', 'alpha_dash', 'unique:users,username'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => [
                 'required',
@@ -243,6 +250,7 @@ class AuthController extends Controller
 
         $user = User::create([
             'name' => $validated['name'],
+            'username' => $validated['username'] ?? Str::slug($validated['name']) . '_' . Str::random(4),
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => 'user',
@@ -468,7 +476,7 @@ class AuthController extends Controller
         return null;
     }
 
-    private function googleCreateAttributes(SocialiteUser $googleUser, ?string $email, string $providerId): array
+    private function googleCreateAttributes(\Laravel\Socialite\Contracts\User $googleUser, ?string $email, string $providerId): array
     {
         $attributes = [
             'name' => $googleUser->getName() ?: ($email ?: 'User'),

@@ -1162,16 +1162,16 @@ export function createDashboardApp(config = {}) {
 
     return {
         dashboardCalendar: null,
-        showBookingModal: this.$persist(false).as('student_showBookingModal'),
-        showViewModal: this.$persist(false).as('student_showViewModal'),
-        showDayEventsModal: this.$persist(false).as('student_showDayEventsModal'),
-        selectedBooking: this.$persist(null).as('student_selectedBooking'),
-        selectedDay: this.$persist(null).as('student_selectedDay'),
+        showBookingModal: false,
+        showViewModal: false,
+        showDayEventsModal: false,
+        selectedBooking: null,
+        selectedDay: null,
         isSubmitting: false,
-        calendarView: this.$persist('dayGridMonth').as('student_calendarView'),
+        calendarView: 'dayGridMonth',
         calendarTitle: '',
-        currentMonth: this.$persist(new Date().getMonth()).as('student_currentMonth'),
-        currentYear: this.$persist(new Date().getFullYear()).as('student_currentYear'),
+        currentMonth: new Date().getMonth(),
+        currentYear: new Date().getFullYear(),
         calendarData: initialCalendarData,
         monthNames,
         bookingsPanelOpen: true,
@@ -1197,15 +1197,18 @@ export function createDashboardApp(config = {}) {
 
         get calendarWeeks() {
             const weeks = [];
-            const firstDay = new Date(this.currentYear, this.currentMonth, 1);
-            const lastDay = new Date(this.currentYear, this.currentMonth + 1, 0);
+            const year = parseInt(this.currentYear, 10) || new Date().getFullYear();
+            const month = parseInt(this.currentMonth, 10) || new Date().getMonth();
+            
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
             const startPadding = firstDay.getDay();
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
             let currentWeek = [];
 
-            const prevMonth = new Date(this.currentYear, this.currentMonth, 0);
+            const prevMonth = new Date(year, month, 0);
             for (let i = startPadding - 1; i >= 0; i -= 1) {
                 currentWeek.push({
                     day: prevMonth.getDate() - i,
@@ -1216,7 +1219,7 @@ export function createDashboardApp(config = {}) {
             }
 
             for (let i = 1; i <= lastDay.getDate(); i += 1) {
-                const date = new Date(this.currentYear, this.currentMonth, i);
+                const date = new Date(year, month, i);
                 const dateStr = this.formatDateKey(date);
                 const isToday = date.getTime() === today.getTime();
                 const isPast = date < today;
@@ -1265,13 +1268,41 @@ export function createDashboardApp(config = {}) {
                 weeks.push(week);
             }
 
-            return weeks.reverse();
+            return weeks;
         },
 
         init() {
+            // Initialize persistent state if $persist is available
+            if (this.$persist) {
+                try {
+                    // Initialize only if not already set or invalid
+                    this.showBookingModal = this.$persist(this.showBookingModal).as('student_showBookingModal');
+                    this.showViewModal = this.$persist(this.showViewModal).as('student_showViewModal');
+                    this.showDayEventsModal = this.$persist(this.showDayEventsModal).as('student_showDayEventsModal');
+                    this.selectedBooking = this.$persist(this.selectedBooking).as('student_selectedBooking');
+                    this.selectedDay = this.$persist(this.selectedDay).as('student_selectedDay');
+                    this.calendarView = this.$persist(this.calendarView).as('student_calendarView');
+                    
+                    const pMonth = this.$persist(this.currentMonth).as('student_currentMonth');
+                    const pYear = this.$persist(this.currentYear).as('student_currentYear');
+                    
+                    this.currentMonth = parseInt(pMonth, 10);
+                    if (isNaN(this.currentMonth)) this.currentMonth = new Date().getMonth();
+                    
+                    this.currentYear = parseInt(pYear, 10);
+                    if (isNaN(this.currentYear)) this.currentYear = new Date().getFullYear();
+                } catch (e) {
+                    console.warn('Alpine Persist not available or failed:', e);
+                }
+            }
+
             if (this.showBookingModal || this.showViewModal || this.showDayEventsModal) {
                 document.body.style.overflow = 'hidden';
             }
+
+            // Ensure title and data are loaded
+            this.setMonthTitle();
+            this.fetchCalendarData();
 
             try {
                 const storedPanelState = window.localStorage.getItem(bookingsPanelPreferenceKey);
@@ -1288,7 +1319,7 @@ export function createDashboardApp(config = {}) {
 
             // Restore calendar view immediately on reload
             this.$nextTick(() => {
-                this.initDashboardCalendar(this.calendarView);
+                this.initDashboardCalendar(this.calendarView || 'dayGridMonth');
             });
 
             window.addEventListener('resize', () => {
@@ -2091,7 +2122,16 @@ export function createDashboardApp(config = {}) {
         },
 
         viewBooking(booking) {
-            this.openViewBookingModal(booking);
+            // Enhanced mapping: ensure relationship data is present for the modal
+            const mapped = {
+                ...booking,
+                room_name: booking.room_name || booking.room?.name || 'Room',
+                user_name: booking.user_name || booking.user?.name || 'Unknown',
+                formatted_time: booking.formatted_time || this.formatTimeRange(booking.start_time, booking.end_time),
+                status: booking.status || 'pending',
+                attendees: booking.attendees || 0,
+            };
+            this.openViewBookingModal(mapped);
         },
 
         formatDate(value) {

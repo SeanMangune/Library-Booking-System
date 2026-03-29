@@ -136,15 +136,64 @@ class QcIdVerificationController extends Controller
                     'address' => ['address', 'residence', 'home_address', 'current_address', 'present_address', 'addr', 'permanent_address', 'location'],
                 ];
 
+                $findKeyRecursively = function ($data, $sKey) use (&$findKeyRecursively) {
+                    if (!is_array($data)) return null;
+                    foreach ($data as $k => $v) {
+                        if (strtolower((string)$k) === strtolower($sKey)) return $v;
+                        if (is_array($v)) {
+                            $found = $findKeyRecursively($v, $sKey);
+                            if ($found !== null) return $found;
+                        }
+                    }
+                    return null;
+                };
+
                 foreach ($mappings as $targetKey => $sourceKeys) {
                     foreach ($sourceKeys as $sKey) {
-                        // Case-insensitive check for key
-                        foreach ($data as $k => $v) {
-                            if (strtolower($k) === strtolower($sKey) && !empty($v)) {
-                                $profile[$targetKey] = (string) $v;
-                                break 2;
+                        $pVal = $findKeyRecursively($data, $sKey);
+                        if (!empty($pVal)) {
+                            $profile[$targetKey] = (string) $pVal;
+                            $profile['_' . $targetKey . '_source'] = 'qr';
+                            break;
+                        }
+                    }
+                }
+
+                // Aggressive QR Assembler: If address is missing, combine discrete fields
+                if (empty($profile['address'])) {
+                    $parts = [];
+                    $addrKeys = [
+                        'street' => ['street', 'st', 'st_name'],
+                        'brgy' => ['barangay', 'brgy', 'brgy_name', 'bgy'],
+                        'subd' => ['subdivision', 'subd', 'village', 'vil', 'sub'],
+                        'block' => ['block', 'blk', 'blky'],
+                        'lot' => ['lot', 'lt'],
+                        'city' => ['city', 'city_name', 'munc'],
+                    ];
+                    
+                    $assembled = [];
+                    foreach ($addrKeys as $label => $keys) {
+                        foreach ($keys as $k) {
+                            $val = $findKeyRecursively($data, $k);
+                            if (!empty($val)) {
+                                $assembled[$label] = trim((string)$val);
+                                break;
                             }
                         }
+                    }
+
+                    if (!empty($assembled)) {
+                        $addrLine = '';
+                        if (isset($assembled['block'])) $addrLine .= 'BLK-' . $assembled['block'] . ' ';
+                        if (isset($assembled['lot'])) $addrLine .= 'LOT-' . $assembled['lot'] . ' ';
+                        if (isset($assembled['street'])) $addrLine .= $assembled['street'] . ', ';
+                        if (isset($assembled['subd'])) $addrLine .= $assembled['subd'] . ', ';
+                        if (isset($assembled['brgy'])) $addrLine .= $assembled['brgy'] . ', ';
+                        if (isset($assembled['city'])) $addrLine .= $assembled['city'];
+                        else $addrLine .= 'QUEZON CITY';
+
+                        $profile['address'] = trim($addrLine, ' ,');
+                        $profile['_address_source'] = 'qr';
                     }
                 }
             }
@@ -159,9 +208,20 @@ class QcIdVerificationController extends Controller
                 if (preg_match('/^(\d{3})\D*(\d{3})\D*(\d{8})$/', $first) || preg_match('/^\d{13,16}$/', $first)) {
                     $profile['id_number'] = $first;
                     $profile['cardholder_name'] = trim($parts[1]);
-                    if (isset($parts[2])) $profile['address'] = trim($parts[2]);
-                    if (isset($parts[3])) $profile['sex'] = trim($parts[3]);
-                    if (isset($parts[4])) $profile['date_of_birth'] = trim($parts[4]);
+                    $profile['_id_number_source'] = 'qr';
+                    $profile['_cardholder_name_source'] = 'qr';
+                    if (isset($parts[2])) {
+                        $profile['address'] = trim($parts[2]);
+                        $profile['_address_source'] = 'qr';
+                    }
+                    if (isset($parts[3])) {
+                        $profile['sex'] = trim($parts[3]);
+                        $profile['_sex_source'] = 'qr';
+                    }
+                    if (isset($parts[4])) {
+                        $profile['date_of_birth'] = trim($parts[4]);
+                        $profile['_date_of_birth_source'] = 'qr';
+                    }
                 }
             }
         }
@@ -189,6 +249,7 @@ class QcIdVerificationController extends Controller
                         foreach ($parts as $k => $v) {
                             if (strtolower((string)$k) === strtolower($sKey) && !empty($v)) {
                                 $profile[$targetKey] = (string) $v;
+                                $profile['_' . $targetKey . '_source'] = 'qr';
                                 break 2;
                             }
                         }
@@ -199,15 +260,21 @@ class QcIdVerificationController extends Controller
 
         // 3. Fallback: Try plain QC ID number extraction
         if (empty($profile['id_number'])) {
-            // Pattern: 3-3-8 digit QC ID number
-            if (preg_match('/(\d{3})\s*(\d{3})\s*(\d{8})/', $qrData, $m)) {
-                $profile['id_number'] = $m[1] . ' ' . $m[2] . ' ' . $m[3];
-            } elseif (preg_match('/(\d{14})/', $qrData, $m)) {
-                $d = $m[1];
-                $profile['id_number'] = substr($d, 0, 3) . ' ' . substr($d, 3, 3) . ' ' . substr($d, 6, 8);
-            } elseif (preg_match('/(\d{13})/', $qrData, $m)) {
-                $d = '0' . $m[1];
-                $profile['id_number'] = substr($d, 0, 3) . ' ' . substr($d, 3, 3) . ' ' . substr($d, 6, 8);
+            // Fallback: If no structured profile found, try a global regex search for QC ID patterns
+            // specifically looking for 3-3-8 digit or 14-digit patterns in the raw string
+            if (empty($profile['id_number'])) {
+                if (preg_match('/(\d{3})\s*(\d{3})\s*(\d{8})/', $qrData, $m)) {
+                    $profile['id_number'] = $m[1] . ' ' . $m[2] . ' ' . $m[3];
+                    $profile['_id_number_source'] = 'qr';
+                } elseif (preg_match('/(\d{14})/', $qrData, $m)) {
+                    $d = $m[1];
+                    $profile['id_number'] = substr($d, 0, 3) . ' ' . substr($d, 3, 3) . ' ' . substr($d, 6, 8);
+                    $profile['_id_number_source'] = 'qr';
+                } elseif (preg_match('/(\d{13})/', $qrData, $m)) {
+                    $d = '0' . $m[1];
+                    $profile['id_number'] = substr($d, 0, 3) . ' ' . substr($d, 3, 3) . ' ' . substr($d, 6, 8);
+                    $profile['_id_number_source'] = 'qr';
+                }
             }
         }
 
