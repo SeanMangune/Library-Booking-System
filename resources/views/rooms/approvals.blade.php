@@ -10,20 +10,20 @@
 @endsection
 
 @section('content')
-<div x-data="approvalsApp()">
+<div x-data="approvalsApp()" x-init="init()">
     <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-slide-in-up stagger-1">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
             <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Booking Approvals</h1>
             <p class="text-base text-gray-500 mt-1">Review and manage pending booking requests with real-time updates.</p>
         </div>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8 animate-slide-in-up stagger-2">
+    <!-- Stats Cards - Pill-style tab switcher -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
         <!-- Pending -->
         <a href="{{ route('approvals.index', array_merge(request()->except('page'), ['status' => 'pending'])) }}"
-           class="group bg-white rounded-2xl border border-gray-200 shadow-sm p-6 block transition-all duration-300 hover:shadow-md hover:-translate-y-1 {{ $status === 'pending' ? 'ring-2 ring-blue-500 bg-blue-50/30' : '' }}">
+           class="group bg-white rounded-2xl border border-gray-200 shadow-sm p-6 block transition-all duration-300 hover:shadow-md hover:-translate-y-1 {{ $status === 'pending' ? 'ring-2 ring-amber-400 bg-amber-50/30' : '' }}">
             <div class="flex items-center justify-between">
                 <div class="w-14 h-14 rounded-2xl bg-amber-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                     <i class="w-7 h-7 text-amber-600 fa-icon fa-solid fa-clock text-3xl leading-none"></i>
@@ -35,7 +35,7 @@
 
         <!-- Approved -->
         <a href="{{ route('approvals.index', array_merge(request()->except('page'), ['status' => 'approved'])) }}"
-           class="group bg-white rounded-2xl border border-gray-200 shadow-sm p-6 block transition-all duration-300 hover:shadow-md hover:-translate-y-1 {{ $status === 'approved' ? 'ring-2 ring-green-500 bg-green-50/30' : '' }}">
+           class="group bg-white rounded-2xl border border-gray-200 shadow-sm p-6 block transition-all duration-300 hover:shadow-md hover:-translate-y-1 {{ $status === 'approved' ? 'ring-2 ring-green-400 bg-green-50/30' : '' }}">
             <div class="flex items-center justify-between">
                 <div class="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                     <i class="w-7 h-7 text-green-600 fa-icon fa-solid fa-circle-check text-3xl leading-none"></i>
@@ -47,7 +47,7 @@
 
         <!-- Rejected -->
         <a href="{{ route('approvals.index', array_merge(request()->except('page'), ['status' => 'rejected'])) }}"
-           class="group bg-white rounded-2xl border border-gray-200 shadow-sm p-6 block transition-all duration-300 hover:shadow-md hover:-translate-y-1 {{ $status === 'rejected' ? 'ring-2 ring-red-500 bg-red-50/30' : '' }}">
+           class="group bg-white rounded-2xl border border-gray-200 shadow-sm p-6 block transition-all duration-300 hover:shadow-md hover:-translate-y-1 {{ $status === 'rejected' ? 'ring-2 ring-red-400 bg-red-50/30' : '' }}">
             <div class="flex items-center justify-between">
                 <div class="w-14 h-14 rounded-2xl bg-red-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                     <i class="w-7 h-7 text-red-500 fa-icon fa-solid fa-circle-xmark text-3xl leading-none"></i>
@@ -59,7 +59,7 @@
     </div>
 
     <!-- Filter by Room -->
-    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-8 animate-slide-in-up stagger-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <form method="GET" action="{{ route('approvals.index') }}" class="flex items-center gap-4 flex-1">
             <label class="text-sm font-bold text-gray-700 whitespace-nowrap uppercase tracking-tight">Filter by Room:</label>
             <select name="room" onchange="this.form.submit()"
@@ -76,7 +76,7 @@
     </div>
 
     <!-- Bookings List -->
-    <div class="flex items-center justify-between mb-4 animate-slide-in-up stagger-4">
+    <div class="flex items-center justify-between mb-4">
         <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
             @if($status === 'approved')
                 <i class="fa-solid fa-circle-check text-green-500"></i> Approved Bookings
@@ -89,7 +89,8 @@
         </h2>
     </div>
 
-    <div class="space-y-5 animate-slide-in-up stagger-5">
+    <!-- Content with smooth fade-in (no jarring stagger replays) -->
+    <div class="space-y-5 approvals-content-fade">
         @forelse($bookings as $index => $booking)
         @php
             $bookingData = [
@@ -118,10 +119,9 @@
                 'qr_code_encrypted' => $booking->qr_code_encrypted ?? null,
                 'qr_token' => $booking->qr_token ?? null,
             ];
-            $staggerIndex = ($index % 8) + 5; // Start from stagger-5 and cycle up to stay fluid
-            $staggerClass = 'animate-slide-in-up stagger-' . $staggerIndex;
         @endphp
-        <div class="booking-card bg-white rounded-2xl border border-gray-200 shadow-sm p-6 hover:shadow-xl hover:border-indigo-200 hover:-translate-y-1 transition-all duration-300 cursor-pointer group relative {{ $staggerClass }}"
+        <div class="booking-card bg-white rounded-2xl border border-gray-200 shadow-sm p-6 hover:shadow-xl hover:border-indigo-200 hover:-translate-y-1 transition-all duration-300 cursor-pointer group relative"
+             style="animation: approvalCardIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) {{ $index * 0.05 }}s both;"
              x-on:click="openApprovalModal({{ Js::from($bookingData) }})">
             <div class="flex flex-col md:flex-row md:items-start justify-between gap-6">
                 <div class="flex items-start gap-5 flex-1">
@@ -229,7 +229,7 @@
             </div>
         </div>
         @empty
-        <div class="bg-white rounded-3xl border-2 border-dashed border-gray-200 p-16 text-center animate-pulse">
+        <div class="bg-white rounded-3xl border-2 border-dashed border-gray-200 p-16 text-center">
             <div class="w-20 h-20 mx-auto bg-gray-50 rounded-full flex items-center justify-center mb-6">
                 <i class="fa-solid fa-inbox text-gray-300 text-4xl"></i>
             </div>
@@ -251,7 +251,7 @@
 
     <!-- Pagination -->
     @if($bookings->hasPages())
-    <div class="mt-10 animate-slide-in-up stagger-6">
+    <div class="mt-10">
         {{ $bookings->withQueryString()->links() }}
     </div>
     @endif
@@ -260,4 +260,30 @@
     <x-modals.approvals.success />
     <x-modals.approvals.reject />
 </div>
+
+@push('styles')
+<style>
+/* Smooth card entrance for approvals - fast, non-jarring */
+@keyframes approvalCardIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Page-level fade for tab switching */
+.approvals-content-fade {
+    animation: approvalsFadeIn 0.3s ease-out;
+}
+
+@keyframes approvalsFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+</style>
+@endpush
 @endsection

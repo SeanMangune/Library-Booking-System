@@ -598,7 +598,7 @@ window.signupQcidVerifyUrl = @json(route('signup.qcid.verify'));
 <script>
 function signupLoginApp($persist, initialSignupOpen) {
     return {
-        signupOpen: $persist(!!initialSignupOpen).as('smartspace_signup_open'),
+        signupOpen: !!initialSignupOpen || new URLSearchParams(window.location.search).get('auth') === 'signup',
         showLoginPassword: false,
         showSignupPassword: false,
         showSignupConfirmPassword: false,

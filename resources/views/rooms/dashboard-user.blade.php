@@ -133,7 +133,7 @@
                     <h3 class="font-bold text-lg mb-2">Quick Tips</h3>
                     <ul class="space-y-2 text-indigo-100 text-xs leading-relaxed opacity-90">
                         <li class="flex items-start gap-2"><i class="fa-solid fa-check mt-0.5"></i> Book up to 14 days ahead</li>
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-check mt-0.5"></i> Bring your QC ID for physical verification</li>
+                        <li class="flex items-start gap-2"><i class="fa-solid fa-check mt-0.5"></i> Bring your QC ID for physical verification if required by the Librarian</li>
                         <li class="flex items-start gap-2"><i class="fa-solid fa-check mt-0.5"></i> Cancel at least 2 hours before your slot</li>
                     </ul>
                 </div>
@@ -157,7 +157,8 @@
                         @if($upcomingBookings->count() > 0)
                         <div class="space-y-3">
                             @foreach($upcomingBookings as $booking)
-                            <div class="flex items-center gap-4 p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-sm transition-all duration-200 group/booking">
+                            <div class="flex items-center gap-4 p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-sm transition-all duration-200 group/booking cursor-pointer"
+                                 @click="viewBooking({{ json_encode($booking) }})">
                                 <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-100 to-cyan-100 flex flex-col items-center justify-center shrink-0">
                                     <span class="text-[10px] font-bold text-teal-600 uppercase">{{ $booking->date->format('M') }}</span>
                                     <span class="text-lg font-black text-teal-700 leading-none">{{ $booking->date->format('j') }}</span>
@@ -198,7 +199,10 @@
                         @endif
                     </div>
                 </div>
+            </div>
 
+            <!-- Right Column: Calendar & Bookings (lg:col-span-8) -->
+            <div class="lg:col-span-8 space-y-6">
                 <!-- Calendar -->
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all duration-300">
                     <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -228,34 +232,41 @@
                             </div>
 
                             <div class="grid grid-cols-7">
-                                <template x-for="(cell, idx) in calCells" :key="idx">
-                                    <div class="min-h-[80px] border-b border-r border-gray-100 p-1.5 cursor-pointer hover:bg-blue-50/40 transition-colors"
-                                         @click="cell.date && selectCalendarDate(cell.date)"
-                                         :class="{
-                                             'bg-white': cell.isCurrentMonth,
-                                             'bg-gray-50/50': !cell.isCurrentMonth,
-                                             'ring-2 ring-teal-400 ring-inset': cell.isToday
-                                         }">
-                                        <span class="text-xs font-bold"
-                                              :class="{
-                                                  'text-gray-900': cell.isCurrentMonth,
-                                                  'text-gray-400': !cell.isCurrentMonth,
-                                                  'text-teal-700': cell.isToday
-                                              }"
-                                              x-text="cell.day"></span>
-                                        <div class="mt-1 space-y-0.5">
-                                            <template x-for="(evt, eIdx) in (cell.events || []).slice(0, 2)" :key="eIdx">
-                                                <div class="text-[9px] px-1.5 py-0.5 bg-teal-100 text-teal-800 rounded font-semibold truncate"
-                                                     @click.stop="openViewBookingModal(evt)"
-                                                     x-text="evt.room_name + ' ' + (evt.formatted_time || '')"></div>
-                                            </template>
-                                            <template x-if="(cell.events || []).length > 2">
-                                                <div class="text-[9px] text-center text-blue-600 font-bold cursor-pointer hover:underline"
-                                                     @click.stop="openDayEventsModal(cell)"
-                                                     x-text="'+' + ((cell.events || []).length - 2) + ' more'"></div>
-                                            </template>
+                                <template x-for="(week, weekIndex) in calendarWeeks" :key="weekIndex">
+                                    <template x-for="(day, dayIndex) in week" :key="weekIndex + '-' + dayIndex">
+                                        <div class="min-h-[110px] sm:min-h-[130px] border-b border-r border-gray-100 p-2 relative group/day transition-all"
+                                             @click="!day.isPast && day.isCurrentMonth && openBookingModalForDay(day)"
+                                             :class="{
+                                                 'bg-gray-50/50': !day.isCurrentMonth,
+                                                 'bg-teal-50/30': day.isToday,
+                                                 'cursor-pointer hover:bg-teal-50/80 hover:z-10 hover:shadow-lg': day.isCurrentMonth && !day.isPast,
+                                                 'opacity-40 cursor-not-allowed grayscale': day.isPast && day.isCurrentMonth,
+                                             }">
+                                            <div class="flex items-center justify-between mb-2">
+                                                <span class="text-xs font-black"
+                                                      :class="day.isToday ? 'bg-teal-600 text-white w-6 h-6 rounded-full flex items-center justify-center -ml-1' : (day.isCurrentMonth ? 'text-gray-600' : 'text-gray-300')"
+                                                      x-text="day.day"></span>
+                                            </div>
+                                            <div class="space-y-1 overflow-hidden">
+                                                <template x-for="event in day.events.slice(0, 3)" :key="event.id">
+                                                    <div class="relative group/event">
+                                                           <div class="text-[10px] px-2 py-1 bg-white border border-gray-100 text-gray-700 rounded-lg shadow-sm truncate hover:border-teal-400 hover:text-teal-700 transition-all font-medium flex items-center gap-1.5"
+                                                             @click.stop="openViewBookingModal(event)">
+                                                                <span class="w-1.5 h-1.5 rounded-full" :class="event.status === 'approved' ? 'bg-emerald-500' : 'bg-amber-500'"></span>
+                                                                <span x-text="event.formatted_time?.split(':')[0] + event.formatted_time?.slice(-2)"></span>
+                                                                <span class="opacity-60">|</span>
+                                                                <span x-text="event.room_name?.split(' ')[1] || event.room_name"></span>
+                                                            </div>
+                                                    </div>
+                                                </template>
+                                                <template x-if="day.events.length > 3">
+                                                    <button @click.stop="openDayEventsModal(day)"
+                                                        class="text-[9px] w-full text-left font-bold text-teal-600 hover:text-teal-800 hover:underline px-1 py-0.5 rounded transition-colors"
+                                                        x-text="'+ ' + (day.events.length - 3) + ' more'"></button>
+                                                </template>
+                                            </div>
                                         </div>
-                                    </div>
+                                    </template>
                                 </template>
                             </div>
                         </div>
@@ -263,22 +274,30 @@
                         <!-- List View -->
                         <div x-show="calendarView === 'listWeek'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" class="space-y-3">
                             <template x-for="(event, idx) in listEvents" :key="idx">
-                                <div class="flex items-center gap-4 p-4 rounded-xl border border-gray-100 bg-gray-50/40 hover:bg-white hover:shadow-sm transition-all cursor-pointer"
+                                <div class="flex items-center gap-4 p-4 rounded-xl border border-gray-100 bg-gray-50/40 hover:bg-white hover:shadow-sm hover:-translate-y-0.5 transition-all cursor-pointer group"
                                      @click="openViewBookingModal(event)">
-                                    <div class="text-center shrink-0">
-                                        <p class="text-[10px] font-bold text-gray-400 uppercase" x-text="new Date(event.date).toLocaleDateString('en-US', {weekday: 'short'})"></p>
-                                        <p class="text-xl font-black text-gray-900" x-text="new Date(event.date).getDate()"></p>
+                                    <div class="text-center shrink-0 w-12 h-12 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center group-hover:border-teal-300 group-hover:bg-teal-50 transition-colors">
+                                        <p class="text-[9px] font-bold text-teal-600 uppercase" x-text="new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', {weekday: 'short'})"></p>
+                                        <p class="text-lg font-black text-gray-900 group-hover:text-teal-700" x-text="new Date(event.date + 'T00:00:00').getDate()"></p>
                                     </div>
                                     <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-semibold text-gray-900" x-text="event.room_name"></p>
-                                        <p class="text-xs text-gray-500 mt-0.5" x-text="(event.formatted_time || '') + ' • ' + (event.user_name || '')"></p>
+                                        <p class="text-sm font-bold text-gray-900 group-hover:text-teal-700 transition-colors" x-text="event.room_name"></p>
+                                        <div class="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
+                                            <span class="flex items-center gap-1 font-medium"><i class="fa-regular fa-clock"></i> <span x-text="event.formatted_time || ''"></span></span>
+                                            <span class="opacity-50">•</span>
+                                            <span class="flex items-center gap-1"><i class="fa-solid fa-user"></i> <span x-text="event.user_name || ''"></span></span>
+                                        </div>
                                     </div>
-                                    <span class="shrink-0 px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">Approved</span>
+                                    <span class="shrink-0 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white transition-colors border border-emerald-200 group-hover:border-emerald-600">Approved</span>
                                 </div>
                             </template>
                             <template x-if="listEvents.length === 0">
-                                <div class="text-center py-8">
-                                    <p class="text-sm text-gray-500">No upcoming bookings this week.</p>
+                                <div class="text-center py-12 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                                    <div class="w-16 h-16 bg-white rounded-full shadow-sm border border-gray-100 flex items-center justify-center mx-auto mb-3">
+                                        <i class="fa-solid fa-calendar-check text-gray-300 text-2xl"></i>
+                                    </div>
+                                    <p class="text-sm font-semibold text-gray-900">No appointments scheduled</p>
+                                    <p class="text-xs text-gray-500 mt-1">There are no upcoming bookings for this week.</p>
                                 </div>
                             </template>
                         </div>
@@ -295,7 +314,8 @@
                     </div>
                     <div class="divide-y divide-gray-50">
                         @forelse($userBookings->take(5) as $booking)
-                        <div class="flex items-center gap-4 p-4 hover:bg-gray-50/50 transition-colors">
+                        <div class="flex items-center gap-4 p-4 hover:bg-gray-50/50 transition-colors cursor-pointer group/recent"
+                             @click="viewBooking({{ json_encode($booking) }})">
                             <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0
                                 @if($booking->status === 'approved') bg-emerald-100
                                 @elseif($booking->status === 'pending') bg-amber-100

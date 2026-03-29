@@ -8,35 +8,83 @@
 @endsection
 
 @section('content')
-<div x-data="dashboardApp()" x-init="init()" class="flex flex-col xl:h-[calc(100dvh-9rem)] xl:overflow-hidden">
+<div x-data="dashboardApp()" x-init="init()" class="flex flex-col">
     <!-- Main Dashboard Body -->
     <div class="flex-1 min-h-0 overflow-y-auto px-1 group/dashboard">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-8">
             
-            <!-- Left Column: Quick Stats & Current Status (lg:col-span-4) -->
+            <!-- Left Column: Welcome, Stats, Quick Actions (lg:col-span-4) -->
             <div class="lg:col-span-4 space-y-6">
                 <!-- Welcome Card -->
-                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 relative overflow-hidden group/welcome hover:shadow-md transition-all duration-300">
-                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover/welcome:opacity-20 transition-opacity">
-                        <i class="fa-solid fa-house-chimney text-8xl text-teal-600"></i>
+                <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl border border-indigo-400/20 shadow-lg p-6 relative overflow-hidden group/welcome hover:shadow-xl transition-all duration-300 animate-slide-in-up stagger-1">
+                    <div class="absolute -right-4 -bottom-4 opacity-20 transform rotate-12 group-hover/welcome:scale-110 transition-transform">
+                        <i class="fa-solid fa-lightbulb text-9xl text-white"></i>
                     </div>
                     <div class="relative z-10">
-                        <h2 class="text-xl font-bold text-gray-900">Welcome, {{ auth()->user()->name }}!</h2>
-                        <p class="text-gray-500 mt-1 text-sm leading-relaxed">Modernizing your library experience. Manage your room bookings and status from this dashboard.</p>
+                        <h2 class="text-xl font-bold text-white">Welcome, Admin!</h2>
+                        <p class="text-indigo-100 mt-1 text-sm leading-relaxed">Modernizing your library experience. Manage your room bookings and status from this dashboard.</p>
                         
-                        <div class="mt-6 flex flex-wrap gap-2">
-                            <button @click="openBookingModal()" class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]">
-                                <i class="fa-solid fa-plus"></i> New Booking
+                        <div class="mt-6 flex flex-wrap gap-3">
+                            <button @click="document.getElementById('admin-calendar-section')?.scrollIntoView({ behavior: 'smooth' })" class="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-700 text-xs font-bold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0">
+                                <i class="fa-solid fa-calendar opacity-70"></i> Manage Bookings
                             </button>
-                            <a href="{{ route('reservations.index') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl transition-all">
-                                <i class="fa-solid fa-list"></i> My Reservations
+                            <a href="{{ route('reservations.index') }}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-800/50 hover:bg-indigo-800/70 text-white text-xs font-semibold rounded-xl transition-all border border-indigo-500/30 hover:shadow-md">
+                                <i class="fa-solid fa-list opacity-70"></i> My Reservations
                             </a>
                         </div>
                     </div>
                 </div>
 
-                <!-- Status Card -->
-                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                <!-- Quick Stats Grid -->
+                <div class="grid grid-cols-2 gap-3 animate-slide-in-up stagger-2">
+                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all duration-300 group/stat hover:-translate-y-0.5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center group-hover/stat:scale-110 transition-transform">
+                                <i class="fa-solid fa-clock text-amber-600"></i>
+                            </div>
+                            <div>
+                                <p class="text-2xl font-black text-gray-900">{{ $stats['pending'] }}</p>
+                                <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Pending</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all duration-300 group/stat hover:-translate-y-0.5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-100 to-green-100 flex items-center justify-center group-hover/stat:scale-110 transition-transform">
+                                <i class="fa-solid fa-circle-check text-emerald-600"></i>
+                            </div>
+                            <div>
+                                <p class="text-2xl font-black text-gray-900">{{ $stats['approved'] }}</p>
+                                <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Approved</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all duration-300 group/stat hover:-translate-y-0.5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-red-100 to-rose-100 flex items-center justify-center group-hover/stat:scale-110 transition-transform">
+                                <i class="fa-solid fa-circle-xmark text-red-500"></i>
+                            </div>
+                            <div>
+                                <p class="text-2xl font-black text-gray-900">{{ $stats['rejected'] }}</p>
+                                <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Rejected</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all duration-300 group/stat hover:-translate-y-0.5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center group-hover/stat:scale-110 transition-transform">
+                                <i class="fa-solid fa-calendar-day text-blue-600"></i>
+                            </div>
+                            <div>
+                                <p class="text-2xl font-black text-gray-900">{{ $stats['today'] }}</p>
+                                <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Today</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Status Card -->
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 animate-slide-in-up stagger-3">
                     <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
                         <h3 class="font-bold text-gray-900 flex items-center gap-2">
                            <i class="fa-solid fa-shield-check text-teal-600"></i>
@@ -52,26 +100,81 @@
                             </div>
                             <div class="flex items-center justify-between p-3 bg-blue-50 rounded-xl">
                                 <span class="text-xs font-semibold text-blue-800 uppercase">Bookings Today</span>
-                                <span class="text-xs font-black text-blue-700 font-mono">{{ $collabRoomBookings->where('date', now()->today())->count() }} Active</span>
+                                <span class="text-xs font-black text-blue-700 font-mono">{{ $stats['today'] }} Active</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Quick Tips Card -->
-                <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group/tips">
-                    <div class="absolute -right-4 -bottom-4 opacity-20 transform rotate-12 group-hover/tips:scale-110 transition-transform">
-                        <i class="fa-solid fa-lightbulb text-9xl"></i>
+                <!-- Pending Approvals Queue -->
+                @if($pendingBookings->count() > 0)
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 animate-slide-in-up stagger-4">
+                    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
+                        <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                           <i class="fa-solid fa-inbox text-amber-500"></i>
+                           Pending Approvals
+                           <span class="px-2 py-0.5 text-[10px] font-black rounded-full bg-amber-100 text-amber-700">{{ $stats['pending'] }}</span>
+                        </h3>
+                        <a href="{{ route('approvals.index', ['status' => 'pending']) }}" class="text-xs font-semibold text-teal-600 hover:text-teal-700 transition-colors">
+                            View All →
+                        </a>
                     </div>
-                    <h3 class="font-bold text-lg mb-2">Modern SmartSpace</h3>
-                    <p class="text-indigo-100 text-xs leading-relaxed opacity-90">Remember to bring your QC ID for physical verification if required by the librarian.</p>
+                    <div class="divide-y divide-gray-50 max-h-[320px] overflow-y-auto">
+                        @foreach($pendingBookings->take(5) as $booking)
+                        <div class="flex items-center gap-4 p-4 hover:bg-amber-50/30 transition-colors cursor-pointer group/pending"
+                             @click="viewBooking({{ json_encode($booking) }})">
+                            <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0 group-hover/pending:bg-amber-200 transition-colors">
+                                <i class="fa-solid fa-hourglass-half text-amber-600"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h4 class="text-sm font-semibold text-gray-900 truncate">{{ $booking->room->name ?? 'Room' }}</h4>
+                                <p class="text-xs text-gray-500 truncate">{{ $booking->user_name }} • {{ $booking->date->format('M j') }} • {{ $booking->formatted_time }}</p>
+                            </div>
+                            <span class="shrink-0 px-2 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 uppercase">Pending</span>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
+                <!-- Room Utilization -->
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 animate-slide-in-up stagger-5">
+                    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50">
+                        <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                           <i class="fa-solid fa-chart-bar text-indigo-500"></i>
+                           Room Utilization
+                        </h3>
+                    </div>
+                    <div class="p-4 space-y-3">
+                        @foreach($rooms as $room)
+                        @php
+                            $roomBookingCount = $collabRoomBookings->where('room_id', $room->id)->count();
+                            $utilPercent = min(100, $roomBookingCount * 10);
+                        @endphp
+                        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-indigo-50 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-300 cursor-pointer border border-transparent hover:border-indigo-100 group/room"
+                             @click="openRoomModal({{ json_encode($room) }}, {{ $roomBookingCount }})">
+                            <div class="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0 border border-gray-100 group-hover/room:border-indigo-200 group-hover/room:bg-indigo-600 transition-colors">
+                                <i class="fa-solid fa-door-open text-gray-400 group-hover/room:text-white transition-colors"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <span class="text-xs font-bold text-gray-900 truncate group-hover/room:text-indigo-700 transition-colors">{{ $room->name }}</span>
+                                    <span class="text-[10px] font-black uppercase text-indigo-600 tracking-wider bg-indigo-50 px-2 py-0.5 rounded-md">{{ $roomBookingCount }} bookings</span>
+                                </div>
+                                <div class="h-2 bg-gray-200/80 rounded-full overflow-hidden shadow-inner">
+                                    <div class="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 bg-[length:200%_auto] animate-gradient rounded-full transition-all duration-700 group-hover/room:shadow-[0_0_10px_rgba(99,102,241,0.5)]" style="width: {{ $utilPercent }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
                 </div>
             </div>
 
             <!-- Right Column: Calendar & Bookings (lg:col-span-8) -->
-            <div class="lg:col-span-8 space-y-6">
+            <div id="admin-calendar-section" class="lg:col-span-8 space-y-6">
                 <!-- Mini Calendar Subsection -->
-                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all duration-300">
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all duration-300 animate-slide-in-up stagger-2">
                     <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                             <h3 class="font-bold text-gray-900 text-lg">Availability Calendar</h3>
@@ -145,7 +248,7 @@
                 </div>
 
                 <!-- Active Bookings Panel (Compact Version) -->
-                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all duration-300">
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all duration-300 animate-slide-in-up stagger-4">
                     <h3 class="font-bold text-gray-900 mb-6 flex items-center gap-2">
                         <i class="fa-solid fa-clock-rotate-left text-teal-600"></i>
                         Recent Room Activity
@@ -381,6 +484,71 @@
             <button type="button" class="modal-backdrop fixed inset-0 bg-black/40 transition-opacity" @click="showDayEventsModal = false">close</button>
     </div>
 
+    <!-- Room Details Modal -->
+    <div x-show="showRoomModal" x-cloak class="modal p-4" :class="{ 'modal-open': showRoomModal }" @keydown.escape.window="showRoomModal = false">
+        <div class="modal-box w-11/12 max-w-sm p-0 bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col transform transition-all" 
+             @click.stop
+             x-show="showRoomModal"
+             x-transition:enter="ease-out duration-300"
+             x-transition:enter-start="opacity-0 scale-95 translate-y-4"
+             x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+             x-transition:leave="ease-in duration-200"
+             x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+             x-transition:leave-end="opacity-0 scale-95 translate-y-4">
+            
+            <div class="bg-indigo-600 h-24 relative">
+                <!-- Abstract waves background -->
+                <div class="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDIiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgNDAyIDIwMCI+PHBhdGggZD0iTTAgMTc5YzUuMyAzLjggMTAuOCA3IDE2LjYgOS40IDE1LjcgNi40IDM2LjggNi42IDYxLjItLjhDMTMwIDE2Mi40IDE1OSA5MiAxOTQgNjVZMzg2IDQydjMwYzAgMCAwIDAgMCAwaC0xM1Y0MmgxM1pNMzUzIDc1djMwYzAgMCAwIDAgMCAwSDF2LTMwaDM1MlpNMTIgOTFWNjBMMCA2MHZNMThjMjk2IDAtMjk2IDAgMCAwcy0yOTYgMC0yOTYgMFY5MXoiIGZpbGw9IiNmZmYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjwvc3ZnPg==')]"></div>
+                <!-- Banner gradient -->
+                <div class="absolute inset-0 bg-gradient-to-b from-transparent to-indigo-900/60"></div>
+                <button @click="showRoomModal = false" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full text-white backdrop-blur-md transition-all">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+            
+            <div class="px-6 pb-6 pt-0 relative bg-white">
+                <div class="w-20 h-20 -mt-10 mb-4 bg-white rounded-2xl shadow-lg border border-gray-100 flex items-center justify-center relative z-10 mx-auto">
+                    <div class="w-16 h-16 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-xl flex items-center justify-center">
+                        <i class="fa-solid fa-door-open text-3xl text-indigo-600"></i>
+                    </div>
+                </div>
+
+                <div class="text-center mb-6">
+                    <h3 class="text-xl font-black text-gray-900 tracking-tight" x-text="selectedRoom?.name"></h3>
+                    <p class="text-sm font-semibold text-gray-500 uppercase tracking-widest mt-0.5" x-text="selectedRoom?.location || 'General Area'"></p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <div class="bg-gray-50 border border-gray-100 rounded-xl p-3 flex flex-col items-center justify-center">
+                        <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1">Capacity</span>
+                        <div class="flex items-center gap-1.5 text-indigo-600">
+                            <i class="fa-solid fa-users text-sm"></i>
+                            <span class="font-bold text-lg" x-text="selectedRoom?.capacity || 'N/A'"></span>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 border border-gray-100 rounded-xl p-3 flex flex-col items-center justify-center">
+                        <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1">Status</span>
+                        <div class="flex items-center gap-1.5" :class="selectedRoom?.is_operational ? 'text-emerald-600' : 'text-rose-600'">
+                            <i class="fa-solid fa-circle text-[10px] animate-pulse"></i>
+                            <span class="font-bold text-sm tracking-wide" x-text="selectedRoom?.is_operational ? 'Active' : 'Offline'"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 mb-2 flex items-center justify-between">
+                    <div>
+                        <h4 class="text-sm font-bold text-gray-900">Today's Approvals</h4>
+                        <p class="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">Upcoming & ongoing</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center text-lg font-black shadow-md">
+                        <span x-text="selectedRoomCount || 0"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button type="button" class="modal-backdrop fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" @click="showRoomModal = false">close</button>
+    </div>
+
     <!-- Create Booking Modal -->
     <div x-show="showBookingModal" x-cloak class="modal p-4" :class="{ 'modal-open': showBookingModal }" @keydown.escape.window="closeBookingModal()">
         <div class="modal-box w-11/12 max-w-2xl p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
@@ -494,15 +662,6 @@
                                     </div>
                                 </div>
 
-                                <!-- <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        User Email <span class="text-red-500">*</span>
-                                    </label>
-                                    <input type="email" x-model="bookingForm.user_email" required
-                                           placeholder="Enter user email..."
-                                           class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                                </div> -->
-
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
                                     <textarea x-model="bookingForm.description" rows="3"
@@ -572,7 +731,6 @@
                                             </template>
                                         </div>
                                     </div>
-                                    {{-- <p class="mt-1 text-xs text-gray-500">One-hour slots from 8:00 AM to 5:00 PM.</p> --}}
                                 </div>
 
                                 <div>
@@ -666,4 +824,3 @@ window.dashboardCalendarConfig = JSON.parse(document.getElementById('dashboard-c
 </script>
 @endpush
 @endsection
-

@@ -1193,7 +1193,101 @@ export function createDashboardApp(config = {}) {
         timeConflictSuggestions: [],
         timeConflictMessage: '',
         isLoadingTimeConflictSuggestions: false,
-        bookingForm: this.$persist(createDashboardBookingForm(config)).as('student_bookingForm_draft'),
+        bookingForm: createDashboardBookingForm(config),
+
+        viewEvent: null,
+
+        showRoomModal: false,
+        selectedRoom: null,
+        selectedRoomCount: 0,
+        
+        openRoomModal(room, count) {
+            this.selectedRoom = room;
+            this.selectedRoomCount = count || 0;
+            this.showRoomModal = true;
+        },
+
+        // Flat cell array for user dashboard calendar grid (used by dashboard-user.blade.php)
+        get calCells() {
+            const cells = [];
+            const year = parseInt(this.currentYear, 10) || new Date().getFullYear();
+            const month = parseInt(this.currentMonth, 10) || new Date().getMonth();
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startPadding = firstDay.getDay();
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Previous month padding
+            const prevMonth = new Date(year, month, 0);
+            for (let i = startPadding - 1; i >= 0; i--) {
+                cells.push({
+                    day: prevMonth.getDate() - i,
+                    date: null,
+                    isCurrentMonth: false,
+                    isToday: false,
+                    events: [],
+                });
+            }
+
+            // Current month days
+            for (let i = 1; i <= lastDay.getDate(); i++) {
+                const date = new Date(year, month, i);
+                const dateStr = this.formatDateKey(date);
+                cells.push({
+                    day: i,
+                    date: dateStr,
+                    isCurrentMonth: true,
+                    isToday: date.getTime() === today.getTime(),
+                    isPast: date < today,
+                    events: this.calendarData[dateStr] || [],
+                });
+            }
+
+            // Next month padding to fill to 42 cells (6 rows)
+            let nextDay = 1;
+            while (cells.length < 42) {
+                cells.push({
+                    day: nextDay++,
+                    date: null,
+                    isCurrentMonth: false,
+                    isToday: false,
+                    events: [],
+                });
+            }
+
+            return cells;
+        },
+
+        // Flat list of upcoming events for the list view (used by dashboard-user.blade.php)
+        get listEvents() {
+            const events = [];
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const twoWeeksLater = new Date(today);
+            twoWeeksLater.setDate(twoWeeksLater.getDate() + 14);
+
+            if (!this.calendarData || typeof this.calendarData !== 'object') {
+                return events;
+            }
+
+            Object.keys(this.calendarData).sort().forEach((dateStr) => {
+                const dateObj = new Date(dateStr + 'T00:00:00');
+                if (dateObj >= today && dateObj <= twoWeeksLater) {
+                    const dayEvents = this.calendarData[dateStr] || [];
+                    dayEvents.forEach((evt) => {
+                        events.push({ ...evt, date: dateStr });
+                    });
+                }
+            });
+
+            return events;
+        },
+
+        selectCalendarDate(dateStr) {
+            if (!dateStr) return;
+            this.openBookingModal(dateStr);
+        },
 
         get calendarWeeks() {
             const weeks = [];
@@ -1272,34 +1366,6 @@ export function createDashboardApp(config = {}) {
         },
 
         init() {
-            // Initialize persistent state if $persist is available
-            if (this.$persist) {
-                try {
-                    // Initialize only if not already set or invalid
-                    this.showBookingModal = this.$persist(this.showBookingModal).as('student_showBookingModal');
-                    this.showViewModal = this.$persist(this.showViewModal).as('student_showViewModal');
-                    this.showDayEventsModal = this.$persist(this.showDayEventsModal).as('student_showDayEventsModal');
-                    this.selectedBooking = this.$persist(this.selectedBooking).as('student_selectedBooking');
-                    this.selectedDay = this.$persist(this.selectedDay).as('student_selectedDay');
-                    this.calendarView = this.$persist(this.calendarView).as('student_calendarView');
-                    
-                    const pMonth = this.$persist(this.currentMonth).as('student_currentMonth');
-                    const pYear = this.$persist(this.currentYear).as('student_currentYear');
-                    
-                    this.currentMonth = parseInt(pMonth, 10);
-                    if (isNaN(this.currentMonth)) this.currentMonth = new Date().getMonth();
-                    
-                    this.currentYear = parseInt(pYear, 10);
-                    if (isNaN(this.currentYear)) this.currentYear = new Date().getFullYear();
-                } catch (e) {
-                    console.warn('Alpine Persist not available or failed:', e);
-                }
-            }
-
-            if (this.showBookingModal || this.showViewModal || this.showDayEventsModal) {
-                document.body.style.overflow = 'hidden';
-            }
-
             // Ensure title and data are loaded
             this.setMonthTitle();
             this.fetchCalendarData();
@@ -2113,6 +2179,7 @@ export function createDashboardApp(config = {}) {
 
         openViewBookingModal(booking) {
             this.selectedBooking = booking;
+            this.viewEvent = booking;
             this.showViewModal = true;
         },
 
