@@ -32,13 +32,13 @@
 
     <!-- Report Navigator -->
     <div class="print:hidden report-nav-shell bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 rounded-2xl p-6 text-white border border-slate-800 shadow-lg mb-8 animate-slide-in-up stagger-2" id="report-nav-shell">
-        <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div>
+        <div class="report-nav-inner">
+            <div class="report-nav-banner">
                 <p class="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-300/80">Premium Analytics</p>
                 <h2 class="text-xl font-bold mt-1 tracking-tight">Report Navigator</h2>
                 <p class="text-xs text-indigo-200/60 mt-0.5">Jump directly to the data insights you need</p>
             </div>
-            <div class="flex flex-wrap gap-2.5">
+            <div class="report-nav-links flex flex-wrap gap-2.5">
                 <a href="#report-summary" class="report-nav-link inline-flex items-center rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold hover:bg-white/15 transition-all">Summary</a>
                 <a href="#room-breakdown" class="report-nav-link inline-flex items-center rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold hover:bg-white/15 transition-all">Room Breakdown</a>
                 <a href="#top-requesters" class="report-nav-link inline-flex items-center rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold hover:bg-white/15 transition-all">Top Requesters</a>
@@ -444,21 +444,32 @@
 
     rangeSelect.addEventListener('change', () => setRange(rangeSelect.value || 'all'));
 
-    /* ── Floating Navigation ── */
+    /* ── Floating Navigation: shrink on scroll ── */
+    const SHRINK_START = 60;   // px from top where shrink begins
+    const SHRINK_END   = 200;  // px from top where shrink completes
+
     const toggleFloatingNav = () => {
-        const shouldShow = window.scrollY > 400;
-        const isScrollingDown = window.scrollY > lastScrollY;
-        
+        const y = window.scrollY;
+        const shouldShow = y > 400;
+
+        /* Smooth shrink: calculate progress 0→1 */
         if (navShell) {
-            if (window.scrollY < 200) navShell.classList.remove('is-retracted');
-            else navShell.classList.toggle('is-retracted', !isScrollingDown);
+            if (y <= SHRINK_START) {
+                navShell.classList.remove('is-compact');
+            } else if (y >= SHRINK_END) {
+                navShell.classList.add('is-compact');
+            } else {
+                /* Partial scroll zone — snap to compact once past midpoint */
+                const progress = (y - SHRINK_START) / (SHRINK_END - SHRINK_START);
+                navShell.classList.toggle('is-compact', progress > 0.4);
+            }
         }
 
         if (backTopButton) {
             backTopButton.classList.toggle('hidden', !shouldShow);
             backTopButton.classList.toggle('inline-flex', shouldShow);
         }
-        lastScrollY = window.scrollY;
+        lastScrollY = y;
     };
 
     navLinks.forEach((link) => {
@@ -504,16 +515,82 @@
 @push('styles')
 <style>
 html { scroll-behavior: smooth; }
+
+/* ── Report Navigator: default (expanded) state ── */
 .report-nav-shell {
     position: sticky;
-    top: 1.5rem;
+    top: 1rem;
     z-index: 30;
-    transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition: padding 500ms cubic-bezier(0.4, 0, 0.2, 1),
+                border-radius 500ms cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 500ms cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 500ms cubic-bezier(0.4, 0, 0.2, 1);
 }
-.report-nav-shell.is-retracted {
-    transform: translateY(-130%) scale(0.95);
+.report-nav-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    transition: gap 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+@media (min-width: 1024px) {
+    .report-nav-inner {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+}
+
+/* Banner text block — smoothly collapses */
+.report-nav-banner {
+    max-height: 80px;
+    opacity: 1;
+    transform: translateY(0);
+    overflow: hidden;
+    transition: max-height 500ms cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 400ms cubic-bezier(0.4, 0, 0.2, 1),
+                transform 400ms cubic-bezier(0.4, 0, 0.2, 1),
+                margin 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Nav links — subtle tighten */
+.report-nav-links {
+    transition: gap 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.report-nav-links .report-nav-link {
+    transition: padding 400ms cubic-bezier(0.4, 0, 0.2, 1),
+                background 200ms ease,
+                font-size 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Compact (scrolled) state ── */
+.report-nav-shell.is-compact {
+    padding: 0.625rem 1.25rem;
+    border-radius: 1rem;
+    opacity: 0.60;
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.35);
+}
+.report-nav-shell.is-compact:hover {
+    opacity: 1;
+}
+.report-nav-shell.is-compact .report-nav-inner {
+    gap: 0;
+    justify-content: center;
+}
+.report-nav-shell.is-compact .report-nav-banner {
+    max-height: 0;
     opacity: 0;
+    transform: translateY(-8px);
+    margin: 0;
     pointer-events: none;
+}
+.report-nav-shell.is-compact .report-nav-links {
+    gap: 0.375rem;
+    justify-content: center;
+    width: 100%;
+}
+.report-nav-shell.is-compact .report-nav-links .report-nav-link {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.65rem;
 }
 .report-filter-shell { position: relative; overflow: hidden; }
 .report-filter-shell::after {
