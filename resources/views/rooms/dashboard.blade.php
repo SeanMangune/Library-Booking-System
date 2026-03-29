@@ -25,9 +25,9 @@
                         <p class="text-indigo-100 mt-1 text-sm leading-relaxed">Modernizing your library experience. Manage your room bookings and status from this dashboard.</p>
                         
                         <div class="mt-6 flex flex-wrap gap-3">
-                            <button @click="document.getElementById('admin-calendar-section')?.scrollIntoView({ behavior: 'smooth' })" class="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-700 text-xs font-bold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0">
+                            <a href="{{ route('approvals.index') }}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-700 text-xs font-bold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0">
                                 <i class="fa-solid fa-calendar opacity-70"></i> Manage Bookings
-                            </button>
+                            </a>
                             <a href="{{ route('reservations.index') }}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-800/50 hover:bg-indigo-800/70 text-white text-xs font-semibold rounded-xl transition-all border border-indigo-500/30 hover:shadow-md">
                                 <i class="fa-solid fa-list opacity-70"></i> My Reservations
                             </a>
@@ -194,16 +194,16 @@
                     </div>
                     
                     <div class="p-6 transition-all duration-500 min-h-[400px]">
-                        <div x-show="calendarView === 'dayGridMonth'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" class="border border-gray-100 rounded-2xl overflow-hidden shadow-inner bg-gray-50/10">
-                            <div class="grid grid-cols-7 bg-white/50 border-b border-gray-100">
-                                <template x-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="day">
-                                    <div class="py-3 text-center text-[10px] font-black uppercase text-gray-400 tracking-widest" x-text="day"></div>
-                                </template>
-                            </div>
+                        <div x-show="calendarView === 'dayGridMonth'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" class="border border-gray-100 rounded-2xl overflow-x-auto shadow-inner bg-gray-50/10">
+                            <div class="min-w-[700px]">
+                                <div class="grid grid-cols-7 bg-white/50 border-b border-gray-100">
+                                    <template x-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="day">
+                                        <div class="py-3 text-center text-[10px] font-black uppercase text-gray-400 tracking-widest" x-text="day"></div>
+                                    </template>
+                                </div>
 
-                            <div class="grid grid-cols-7">
-                                <template x-for="(week, weekIndex) in calendarWeeks" :key="weekIndex">
-                                    <template x-for="(day, dayIndex) in week" :key="weekIndex + '-' + dayIndex">
+                                <div class="grid grid-cols-7">
+                                    <template x-for="(day, index) in calCells" :key="day.date || index">
                                         <div class="min-h-[110px] sm:min-h-[130px] border-b border-r border-gray-100 p-2 relative group/day transition-all"
                                              @click="!day.isPast && day.isCurrentMonth && openBookingModalForDay(day)"
                                              :class="{
@@ -237,7 +237,7 @@
                                             </div>
                                         </div>
                                     </template>
-                                </template>
+                                </div>
                             </div>
                         </div>
 

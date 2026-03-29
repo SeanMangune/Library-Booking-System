@@ -15,20 +15,31 @@
             <!-- Left Column: Welcome, Stats, Verification (lg:col-span-4) -->
             <div class="lg:col-span-4 space-y-6">
                 <!-- Welcome Card -->
-                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 relative overflow-hidden group/welcome hover:shadow-md transition-all duration-300">
-                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover/welcome:opacity-20 transition-opacity">
-                        <i class="fa-solid fa-house-chimney text-8xl text-teal-600"></i>
+                <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl border border-indigo-500/20 shadow-lg p-6 relative overflow-hidden group/welcome hover:shadow-xl transition-all duration-300 animate-slide-in-up stagger-1">
+                    <div class="absolute -right-4 -bottom-4 opacity-20 transform rotate-12 group-hover/welcome:scale-110 transition-transform">
+                        <i class="fa-solid fa-book-open-reader text-9xl text-white"></i>
                     </div>
                     <div class="relative z-10">
-                        <h2 class="text-xl font-bold text-gray-900">Welcome, {{ auth()->user()->name }}!</h2>
-                        <p class="text-gray-500 mt-1 text-sm leading-relaxed">Your personal library booking dashboard. Manage your reservations and stay organized.</p>
+                        <h2 class="text-xl font-bold text-white">Welcome, {{ explode(',', auth()->user()->name)[1] ?? auth()->user()->name }}!</h2>
+                        <p class="text-indigo-100 mt-1 text-sm leading-relaxed">Your personal library booking dashboard. Manage your reservations and stay organized.</p>
 
-                        <div class="mt-6 flex flex-wrap gap-2">
-                            <button @click="openBookingModal()" class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]">
-                                <i class="fa-solid fa-plus"></i> New Booking
+                        <div class="mt-5 mb-6 p-4 rounded-xl bg-white/10 border border-white/20 backdrop-blur-sm group-hover/welcome:bg-white/15 transition-all">
+                            <h3 class="font-bold text-white text-xs uppercase tracking-wider mb-2 opacity-90 flex items-center gap-2">
+                                <i class="fa-solid fa-lightbulb text-indigo-200"></i> Quick Tips
+                            </h3>
+                            <ul class="space-y-1.5 text-indigo-100 text-xs leading-relaxed">
+                                <li class="flex items-start gap-2"><i class="fa-solid fa-check mt-0.5 opacity-80"></i> Book up to 14 days ahead</li>
+                                <li class="flex items-start gap-2"><i class="fa-solid fa-check mt-0.5 opacity-80"></i> Approved bookings generate a QR code for seamless check-in</li>
+                                <li class="flex items-start gap-2"><i class="fa-solid fa-check mt-0.5 opacity-80"></i> Cancellations must be made at least 2 hours before your scheduled slot</li>
+                            </ul>
+                        </div>
+
+                        <div class="flex flex-wrap gap-3">
+                            <button @click="openBookingModal()" class="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-700 text-xs font-bold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0">
+                                <i class="fa-solid fa-plus opacity-70"></i> New Booking
                             </button>
-                            <a href="{{ route('reservations.index') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl transition-all">
-                                <i class="fa-solid fa-list"></i> My Reservations
+                            <a href="{{ route('reservations.index') }}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-800/40 hover:bg-indigo-800/60 text-white text-xs font-semibold rounded-xl transition-all border border-indigo-400/30 hover:shadow-md">
+                                <i class="fa-solid fa-list opacity-70"></i> My Reservations
                             </a>
                         </div>
                     </div>
@@ -125,22 +136,7 @@
                     </div>
                 </div>
 
-                <!-- Quick Tips -->
-                <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group/tips">
-                    <div class="absolute -right-4 -bottom-4 opacity-20 transform rotate-12 group-hover/tips:scale-110 transition-transform">
-                        <i class="fa-solid fa-lightbulb text-9xl"></i>
-                    </div>
-                    <h3 class="font-bold text-lg mb-2">Quick Tips</h3>
-                    <ul class="space-y-2 text-indigo-100 text-xs leading-relaxed opacity-90">
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-check mt-0.5"></i> Book up to 14 days ahead</li>
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-check mt-0.5"></i> Bring your QC ID for physical verification if required by the Librarian</li>
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-check mt-0.5"></i> Cancel at least 2 hours before your slot</li>
-                    </ul>
-                </div>
-            </div>
 
-            <!-- Right Column: Upcoming Bookings & Calendar (lg:col-span-8) -->
-            <div class="lg:col-span-8 space-y-6">
 
                 <!-- Upcoming Bookings -->
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
@@ -224,16 +220,16 @@
                     </div>
 
                     <div class="p-6 transition-all duration-500 min-h-[400px]">
-                        <div x-show="calendarView === 'dayGridMonth'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" class="border border-gray-100 rounded-2xl overflow-hidden shadow-inner bg-gray-50/10">
-                            <div class="grid grid-cols-7 bg-white/50 border-b border-gray-100">
-                                <template x-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="day">
-                                    <div class="py-3 text-center text-[10px] font-black uppercase text-gray-400 tracking-widest" x-text="day"></div>
-                                </template>
-                            </div>
+                        <div x-show="calendarView === 'dayGridMonth'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" class="border border-gray-100 rounded-2xl overflow-x-auto shadow-inner bg-gray-50/10">
+                            <div class="min-w-[700px]">
+                                <div class="grid grid-cols-7 bg-white/50 border-b border-gray-100">
+                                    <template x-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="day">
+                                        <div class="py-3 text-center text-[10px] font-black uppercase text-gray-400 tracking-widest" x-text="day"></div>
+                                    </template>
+                                </div>
 
-                            <div class="grid grid-cols-7">
-                                <template x-for="(week, weekIndex) in calendarWeeks" :key="weekIndex">
-                                    <template x-for="(day, dayIndex) in week" :key="weekIndex + '-' + dayIndex">
+                                <div class="grid grid-cols-7">
+                                    <template x-for="(day, index) in calCells" :key="day.date || index">
                                         <div class="min-h-[110px] sm:min-h-[130px] border-b border-r border-gray-100 p-2 relative group/day transition-all"
                                              @click="!day.isPast && day.isCurrentMonth && openBookingModalForDay(day)"
                                              :class="{
@@ -267,7 +263,7 @@
                                             </div>
                                         </div>
                                     </template>
-                                </template>
+                                </div>
                             </div>
                         </div>
 
@@ -479,9 +475,13 @@
                                         Book for User <span class="text-red-500">*</span>
                                     </label>
                                     <input type="text" x-model="bookingForm.user_name" required
-                                           :value="verifiedRegistrationName || bookingForm.user_name || ''"
                                            placeholder="Enter user name..."
+                                           :readonly="hasVerifiedRegistration"
+                                           :class="hasVerifiedRegistration ? 'bg-gray-50 text-gray-600 cursor-not-allowed' : ''"
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                    <template x-if="hasVerifiedRegistration">
+                                        <p class="mt-1 text-xs text-emerald-600 flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Auto-filled from verified QC ID</p>
+                                    </template>
                                 </div>
 
                                 <div class="rounded-xl border border-gray-200 bg-gray-50/80 p-4">
@@ -676,6 +676,9 @@
 {!! json_encode([
     'hasVerifiedRegistration' => $hasVerifiedRegistration,
     'verifiedRegistrationName' => $verifiedRegistration?->full_name,
+    'userName' => $verifiedRegistration?->full_name ?? auth()->user()?->name ?? '',
+    'userEmail' => auth()->user()?->email ?? '',
+    'verifiedQcIdNumber' => $verifiedRegistration?->qcid_number ?? '',
     'isStaffUser' => auth()->user()?->isStaff() ?? false,
     'rooms' => $roomOptions,
     'defaultDate' => now()->format('Y-m-d'),

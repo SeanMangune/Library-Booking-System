@@ -175,7 +175,8 @@
                         @endphp
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-1">
-                                <button x-on:click="viewBooking({{ Js::from($viewData) }})"
+                                <button data-booking="{{ json_encode($viewData) }}"
+                                        x-on:click="viewBooking(JSON.parse($el.dataset.booking))"
                                         class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="View">
                                     <i class="w-4 h-4 fa-icon fa-solid fa-eye text-base leading-none"></i>
                                 </button>

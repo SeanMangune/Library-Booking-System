@@ -222,9 +222,13 @@ class AuthController extends Controller
             'address' => ['nullable', 'string', 'max:100'],
             'ocr_text' => ['required', 'string'],
             'qr_validated_id' => ['nullable', 'string', 'max:50'],
+            'qcid_image' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:25600'],
         ], [
             'password.regex' => 'Password must be at least 8 characters, contain at least one uppercase letter and one number.'
         ]);
+
+        // Save the uploaded QC ID image
+        $imagePath = $request->file('qcid_image')->store('qcid_images', 'public');
 
         $ocrText = $validated['ocr_text'];
         $ocrVerifier = app(\App\Services\QcIdOcrVerifier::class);
@@ -269,6 +273,7 @@ class AuthController extends Controller
             'valid_until' => $validated['valid_until'],
             'address' => $validated['address'],
             'ocr_text' => $validated['ocr_text'],
+            'qcid_image_path' => $imagePath,
             'verification_status' => 'verified', // Auto-verified since it came through the portal
             'submitted_at' => now(),
             'reviewed_at' => now(),

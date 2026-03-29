@@ -70,9 +70,6 @@
                 @endforeach
             </select>
         </form>
-        @if(request()->anyFilled(['room', 'status']))
-        <a href="{{ route('approvals.index') }}" class="text-xs font-semibold text-blue-600 hover:text-blue-700 underline underline-offset-4 decoration-blue-200">Clear all filters</a>
-        @endif
     </div>
 
     <!-- Bookings List -->
@@ -89,8 +86,8 @@
         </h2>
     </div>
 
-    <!-- Content with smooth fade-in (no jarring stagger replays) -->
-    <div class="space-y-5 approvals-content-fade">
+    <!-- Content with smooth entrance -->
+    <div class="space-y-5">
         @forelse($bookings as $index => $booking)
         @php
             $bookingData = [
@@ -121,8 +118,9 @@
             ];
         @endphp
         <div class="booking-card bg-white rounded-2xl border border-gray-200 shadow-sm p-6 hover:shadow-xl hover:border-indigo-200 hover:-translate-y-1 transition-all duration-300 cursor-pointer group relative"
-             style="animation: approvalCardIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) {{ $index * 0.05 }}s both;"
-             x-on:click="openApprovalModal({{ Js::from($bookingData) }})">
+             style="animation: approvalCardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) {{ $index * 0.08 }}s both;"
+             data-booking="{{ json_encode($bookingData) }}"
+             x-on:click="openApprovalModal(JSON.parse($el.dataset.booking))">
             <div class="flex flex-col md:flex-row md:items-start justify-between gap-6">
                 <div class="flex items-start gap-5 flex-1">
                     <div class="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0 group-hover:bg-indigo-600 transition-colors duration-300">
@@ -263,26 +261,16 @@
 
 @push('styles')
 <style>
-/* Smooth card entrance for approvals - fast, non-jarring */
+/* Smooth, dynamic card entrance */
 @keyframes approvalCardIn {
     from {
         opacity: 0;
-        transform: translateY(12px);
+        transform: translateY(20px) scale(0.98);
     }
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0) scale(1);
     }
-}
-
-/* Page-level fade for tab switching */
-.approvals-content-fade {
-    animation: approvalsFadeIn 0.3s ease-out;
-}
-
-@keyframes approvalsFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
 }
 </style>
 @endpush

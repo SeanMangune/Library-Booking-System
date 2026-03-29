@@ -29,6 +29,16 @@ function todayDateString() {
     return new Date().toISOString().split('T')[0];
 }
 
+function buildUrl(base, params) {
+    const url = new URL(base, window.location.origin);
+    Object.keys(params).forEach(key => {
+        if (params[key] !== undefined && params[key] !== null) {
+            url.searchParams.append(key, params[key]);
+        }
+    });
+    return url.toString();
+}
+
 async function performQcIdVerification(file, userName, verifyUrl) {
     const reader = new FileReader();
     const base64Promise = new Promise((resolve) => {
@@ -1140,11 +1150,11 @@ function createDashboardBookingForm(config, dateOverride = null) {
         start_time: defaultSlot.start_time,
         end_time: defaultSlot.end_time,
         attendees: 1,
-        user_name: '',
-        user_email: '',
+        user_name: config.userName || '',
+        user_email: config.userEmail || '',
         description: '',
         qc_id_ocr_text: '',
-        qc_id_cardholder_name: '',
+        qc_id_cardholder_name: config.verifiedRegistrationName || '',
     };
 }
 
@@ -2153,10 +2163,16 @@ export function createDashboardApp(config = {}) {
                 this.qcIdVerification = {
                     is_valid: true,
                     cardholder_name: this.verifiedRegistrationName || '',
+                    id_number: config.verifiedQcIdNumber || '',
                     confidence_score: 100,
                     source: 'registration',
                 };
+                this.bookingForm.user_name = config.userName || this.verifiedRegistrationName || '';
+                this.bookingForm.qc_id_cardholder_name = this.verifiedRegistrationName || '';
             } else {
+                if (config.userName) {
+                    this.bookingForm.user_name = config.userName;
+                }
                 this.resetQcIdState({ keepPreview: false });
             }
 

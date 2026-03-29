@@ -75,13 +75,13 @@
         <form method="GET" action="{{ route('reports.index') }}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6" id="reports-filter-form">
             <div class="space-y-1.5">
                 <label class="block text-xs font-black text-gray-500 uppercase tracking-widest">Date From</label>
-                <input type="date" name="date_from" id="date-from-input" value="{{ $filters['date_from'] }}"
-                       class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 shadow-sm transition-all font-semibold text-gray-900">
+                <input type="text" name="date_from" id="date-from-input" value="{{ $filters['date_from'] }}" placeholder="Pick a date" readonly
+                       class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 shadow-sm transition-all font-semibold text-gray-900 cursor-pointer">
             </div>
             <div class="space-y-1.5">
                 <label class="block text-xs font-black text-gray-500 uppercase tracking-widest">Date To</label>
-                <input type="date" name="date_to" id="date-to-input" value="{{ $filters['date_to'] }}"
-                       class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 shadow-sm transition-all font-semibold text-gray-900">
+                <input type="text" name="date_to" id="date-to-input" value="{{ $filters['date_to'] }}" placeholder="Pick a date" readonly
+                       class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 shadow-sm transition-all font-semibold text-gray-900 cursor-pointer">
             </div>
             <div class="space-y-1.5">
                 <label class="block text-xs font-black text-gray-500 uppercase tracking-widest">Room Filter</label>
@@ -334,7 +334,7 @@
 
         @if($bookings->hasPages())
             <div class="px-6 py-6 border-t border-gray-100 bg-gray-50/30">
-                {{ $bookings->links() }}
+                {{ $bookings->fragment('detailed-bookings')->links() }}
             </div>
         @endif
     </div>
@@ -348,6 +348,9 @@
 </div>
 
 @push('scripts')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/airbnb.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
 (() => {
     const form = document.getElementById('reports-filter-form');
@@ -362,6 +365,37 @@
 
     if (!form || !fromInput || !toInput || !rangeSelect) return;
 
+    /* ── Flatpickr Calendar Date Pickers ── */
+    const fpConfig = {
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'M d, Y',
+        allowInput: false,
+        disableMobile: true,
+        animate: true,
+    };
+
+    const fpFrom = flatpickr(fromInput, {
+        ...fpConfig,
+        defaultDate: fromInput.value || null,
+        onChange(selectedDates) {
+            if (selectedDates[0]) {
+                fpTo.set('minDate', selectedDates[0]);
+            }
+        },
+    });
+
+    const fpTo = flatpickr(toInput, {
+        ...fpConfig,
+        defaultDate: toInput.value || null,
+        onChange(selectedDates) {
+            if (selectedDates[0]) {
+                fpFrom.set('maxDate', selectedDates[0]);
+            }
+        },
+    });
+
+    /* ── Date Helpers ── */
     const toDateString = (value) => {
         const year = value.getFullYear();
         const month = String(value.getMonth() + 1).padStart(2, '0');
@@ -375,14 +409,14 @@
         let start = new Date(today);
 
         if (range === 'all') {
-            fromInput.value = '';
-            toInput.value = '';
+            fpFrom.clear();
+            fpTo.clear();
             return;
         }
 
         if (range === 'today') {
-            fromInput.value = toDateString(today);
-            toInput.value = toDateString(today);
+            fpFrom.setDate(today, true);
+            fpTo.setDate(today, true);
             return;
         }
 
@@ -392,8 +426,8 @@
             const firstDayCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
             const lastDayPreviousMonth = new Date(firstDayCurrentMonth.getTime() - 86400000);
             const firstDayPreviousMonth = new Date(lastDayPreviousMonth.getFullYear(), lastDayPreviousMonth.getMonth(), 1);
-            fromInput.value = toDateString(firstDayPreviousMonth);
-            toInput.value = toDateString(lastDayPreviousMonth);
+            fpFrom.setDate(firstDayPreviousMonth, true);
+            fpTo.setDate(lastDayPreviousMonth, true);
             return;
         } else if (range === 'year') {
             start = new Date(today.getFullYear(), 0, 1);
@@ -404,20 +438,13 @@
             start.setDate(start.getDate() - (days - 1));
         }
 
-        fromInput.value = toDateString(start);
-        toInput.value = toDateString(end);
+        fpFrom.setDate(start, true);
+        fpTo.setDate(end, true);
     };
-
-    fromInput.addEventListener('change', () => {
-        if (fromInput.value && toInput.value && fromInput.value > toInput.value) toInput.value = fromInput.value;
-    });
-
-    toInput.addEventListener('change', () => {
-        if (fromInput.value && toInput.value && toInput.value < fromInput.value) fromInput.value = toInput.value;
-    });
 
     rangeSelect.addEventListener('change', () => setRange(rangeSelect.value || 'all'));
 
+    /* ── Floating Navigation ── */
     const toggleFloatingNav = () => {
         const shouldShow = window.scrollY > 400;
         const isScrollingDown = window.scrollY > lastScrollY;
@@ -450,16 +477,25 @@
     }
 
     window.addEventListener('scroll', toggleFloatingNav, { passive: true });
-    
+
+    /* ── Bidirectional Scroll Reveal: fade-in when entering, fade-out when leaving ── */
     if ('IntersectionObserver' in window && revealTargets.length) {
-        const revealObserver = new IntersectionObserver((entries, observer) => {
+        const revealObserver = new IntersectionObserver((entries) => {
             entries.forEach((entry) => {
-                if (!entry.isIntersecting) return;
-                entry.target.classList.add('is-visible');
-                observer.unobserve(entry.target);
+                entry.target.classList.toggle('is-visible', entry.isIntersecting);
             });
-        }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+        }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
         revealTargets.forEach((target) => revealObserver.observe(target));
+    }
+
+    /* ── Scroll to anchor on page load if hash is present (pagination) ── */
+    if (window.location.hash) {
+        const hashTarget = document.querySelector(window.location.hash);
+        if (hashTarget) {
+            requestAnimationFrame(() => {
+                hashTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }
     }
 })();
 </script>
@@ -489,15 +525,40 @@ html { scroll-behavior: smooth; }
 }
 .report-reveal {
     opacity: 0;
-    transform: translateY(30px) scale(0.98);
-    filter: blur(4px);
-    transition: all 800ms cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateY(24px) scale(0.97);
+    filter: blur(3px);
+    transition: opacity 600ms cubic-bezier(0.4, 0, 0.2, 1),
+                transform 600ms cubic-bezier(0.4, 0, 0.2, 1),
+                filter 600ms cubic-bezier(0.4, 0, 0.2, 1);
     will-change: transform, opacity, filter;
 }
 .report-reveal.is-visible {
     opacity: 1;
     transform: translateY(0) scale(1);
     filter: blur(0);
+}
+/* Flatpickr overrides for premium look */
+.flatpickr-calendar {
+    border-radius: 16px !important;
+    box-shadow: 0 20px 60px -15px rgba(0,0,0,0.2) !important;
+    border: 1px solid #e5e7eb !important;
+    font-family: inherit !important;
+}
+.flatpickr-months .flatpickr-month {
+    border-radius: 16px 16px 0 0 !important;
+}
+.flatpickr-day.selected,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange {
+    background: #6366f1 !important;
+    border-color: #6366f1 !important;
+}
+.flatpickr-day.today {
+    border-color: #6366f1 !important;
+}
+.flatpickr-day:hover {
+    background: #eef2ff !important;
+    border-color: #c7d2fe !important;
 }
 </style>
 @endpush
