@@ -1437,6 +1437,16 @@ export function createDashboardApp(config = {}) {
                 this.clearTimeConflictSuggestions();
             });
 
+            this.$watch('bookingForm.attendees', (value) => {
+                const max = this.attendeeInputMax;
+                if (max && Number(value) > Number(max)) {
+                    this.bookingForm.attendees = Number(max);
+                }
+                if (Number(value) < 1 && value !== '' && value !== null) {
+                    this.bookingForm.attendees = 1;
+                }
+            });
+
             this.$watch('bookingForm.date', (value) => {
                 this.ensureBookingDateOption(value);
                 this.clearTimeConflictSuggestions();
