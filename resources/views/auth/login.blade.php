@@ -617,7 +617,7 @@ function signupLoginApp($persist, initialSignupOpen) {
         showSignupConfirmPassword: false,
         signupPassword: '',
         signupConfirmPassword: '',
-        signup: $persist({ ...window.signupOldInput }).as('smartspace_signup_data'),
+        signup: { ...window.signupOldInput },
         scan: {
             file: null,
             previewUrl: '',
