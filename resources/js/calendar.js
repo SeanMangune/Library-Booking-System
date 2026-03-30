@@ -273,11 +273,7 @@ function toBookingRange(startValue, endValue) {
 }
 
 function hasInclusiveTimeConflict(existingRange, candidateRange) {
-    return (
-        (existingRange.start >= candidateRange.start && existingRange.start <= candidateRange.end)
-        || (existingRange.end >= candidateRange.start && existingRange.end <= candidateRange.end)
-        || (existingRange.start <= candidateRange.start && existingRange.end >= candidateRange.end)
-    );
+    return existingRange.start < candidateRange.end && existingRange.end > candidateRange.start;
 }
 
 function normalizeEventRanges(events) {
@@ -304,7 +300,7 @@ function slotConflictsWithRanges(slotValue, ranges) {
     return ranges.some((range) => hasInclusiveTimeConflict(range, slotRange));
 }
 
-function buildNearbyAvailableTimeSuggestions(slotValue, events, limit = 4) {
+function buildNearbyAvailableTimeSuggestions(slotValue, events, selectedDate = null, limit = 4) {
     const selectedSlot = resolveBookingTimeSlot(slotValue);
     const selectedRange = toBookingRange(selectedSlot?.start_time, selectedSlot?.end_time);
 
@@ -312,11 +308,28 @@ function buildNearbyAvailableTimeSuggestions(slotValue, events, limit = 4) {
         return [];
     }
 
+    let currentMinutes = -1;
+    if (selectedDate) {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        if (selectedDate === `${year}-${month}-${day}`) {
+            currentMinutes = (d.getHours() * 60) + d.getMinutes();
+        }
+    }
+
     const occupiedRanges = normalizeEventRanges(events);
 
     return BOOKING_TIME_SLOTS
         .filter((slot) => slot.value !== selectedSlot.value)
-        .filter((slot) => !slotConflictsWithRanges(slot.value, occupiedRanges))
+        .filter((slot) => {
+            const slotRange = toBookingRange(slot.start_time, slot.end_time);
+            if (currentMinutes > -1 && slotRange && slotRange.start <= currentMinutes) {
+                return false;
+            }
+            return !slotConflictsWithRanges(slot.value, occupiedRanges);
+        })
         .map((slot) => {
             const slotRange = toBookingRange(slot.start_time, slot.end_time);
 
@@ -654,6 +667,7 @@ export function createRoomCalendarApp(config = {}) {
                 const suggestions = buildNearbyAvailableTimeSuggestions(
                     this.bookingForm.time_slot,
                     Array.isArray(events) ? events : [],
+                    this.bookingForm.date
                 );
 
                 this.timeConflictSuggestions = suggestions;
@@ -1562,6 +1576,7 @@ export function createDashboardApp(config = {}) {
                 const suggestions = buildNearbyAvailableTimeSuggestions(
                     this.bookingForm.time_slot,
                     Array.isArray(events) ? events : [],
+                    this.bookingForm.date
                 );
 
                 this.timeConflictSuggestions = suggestions;
