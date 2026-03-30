@@ -279,10 +279,7 @@ class AuthController extends Controller
             'reviewed_at' => now(),
         ]);
 
-        Auth::login($user);
-        $request->session()->regenerate();
-
-        return $this->redirectFor($user);
+        return redirect()->route('login')->with('registration_success', 'Your account has been created successfully! Please log in with your username or email and password.');
     }
 
     public function logout(Request $request)

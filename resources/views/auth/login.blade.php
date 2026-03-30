@@ -17,6 +17,19 @@
             </div>
         </div>
 
+        {{-- Registration success message --}}
+        @if (session('registration_success'))
+            <div class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex items-start gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-circle-check text-emerald-600 text-lg"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-emerald-800">Account Created Successfully!</p>
+                    <p class="text-xs text-emerald-700 mt-1">{{ session('registration_success') }}</p>
+                </div>
+            </div>
+        @endif
+
         {{-- Only show login errors for login attempts --}}
         @if ($errors->has('login'))
             <div class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4">
@@ -130,7 +143,7 @@
                         <form method="POST" action="{{ route('login.post') }}" class="space-y-3">
                             @csrf
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700">Email or Username</label>
+                                <label class="block text-sm font-semibold text-gray-700">Username or Email</label>
                                 <input name="login" type="text" value="{{ old('login') }}" required autocomplete="username"
                                        class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                             </div>
