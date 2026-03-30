@@ -254,8 +254,10 @@
                                     <span class="absolute text-gray-400" style="left: 0.75rem; top: 0.65rem;">
                                         <i class="w-4 h-4 fa-icon fa-solid fa-calendar-days text-base leading-none"></i>
                                     </span>
-                                    <input type="datetime-local" x-model="roomForm.status_start_at"
-                                           class="w-full pl-[2.1rem] pr-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs sm:text-sm bg-gray-50">
+                                    <input type="text" x-model="roomForm.status_start_at"
+                                           x-init="flatpickr($el, { enableTime: true, dateFormat: 'Y-m-d H:i', minuteIncrement: 15 })"
+                                           placeholder="Select start date/time"
+                                           class="w-full pl-[2.1rem] pr-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs sm:text-sm bg-gray-50 cursor-pointer">
                                 </div>
                             </div>
                             <div>
@@ -264,8 +266,10 @@
                                     <span class="absolute text-gray-400" style="left: 0.75rem; top: 0.65rem;">
                                         <i class="w-4 h-4 fa-icon fa-solid fa-calendar-days text-base leading-none"></i>
                                     </span>
-                                    <input type="datetime-local" x-model="roomForm.status_end_at"
-                                           class="w-full pl-[2.1rem] pr-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs sm:text-sm bg-gray-50">
+                                    <input type="text" x-model="roomForm.status_end_at"
+                                           x-init="flatpickr($el, { enableTime: true, dateFormat: 'Y-m-d H:i', minuteIncrement: 15 })"
+                                           placeholder="Select end date/time"
+                                           class="w-full pl-[2.1rem] pr-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs sm:text-sm bg-gray-50 cursor-pointer">
                                 </div>
                             </div>
                         </div>
@@ -464,14 +468,18 @@ function roomManagement() {
 
                 const data = await response.json();
                 
-                if (data.success) {
+                if (response.ok && data.success !== false) {
                     window.notifyApp?.('success', data.message || 'Room saved successfully.');
                     this.closeModal();
                     window.setTimeout(() => {
                         window.location.reload();
                     }, 850);
                 } else {
-                    window.notifyApp?.('error', data.message || 'An error occurred');
+                    let errMsg = data.message || 'An error occurred';
+                    if (data.errors && Object.values(data.errors).length > 0) {
+                        errMsg = Object.values(data.errors)[0][0];
+                    }
+                    window.notifyApp?.('error', errMsg);
                 }
             } catch (error) {
                 console.error('Error:', error);

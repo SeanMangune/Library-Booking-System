@@ -144,7 +144,7 @@
                             @csrf
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700">Username or Email</label>
-                                <input name="login" type="text" value="{{ old('login') }}" required autocomplete="username"
+                                <input name="login" type="text" value="{{ old('login', session('registered_username')) }}" required autocomplete="username"
                                        class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                             </div>
                             <div>
