@@ -1,11 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="/images/icons/icon-192.svg">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'SmartSpace')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
     <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
@@ -83,8 +90,85 @@
         .transition-smooth { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
         /* Card hover effects */
         .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.1); }
+        /* Page content fade-in */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        main { animation: fadeInUp 0.4s ease-out; }
+        /* Button press micro-animation */
+        button:active:not(:disabled), [type="submit"]:active:not(:disabled) {
+            transform: scale(0.97);
+            transition: transform 0.1s ease;
+        }
+        /* Smooth input focus transition */
+        input, select, textarea {
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        /* Form validation shake */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+        .animate-shake { animation: shake 0.3s ease-in-out; }
         /* Gradient text */
-        .gradient-text { background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .gradient-text { background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        /* Staggered entrance animations for dashboard cards */
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(24px) scale(0.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-24px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(24px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.92); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-slide-in-up { animation: slideInUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .animate-slide-in-left { animation: slideInLeft 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .animate-slide-in-right { animation: slideInRight 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .animate-scale-in { animation: scaleIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        
+        /* Premium Wave Stagger delays (30ms increments for smoothness) */
+        .stagger-1 { animation-delay: 0.03s; opacity: 0; }
+        .stagger-2 { animation-delay: 0.06s; opacity: 0; }
+        .stagger-3 { animation-delay: 0.09s; opacity: 0; }
+        .stagger-4 { animation-delay: 0.12s; opacity: 0; }
+        .stagger-5 { animation-delay: 0.15s; opacity: 0; }
+        .stagger-6 { animation-delay: 0.18s; opacity: 0; }
+        .stagger-7 { animation-delay: 0.21s; opacity: 0; }
+        .stagger-8 { animation-delay: 0.24s; opacity: 0; }
+        .stagger-9 { animation-delay: 0.27s; opacity: 0; }
+        .stagger-10 { animation-delay: 0.3s; opacity: 0; }
+        .stagger-11 { animation-delay: 0.33s; opacity: 0; }
+        .stagger-12 { animation-delay: 0.36s; opacity: 0; }
+        /* Skeleton loading */
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 0.75rem;
+        }
+        /* Subtle glow for premium cards */
+        @keyframes subtleGlow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+            50% { box-shadow: 0 0 20px 2px rgba(99, 102, 241, 0.08); }
+        }
+        .card-glow:hover { animation: subtleGlow 2s ease-in-out infinite; }
+        /* Smooth hover lift for interactive cards */
+        .hover-lift { transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease; }
+        .hover-lift:hover { transform: translateY(-3px); box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.12); }
         .sidebar-brand,
         .sidebar-section-label,
         .sidebar-text,
@@ -165,7 +249,7 @@
     </style>
     @stack('styles')
 </head>
-<body class="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100 text-gray-900 antialiased">
+<body class="min-h-screen bg-white text-gray-900 antialiased">
     @php
         $currentUser = auth()->user();
         $isStaff = $currentUser?->isStaff() ?? false;
@@ -284,7 +368,7 @@
                 <div class="flex items-center gap-3">
                     <div class="relative h-12 w-12 flex items-center justify-center">
                         <span class="absolute inset-0 rounded-full bg-indigo-400/25 blur-md"></span>
-                        <img src="{{ asset('images/smartspace-mark.svg') }}" alt="SmartSpace" class="relative h-12 w-12 object-contain drop-shadow-[0_0_20px_rgba(129,140,248,0.55)]" onerror="this.onerror=null;this.src='{{ asset('images/smartspace-logo.svg') }}';">
+                        <img src="/images/smartspace-logo.png" alt="SmartSpace" class="relative h-14 w-auto object-contain logo-premium logo-glow-small">
                     </div>
                     <div class="sidebar-brand">
                         <span class="text-white font-bold text-lg tracking-tight">SmartSpace</span>
@@ -545,6 +629,81 @@
          <div x-show="sidebarOpen && !canHoverSidebar" @click="sidebarOpen = false" x-cloak
              class="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"></div>
     </div>
+
+    <div id="swUpdateToast" class="hidden fixed left-1/2 bottom-6 z-50 w-[92%] max-w-md -translate-x-1/2 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm shadow-xl">
+        <div class="flex items-center justify-between gap-3">
+            <p class="text-slate-700">A new SmartSpace version is ready.</p>
+            <button id="swUpdateBtn" type="button" class="shrink-0 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">
+                Refresh
+            </button>
+        </div>
+    </div>
+
+    <script>
+    if ('serviceWorker' in navigator) {
+        let swRegistration;
+        let refreshing = false;
+        const updateToast = document.getElementById('swUpdateToast');
+        const updateBtn = document.getElementById('swUpdateBtn');
+
+        const showUpdateToast = function () {
+            if (updateToast) {
+                updateToast.classList.remove('hidden');
+            }
+        };
+
+        const bindUpdateFlow = function (registration) {
+            if (!registration) {
+                return;
+            }
+
+            if (registration.waiting) {
+                showUpdateToast();
+            }
+
+            registration.addEventListener('updatefound', function () {
+                const newWorker = registration.installing;
+                if (!newWorker) {
+                    return;
+                }
+
+                newWorker.addEventListener('statechange', function () {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        showUpdateToast();
+                    }
+                });
+            });
+        };
+
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+            if (refreshing) {
+                return;
+            }
+            refreshing = true;
+            window.location.reload();
+        });
+
+        updateBtn?.addEventListener('click', function () {
+            if (swRegistration && swRegistration.waiting) {
+                swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+        });
+
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/sw.js')
+                .then(function (registration) {
+                    swRegistration = registration;
+                    bindUpdateFlow(registration);
+                    window.setInterval(function () {
+                        registration.update();
+                    }, 60 * 60 * 1000);
+                })
+                .catch(function(error) {
+                    console.error('Service worker registration failed', error);
+                });
+        });
+    }
+    </script>
 
     @stack('scripts')
 </body>

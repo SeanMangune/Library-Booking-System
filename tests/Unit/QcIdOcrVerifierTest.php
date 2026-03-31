@@ -168,4 +168,77 @@ TEXT;
 
         $this->assertSame('005 000 01257479', $result['id_number']);
     }
+
+    public function test_it_prefers_bottom_strip_id_and_filters_noisy_address_content(): void
+    {
+        $text = <<<'TEXT'
+Q CITIZENCARD
+KASAMA KA SA PAG UNLAD
+LAST NAME FIRST NAME MIDDLE NAME
+A JIBE MICCO JIRO FRUELDA
+SEX DATE OF BIRTH CIVIL STATUS
+M 2000/08/25 SINGLE
+DATE ISSUED VALID UNTIL
+ADDRESS 3 SN P HA ET O HY AR O I A 3 REPUBLIC OF THE QR OPMN AT ST ES AE CS R 2D PS AX QE ZENCARIDES UL 220 IA GXTYSAMA KA SA PAG UNLAD SN O ERE EI AAA LAST NAME FIRST NAME MIDDLE NAME A JIBE MICCO JIRO FRUELDA QUEZON CITY
+123 000 09744557
+TEXT;
+
+        $result = (new QcIdOcrVerifier())->verify($text, 'Micco Jiro Fruelda');
+
+        $this->assertSame('123 000 09744557', $result['id_number']);
+        $this->assertStringContainsString('QUEZON CITY', (string) $result['address']);
+        $this->assertStringNotContainsString('LAST NAME', (string) $result['address']);
+    }
+
+    public function test_it_extracts_structured_fields_from_qc_id_layout_like_uploaded_card(): void
+    {
+        $text = <<<'TEXT'
+Q CITIZENCARD
+KASAMA KA SA PAG UNLAD
+LAST NAME, FIRST NAME, MIDDLE NAME
+A JIBE, MICCO JIRO FRUELDA
+M 2003/08/25 SINGLE
+SEX DATE OF BIRTH CIVIL STATUS
+DATE ISSUED 2022/12/05
+VALID UNTIL 2032/08/25
+ADDRESS BLK-2 LOT-23 SANTAN STREET, MALIGAYA PARK SUBD. FAIRVIEW QUEZON CITY, PASONG PUTIK, QUEZON CITY
+083 000 00892557
+TEXT;
+
+        $result = (new QcIdOcrVerifier())->verify($text, 'Micco Jiro Fruelda');
+
+        $this->assertTrue($result['is_valid']);
+        $this->assertSame('JIBE, MICCO JIRO FRUELDA', $result['cardholder_name']);
+        $this->assertSame('2003/08/25', $result['date_of_birth']);
+        $this->assertSame('2022/12/05', $result['date_issued']);
+        $this->assertSame('2032/08/25', $result['valid_until']);
+        $this->assertSame('083 000 00892557', $result['id_number']);
+        $this->assertStringContainsString('BLK-2 LOT-23 SANTAN STREET', (string) $result['address']);
+    }
+
+    public function test_it_extracts_blood_type_and_compact_issued_dates_from_noisy_card_text(): void
+    {
+        $text = <<<'TEXT'
+Q CITIZENCARD
+KASAMA KA SA PAG UNLAD
+LAST NAME, FIRST NAME, MIDDLE NAME
+A JIBE, MICCO JIRO FRUELDA
+M 2003/08/25 SINGLE
+SEX DATE OF BIRTH CIVIL STATUS
+O+ 2022/1205 2032/0825
+DATE ISSUED VALID UNTIL
+ADDRESS 2D PS AX QE ZENCARIDES UL - 220 IA, GXTYSAMA KA SA PAG-UNLAD SN O ERE EI AAA, BLK-2 LOT-23 SANTAN STREET. LIAN VL 3H JIA YA PARK SUBD. FAIRVIEW XA I T PA 2 IIINERIERSIANSIURE QUEZON CITY
+083 000 00892557
+TEXT;
+
+        $result = (new QcIdOcrVerifier())->verify($text, 'Micco Jiro Fruelda');
+
+        $this->assertTrue($result['is_valid']);
+        $this->assertSame('O+', $result['blood_type']);
+        $this->assertSame('2022/12/05', $result['date_issued']);
+        $this->assertSame('2032/08/25', $result['valid_until']);
+        $this->assertSame('083 000 00892557', $result['id_number']);
+        $this->assertStringContainsString('BLK-2 LOT-23 SANTAN STREET', (string) $result['address']);
+        $this->assertStringNotContainsString('LAST NAME', (string) $result['address']);
+    }
 }

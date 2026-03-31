@@ -41,7 +41,8 @@ class BookingApprovedNotification extends Notification
             ->line('Room: ' . $roomName)
             ->line('Schedule: ' . $date . ' at ' . $time)
             ->line('Purpose: ' . ($this->booking->title ?: 'N/A'))
-            ->action('View Calendar', route('calendar.index'));
+            // Redirect to the user's booking details page
+            ->action('View Booking', route('reservations.show', $this->booking->id));
     }
 
     /**
@@ -55,7 +56,8 @@ class BookingApprovedNotification extends Notification
         return [
             'title' => 'Booking approved',
             'message' => 'Your booking for ' . $roomName . ' on ' . $date . ' was approved.',
-            'url' => route('calendar.index'),
+            // Redirect to the user's booking details page
+            'url' => route('reservations.show', $this->booking->id),
             'booking_id' => $this->booking->id,
             'status' => 'approved',
         ];

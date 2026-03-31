@@ -26,20 +26,49 @@ window.FullCalendarPlugins = {
 };
 
 function todayDateString() {
-    return new Date().toISOString().split('T')[0];
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function buildUrl(base, params = {}) {
+function buildUrl(base, params) {
     const url = new URL(base, window.location.origin);
-
-    Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-            url.searchParams.set(key, value);
+    Object.keys(params).forEach(key => {
+        if (params[key] !== undefined && params[key] !== null) {
+            url.searchParams.append(key, params[key]);
         }
     });
-
     return url.toString();
 }
+
+async function performQcIdVerification(file, userName, verifyUrl) {
+    const reader = new FileReader();
+    const base64Promise = new Promise((resolve) => {
+        reader.onload = () => resolve(reader.result);
+    });
+    reader.readAsDataURL(file);
+    const base64Image = await base64Promise;
+
+    const response = await fetch(verifyUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+        },
+        body: JSON.stringify({
+            image: base64Image,
+            user_name: userName,
+        }),
+    });
+
+    const payload = await response.json();
+    if (!response.ok || !payload.success) {
+        throw new Error(payload.message || 'ID verification failed.');
+    }
+    return payload;
+}
+
+
 
 function formatClockValue(value) {
     if (!value) {
@@ -106,6 +135,23 @@ function buildBookingTimeSlots(startHour = BOOKING_OPEN_HOUR, endHour = BOOKING_
 
 const BOOKING_TIME_SLOTS = buildBookingTimeSlots();
 
+function filterPastTimeSlots(slots, selectedDate) {
+    const todayStr = todayDateString();
+    if (selectedDate !== todayStr) {
+        return slots;
+    }
+
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+
+    return slots.filter((slot) => {
+        const startMinutes = parseTimeToMinutes(slot.start_time);
+        // Allow slot if it starts at least 15 minutes from now
+        return startMinutes !== null && startMinutes > ((currentHour * 60) + currentMinute + 15);
+    });
+}
+
 function resolveBookingTimeSlot(slotValue) {
     if (slotValue) {
         const match = BOOKING_TIME_SLOTS.find((slot) => slot.value === slotValue);
@@ -156,6 +202,9 @@ function buildBookingDateOptions(daysAhead = BOOKING_DATE_RANGE_DAYS) {
     for (let dayOffset = 0; dayOffset <= daysAhead; dayOffset += 1) {
         const date = new Date(today);
         date.setDate(today.getDate() + dayOffset);
+
+        // Skip Sunday - Removed to allow same day booking if it's Sunday
+        // if (date.getDay() === 0) continue;
 
         const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         options.push({
@@ -224,11 +273,7 @@ function toBookingRange(startValue, endValue) {
 }
 
 function hasInclusiveTimeConflict(existingRange, candidateRange) {
-    return (
-        (existingRange.start >= candidateRange.start && existingRange.start <= candidateRange.end)
-        || (existingRange.end >= candidateRange.start && existingRange.end <= candidateRange.end)
-        || (existingRange.start <= candidateRange.start && existingRange.end >= candidateRange.end)
-    );
+    return existingRange.start < candidateRange.end && existingRange.end > candidateRange.start;
 }
 
 function normalizeEventRanges(events) {
@@ -255,7 +300,7 @@ function slotConflictsWithRanges(slotValue, ranges) {
     return ranges.some((range) => hasInclusiveTimeConflict(range, slotRange));
 }
 
-function buildNearbyAvailableTimeSuggestions(slotValue, events, limit = 4) {
+function buildNearbyAvailableTimeSuggestions(slotValue, events, selectedDate = null, limit = 4) {
     const selectedSlot = resolveBookingTimeSlot(slotValue);
     const selectedRange = toBookingRange(selectedSlot?.start_time, selectedSlot?.end_time);
 
@@ -263,11 +308,28 @@ function buildNearbyAvailableTimeSuggestions(slotValue, events, limit = 4) {
         return [];
     }
 
+    let currentMinutes = -1;
+    if (selectedDate) {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        if (selectedDate === `${year}-${month}-${day}`) {
+            currentMinutes = (d.getHours() * 60) + d.getMinutes();
+        }
+    }
+
     const occupiedRanges = normalizeEventRanges(events);
 
     return BOOKING_TIME_SLOTS
         .filter((slot) => slot.value !== selectedSlot.value)
-        .filter((slot) => !slotConflictsWithRanges(slot.value, occupiedRanges))
+        .filter((slot) => {
+            const slotRange = toBookingRange(slot.start_time, slot.end_time);
+            if (currentMinutes > -1 && slotRange && slotRange.start <= currentMinutes) {
+                return false;
+            }
+            return !slotConflictsWithRanges(slot.value, occupiedRanges);
+        })
         .map((slot) => {
             const slotRange = toBookingRange(slot.start_time, slot.end_time);
 
@@ -436,8 +498,10 @@ export function createRoomCalendarApp(config = {}) {
         verifiedRegistrationQcidNumber: config.verifiedRegistrationQcidNumber || '',
         isStaffUser: Boolean(config.isStaffUser),
         rooms: Array.isArray(config.rooms) ? config.rooms : [],
-        bookingTimeSlots: BOOKING_TIME_SLOTS,
-        bookingDateOptions: buildBookingDateOptions(),
+        get bookingTimeSlots() {
+            return filterPastTimeSlots(BOOKING_TIME_SLOTS, this.bookingForm.date);
+        },
+        bookingDateOptions: buildBookingDateOptions(config.bookingDateRangeDays),
         qcIdFile: null,
         qcIdPreviewUrl: '',
         qcIdIsProcessing: false,
@@ -603,6 +667,7 @@ export function createRoomCalendarApp(config = {}) {
                 const suggestions = buildNearbyAvailableTimeSuggestions(
                     this.bookingForm.time_slot,
                     Array.isArray(events) ? events : [],
+                    this.bookingForm.date
                 );
 
                 this.timeConflictSuggestions = suggestions;
@@ -652,222 +717,27 @@ export function createRoomCalendarApp(config = {}) {
             return String(value || '')
                 .toUpperCase()
                 .replace(/\r/g, '')
-                .replace(/[^A-Z0-9,./\-\n\s]/g, ' ')
+                .replace(/[^A-Z0-9,./\-\+\n\s]/g, ' ')
                 .replace(/[ \t]+/g, ' ')
                 .replace(/\n{2,}/g, '\n')
                 .trim();
         },
 
-        async buildQcCanvas(file) {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const scale = Math.max(1, 2800 / Math.max(img.width, img.height));
-                    canvas.width = Math.round(img.width * scale);
-                    canvas.height = Math.round(img.height * scale);
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    const data = imageData.data;
-                    for (let i = 0; i < data.length; i += 4) {
-                        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-                        const contrast = Math.min(255, Math.max(0, ((gray - 128) * 1.7) + 128));
-                        data[i] = contrast;
-                        data[i + 1] = contrast;
-                        data[i + 2] = contrast;
-                    }
-                    ctx.putImageData(imageData, 0, 0);
-
-                    resolve(canvas);
-                };
-                img.onerror = () => resolve(null);
-                img.src = URL.createObjectURL(file);
-            });
-        },
-
-        createQcCropCanvas(sourceCanvas, rect, threshold = false) {
-            const crop = document.createElement('canvas');
-            const sx = Math.max(0, Math.round(sourceCanvas.width * rect.x));
-            const sy = Math.max(0, Math.round(sourceCanvas.height * rect.y));
-            const sw = Math.max(1, Math.round(sourceCanvas.width * rect.w));
-            const sh = Math.max(1, Math.round(sourceCanvas.height * rect.h));
-
-            crop.width = sw;
-            crop.height = sh;
-
-            const ctx = crop.getContext('2d');
-            ctx.drawImage(sourceCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
-
-            if (threshold) {
-                const imageData = ctx.getImageData(0, 0, sw, sh);
-                const data = imageData.data;
-                for (let i = 0; i < data.length; i += 4) {
-                    const value = data[i] > 145 ? 255 : 0;
-                    data[i] = value;
-                    data[i + 1] = value;
-                    data[i + 2] = value;
-                }
-                ctx.putImageData(imageData, 0, 0);
-            }
-
-            return crop;
-        },
-
-        async recognizeQcCanvas(canvas, ocrConfig = {}, withProgress = false) {
-            const options = {
-                preserve_interword_spaces: '1',
-                ...ocrConfig,
-            };
-
-            if (withProgress) {
-                options.logger = (message) => {
-                    if (message.status) {
-                        this.qcIdStatusMessage = message.status;
-                    }
-
-                    if (typeof message.progress === 'number') {
-                        this.qcIdProgress = message.progress * 100;
-                    }
-                };
-            }
-
-            const result = await window.Tesseract.recognize(canvas, 'eng', options);
-            return this.normalizeOcrText(result?.data?.text || '');
-        },
-
-        async collectQcOcrText(file) {
-            const enhancedCanvas = await this.buildQcCanvas(file);
-            if (!enhancedCanvas) {
-                throw new Error('Unable to prepare the QC ID image for OCR.');
-            }
-
-            const fullText = await this.recognizeQcCanvas(enhancedCanvas, {
-                tessedit_pageseg_mode: 6,
-            }, true);
-
-            const sparseText = await this.recognizeQcCanvas(enhancedCanvas, {
-                tessedit_pageseg_mode: 11,
-            });
-
-            const bottomStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.62, y: 0.76, w: 0.34, h: 0.14 }, true);
-            const dateStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.25, y: 0.39, w: 0.48, h: 0.15 }, true);
-
-            const bottomText = await this.recognizeQcCanvas(bottomStrip, {
-                tessedit_pageseg_mode: 7,
-                tessedit_char_whitelist: '0123456789 ',
-            });
-
-            const dateText = await this.recognizeQcCanvas(dateStrip, {
-                tessedit_pageseg_mode: 7,
-                tessedit_char_whitelist: '0123456789/ -',
-            });
-
-            return this.normalizeOcrText([fullText, sparseText, dateText, bottomText].filter(Boolean).join('\n'));
-        },
-
-        namesMatch(first, second) {
-            const firstTokens = this.normalizeName(first).split(' ').filter((token) => token.length >= 2);
-            const secondTokens = this.normalizeName(second).split(' ').filter((token) => token.length >= 2);
-
-            if (!firstTokens.length || !secondTokens.length) {
-                return false;
-            }
-
-            const overlap = firstTokens.filter((token) => secondTokens.includes(token));
-            const threshold = Math.min(firstTokens.length, secondTokens.length);
-
-            return threshold <= 2 ? overlap.length === threshold : overlap.length >= 2;
-        },
-
-        resetQcIdState({ keepPreview = true } = {}) {
-            this.qcIdIsProcessing = false;
-            this.qcIdProgress = 0;
-            this.qcIdStatusMessage = '';
-            this.qcIdError = '';
-            this.qcIdVerification = null;
-            this.bookingForm.qc_id_ocr_text = '';
-            this.bookingForm.qc_id_cardholder_name = '';
-
-            if (!keepPreview) {
-                if (this.qcIdPreviewUrl) {
-                    URL.revokeObjectURL(this.qcIdPreviewUrl);
-                }
-
-                this.qcIdPreviewUrl = '';
-                this.qcIdFile = null;
-            }
-        },
-
-        async handleQcIdUpload(event) {
-            const file = event.target?.files?.[0];
-            this.resetQcIdState({ keepPreview: false });
-
-            if (!file) {
-                return;
-            }
-
-            if (!file.type.startsWith('image/')) {
-                this.qcIdError = 'Please upload an image file for the QC ID.';
-                return;
-            }
-
-            this.qcIdFile = file;
-            this.qcIdPreviewUrl = URL.createObjectURL(file);
-
-            await this.runQcIdVerification(file);
-        },
-
-        async reprocessQcId() {
-            if (!this.qcIdFile) {
-                this.qcIdError = 'Upload a QC ID image first.';
-                return;
-            }
-
-            this.resetQcIdState();
-            await this.runQcIdVerification(this.qcIdFile);
-        },
-
         async runQcIdVerification(file) {
-            if (!window.Tesseract) {
-                this.qcIdError = 'OCR is not available right now. Please refresh the page and try again.';
-                return;
-            }
-
             this.qcIdIsProcessing = true;
-            this.qcIdStatusMessage = 'Reading QC ID image...';
-            this.qcIdProgress = 0;
+            this.qcIdStatusMessage = 'Scanning ID...';
+            this.qcIdProgress = 20;
 
             try {
-                this.qcIdStatusMessage = 'Enhancing image for OCR...';
-                const extractedText = await this.collectQcOcrText(file);
-                if (!extractedText) {
-                    throw new Error('No readable text was found in the uploaded QC ID image.');
-                }
+                this.qcIdProgress = 50;
+                this.qcIdStatusMessage = 'Verifying with server...';
 
-                this.bookingForm.qc_id_ocr_text = extractedText;
-                this.qcIdStatusMessage = 'Validating QC ID format...';
+                const payload = await performQcIdVerification(file, this.bookingForm.user_name, verifyQcIdUrl);
 
-                const response = await fetch(verifyQcIdUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Accept: 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                    },
-                    body: JSON.stringify({
-                        ocr_text: extractedText,
-                        user_name: this.bookingForm.user_name,
-                    }),
-                });
-
-                const payload = await response.json();
+                // Use the returned payload to update state
                 const verification = payload.verification || null;
-
-
-                // Only autofill if valid
                 this.qcIdVerification = verification;
+                
                 if (verification?.is_valid && verification?.cardholder_name) {
                     this.bookingForm.qc_id_cardholder_name = verification.cardholder_name;
                     this.bookingForm.user_name = verification.cardholder_name;
@@ -880,16 +750,30 @@ export function createRoomCalendarApp(config = {}) {
 
                 this.qcIdError = '';
                 this.qcIdProgress = 100;
-                this.qcIdStatusMessage = 'QC ID verified.';
+                this.qcIdVerification = payload.verification;
+                
+                if (payload.verification?.cardholder_name) {
+                    this.bookingForm.user_name = payload.verification.cardholder_name;
+                    this.bookingForm.qc_id_cardholder_name = payload.verification.cardholder_name;
+                }
+                
+                this.bookingForm.qc_id_ocr_text = payload.verification.normalized_text || 'VERIFIED';
+
+                this.qcIdStatusMessage = 'ID Verified successfully';
+                this.qcIdError = '';
             } catch (error) {
-                console.error('QC ID verification failed:', error);
-                this.qcIdError = error?.message || 'Unable to read the QC ID image. Please upload a clearer photo.';
-                this.qcIdVerification = null;
-                this.bookingForm.qc_id_cardholder_name = '';
-                this.bookingForm.qc_id_ocr_text = '';
+                console.error('OCR Error:', error);
+                this.qcIdError = error.message;
+                this.qcIdStatusMessage = 'Verification failed';
             } finally {
                 this.qcIdIsProcessing = false;
             }
+        },
+
+        namesMatch(a, b) {
+            const n1 = String(a || '').toUpperCase().replace(/[^A-Z]/g, '');
+            const n2 = String(b || '').toUpperCase().replace(/[^A-Z]/g, '');
+            return n1 === n2 || n1.includes(n2) || n2.includes(n1);
         },
 
         initCalendar() {
@@ -1124,11 +1008,11 @@ function createDashboardBookingForm(config, dateOverride = null) {
         start_time: defaultSlot.start_time,
         end_time: defaultSlot.end_time,
         attendees: 1,
-        user_name: '',
-        user_email: '',
+        user_name: config.userName || '',
+        user_email: config.userEmail || '',
         description: '',
         qc_id_ocr_text: '',
-        qc_id_cardholder_name: '',
+        qc_id_cardholder_name: config.verifiedRegistrationName || '',
     };
 }
 
@@ -1149,6 +1033,14 @@ export function createDashboardApp(config = {}) {
         showBookingModal: false,
         showViewModal: false,
         showDayEventsModal: false,
+        showStatsModal: false,
+        statsModalTitle: '',
+        statsModalList: [],
+        openStatsModal(title, list) {
+            this.statsModalTitle = title;
+            this.statsModalList = list || [];
+            this.showStatsModal = true;
+        },
         selectedBooking: null,
         selectedDay: null,
         isSubmitting: false,
@@ -1163,8 +1055,10 @@ export function createDashboardApp(config = {}) {
         verifiedRegistrationName: config.verifiedRegistrationName || '',
         isStaffUser: Boolean(config.isStaffUser),
         rooms: Array.isArray(config.rooms) ? config.rooms : [],
-        bookingTimeSlots: BOOKING_TIME_SLOTS,
-        bookingDateOptions: buildBookingDateOptions(),
+        get bookingTimeSlots() {
+            return filterPastTimeSlots(BOOKING_TIME_SLOTS, this.bookingForm.date);
+        },
+        bookingDateOptions: buildBookingDateOptions(config.bookingDateRangeDays),
         qcIdFile: null,
         qcIdPreviewUrl: '',
         qcIdIsProcessing: false,
@@ -1175,20 +1069,116 @@ export function createDashboardApp(config = {}) {
         timeConflictSuggestions: [],
         timeConflictMessage: '',
         isLoadingTimeConflictSuggestions: false,
-
         bookingForm: createDashboardBookingForm(config),
+
+        viewEvent: null,
+
+        showRoomModal: false,
+        selectedRoom: null,
+        selectedRoomCount: 0,
+        
+        openRoomModal(room, count) {
+            this.selectedRoom = room;
+            this.selectedRoomCount = count || 0;
+            this.showRoomModal = true;
+        },
+
+        // Flat cell array for user dashboard calendar grid (used by dashboard-user.blade.php)
+        get calCells() {
+            const cells = [];
+            const year = parseInt(this.currentYear, 10) || new Date().getFullYear();
+            const month = parseInt(this.currentMonth, 10) || new Date().getMonth();
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startPadding = firstDay.getDay();
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Previous month padding
+            const prevMonth = new Date(year, month, 0);
+            for (let i = startPadding - 1; i >= 0; i--) {
+                cells.push({
+                    day: prevMonth.getDate() - i,
+                    date: null,
+                    isCurrentMonth: false,
+                    isToday: false,
+                    events: [],
+                });
+            }
+
+            // Current month days
+            for (let i = 1; i <= lastDay.getDate(); i++) {
+                const date = new Date(year, month, i);
+                const dateStr = this.formatDateKey(date);
+                cells.push({
+                    day: i,
+                    date: dateStr,
+                    isCurrentMonth: true,
+                    isToday: date.getTime() === today.getTime(),
+                    isPast: date < today,
+                    events: this.calendarData[dateStr] || [],
+                });
+            }
+
+            // Next month padding to fill to 42 cells (6 rows)
+            let nextDay = 1;
+            while (cells.length < 42) {
+                cells.push({
+                    day: nextDay++,
+                    date: null,
+                    isCurrentMonth: false,
+                    isToday: false,
+                    events: [],
+                });
+            }
+
+            return cells;
+        },
+
+        // Flat list of upcoming events for the list view (used by dashboard-user.blade.php)
+        get listEvents() {
+            const events = [];
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const twoWeeksLater = new Date(today);
+            twoWeeksLater.setDate(twoWeeksLater.getDate() + 14);
+
+            if (!this.calendarData || typeof this.calendarData !== 'object') {
+                return events;
+            }
+
+            Object.keys(this.calendarData).sort().forEach((dateStr) => {
+                const dateObj = new Date(dateStr + 'T00:00:00');
+                if (dateObj >= today && dateObj <= twoWeeksLater) {
+                    const dayEvents = this.calendarData[dateStr] || [];
+                    dayEvents.forEach((evt) => {
+                        events.push({ ...evt, date: dateStr });
+                    });
+                }
+            });
+
+            return events;
+        },
+
+        selectCalendarDate(dateStr) {
+            if (!dateStr) return;
+            this.openBookingModal(dateStr);
+        },
 
         get calendarWeeks() {
             const weeks = [];
-            const firstDay = new Date(this.currentYear, this.currentMonth, 1);
-            const lastDay = new Date(this.currentYear, this.currentMonth + 1, 0);
+            const year = parseInt(this.currentYear, 10) || new Date().getFullYear();
+            const month = parseInt(this.currentMonth, 10) || new Date().getMonth();
+            
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
             const startPadding = firstDay.getDay();
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
             let currentWeek = [];
 
-            const prevMonth = new Date(this.currentYear, this.currentMonth, 0);
+            const prevMonth = new Date(year, month, 0);
             for (let i = startPadding - 1; i >= 0; i -= 1) {
                 currentWeek.push({
                     day: prevMonth.getDate() - i,
@@ -1199,15 +1189,17 @@ export function createDashboardApp(config = {}) {
             }
 
             for (let i = 1; i <= lastDay.getDate(); i += 1) {
-                const date = new Date(this.currentYear, this.currentMonth, i);
+                const date = new Date(year, month, i);
                 const dateStr = this.formatDateKey(date);
                 const isToday = date.getTime() === today.getTime();
+                const isPast = date < today;
 
                 currentWeek.push({
                     day: i,
                     date: dateStr,
                     isCurrentMonth: true,
                     isToday,
+                    isPast,
                     events: this.calendarData[dateStr] || [],
                 });
 
@@ -1246,10 +1238,14 @@ export function createDashboardApp(config = {}) {
                 weeks.push(week);
             }
 
-            return weeks.reverse();
+            return weeks;
         },
 
         init() {
+            // Ensure title and data are loaded
+            this.setMonthTitle();
+            this.fetchCalendarData();
+
             try {
                 const storedPanelState = window.localStorage.getItem(bookingsPanelPreferenceKey);
                 if (storedPanelState !== null) {
@@ -1261,6 +1257,11 @@ export function createDashboardApp(config = {}) {
 
             window.addEventListener('layout:sidebar-toggled', () => {
                 this.resizeDashboardCalendar();
+            });
+
+            // Restore calendar view immediately on reload
+            this.$nextTick(() => {
+                this.initDashboardCalendar(this.calendarView || 'dayGridMonth');
             });
 
             window.addEventListener('resize', () => {
@@ -1293,6 +1294,16 @@ export function createDashboardApp(config = {}) {
                 this.clearTimeConflictSuggestions();
             });
 
+            this.$watch('bookingForm.attendees', (value) => {
+                const max = this.attendeeInputMax;
+                if (max && Number(value) > Number(max)) {
+                    this.bookingForm.attendees = Number(max);
+                }
+                if (Number(value) < 1 && value !== '' && value !== null) {
+                    this.bookingForm.attendees = 1;
+                }
+            });
+
             this.$watch('bookingForm.date', (value) => {
                 this.ensureBookingDateOption(value);
                 this.clearTimeConflictSuggestions();
@@ -1310,6 +1321,7 @@ export function createDashboardApp(config = {}) {
                 this.qcIdVerification = {
                     is_valid: true,
                     cardholder_name: this.verifiedRegistrationName || '',
+                    id_number: config.verifiedQcIdNumber || '',
                     confidence_score: 100,
                     source: 'registration',
                 };
@@ -1407,6 +1419,7 @@ export function createDashboardApp(config = {}) {
                 const suggestions = buildNearbyAvailableTimeSuggestions(
                     this.bookingForm.time_slot,
                     Array.isArray(events) ? events : [],
+                    this.bookingForm.date
                 );
 
                 this.timeConflictSuggestions = suggestions;
@@ -1419,12 +1432,43 @@ export function createDashboardApp(config = {}) {
             }
         },
 
-        applySuggestedTimeSlot(slotValue) {
-            applyBookingTimeSlot(this.bookingForm, slotValue);
-            this.clearTimeConflictSuggestions();
-            this.qcIdError = '';
+        async runQcIdVerification(file) {
+            this.qcIdIsProcessing = true;
+            this.qcIdStatusMessage = 'Scanning ID...';
+            this.qcIdProgress = 20;
+
+            try {
+                this.qcIdProgress = 50;
+                this.qcIdStatusMessage = 'Verifying with server...';
+
+                const payload = await performQcIdVerification(file, this.bookingForm.user_name, verifyQcIdUrl);
+
+                this.qcIdProgress = 100;
+                this.qcIdVerification = payload.verification;
+                
+                if (payload.verification?.cardholder_name) {
+                    this.bookingForm.user_name = payload.verification.cardholder_name;
+                    this.bookingForm.qc_id_cardholder_name = payload.verification.cardholder_name;
+                }
+                
+                this.bookingForm.qc_id_ocr_text = payload.verification.normalized_text || 'VERIFIED';
+
+                this.qcIdStatusMessage = 'ID Verified successfully';
+                this.qcIdError = '';
+            } catch (error) {
+                console.error('OCR Error:', error);
+                this.qcIdError = error.message;
+                this.qcIdStatusMessage = 'Verification failed';
+            } finally {
+                this.qcIdIsProcessing = false;
+            }
         },
 
+        namesMatch(a, b) {
+            const n1 = String(a || '').toUpperCase().replace(/[^A-Z]/g, '');
+            const n2 = String(b || '').toUpperCase().replace(/[^A-Z]/g, '');
+            return n1 === n2 || n1.includes(n2) || n2.includes(n1);
+        },
         async handleBookingConflict(response, payload) {
             const message = payload?.message || 'This time slot conflicts with an existing booking.';
             this.qcIdError = message;
@@ -1456,7 +1500,7 @@ export function createDashboardApp(config = {}) {
             return String(value || '')
                 .toUpperCase()
                 .replace(/\r/g, '')
-                .replace(/[^A-Z0-9,./\-\n\s]/g, ' ')
+                .replace(/[^A-Z0-9,./\-\+\n\s]/g, ' ')
                 .replace(/[ \t]+/g, ' ')
                 .replace(/\n{2,}/g, '\n')
                 .trim();
@@ -1555,8 +1599,44 @@ export function createDashboardApp(config = {}) {
                 tessedit_pageseg_mode: 11,
             });
 
+            const nameStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.23, y: 0.24, w: 0.45, h: 0.13 }, false);
+            const demographicStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.22, y: 0.33, w: 0.48, h: 0.16 }, true);
+            const issuedStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.34, y: 0.43, w: 0.19, h: 0.09 }, true);
+            const validStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.52, y: 0.43, w: 0.19, h: 0.09 }, true);
+            const addressStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.19, y: 0.54, w: 0.46, h: 0.19 }, true);
+            const idStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.60, y: 0.74, w: 0.36, h: 0.18 }, true);
             const bottomStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.62, y: 0.76, w: 0.34, h: 0.14 }, true);
             const dateStrip = this.createQcCropCanvas(enhancedCanvas, { x: 0.25, y: 0.39, w: 0.48, h: 0.15 }, true);
+
+            const nameText = await this.recognizeQcCanvas(nameStrip, {
+                tessedit_pageseg_mode: 7,
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ,.- ',
+            });
+
+            const demographicsText = await this.recognizeQcCanvas(demographicStrip, {
+                tessedit_pageseg_mode: 6,
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/ -',
+            });
+
+            const issuedText = await this.recognizeQcCanvas(issuedStrip, {
+                tessedit_pageseg_mode: 7,
+                tessedit_char_whitelist: '0123456789/ -',
+            });
+
+            const validText = await this.recognizeQcCanvas(validStrip, {
+                tessedit_pageseg_mode: 7,
+                tessedit_char_whitelist: '0123456789/ -',
+            });
+
+            const addressText = await this.recognizeQcCanvas(addressStrip, {
+                tessedit_pageseg_mode: 6,
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.- ',
+            });
+
+            const idText = await this.recognizeQcCanvas(idStrip, {
+                tessedit_pageseg_mode: 6,
+                tessedit_char_whitelist: '0123456789 ',
+            });
 
             const bottomText = await this.recognizeQcCanvas(bottomStrip, {
                 tessedit_pageseg_mode: 7,
@@ -1568,7 +1648,43 @@ export function createDashboardApp(config = {}) {
                 tessedit_char_whitelist: '0123456789/ -',
             });
 
-            return this.normalizeOcrText([fullText, sparseText, dateText, bottomText].filter(Boolean).join('\n'));
+            const structuredLines = [fullText, sparseText];
+
+            if (nameText) {
+                structuredLines.push('LAST NAME, FIRST NAME, MIDDLE NAME');
+                structuredLines.push(nameText);
+            }
+
+            if (demographicsText) {
+                structuredLines.push(demographicsText);
+                structuredLines.push('SEX DATE OF BIRTH CIVIL STATUS');
+            }
+
+            if (issuedText) {
+                structuredLines.push(`DATE ISSUED ${issuedText}`);
+            }
+
+            if (validText) {
+                structuredLines.push(`VALID UNTIL ${validText}`);
+            }
+
+            if (dateText) {
+                structuredLines.push(`DATE ISSUED VALID UNTIL ${dateText}`);
+            }
+
+            if (addressText) {
+                structuredLines.push(`ADDRESS ${addressText}`);
+            }
+
+            if (idText) {
+                structuredLines.push(idText);
+            }
+
+            if (bottomText && bottomText !== idText) {
+                structuredLines.push(bottomText);
+            }
+
+            return this.normalizeOcrText(structuredLines.filter(Boolean).join('\n'));
         },
 
         namesMatch(first, second) {
@@ -1925,10 +2041,16 @@ export function createDashboardApp(config = {}) {
                 this.qcIdVerification = {
                     is_valid: true,
                     cardholder_name: this.verifiedRegistrationName || '',
+                    id_number: config.verifiedQcIdNumber || '',
                     confidence_score: 100,
                     source: 'registration',
                 };
+                this.bookingForm.user_name = config.userName || this.verifiedRegistrationName || '';
+                this.bookingForm.qc_id_cardholder_name = this.verifiedRegistrationName || '';
             } else {
+                if (config.userName) {
+                    this.bookingForm.user_name = config.userName;
+                }
                 this.resetQcIdState({ keepPreview: false });
             }
 
@@ -1951,6 +2073,7 @@ export function createDashboardApp(config = {}) {
 
         openViewBookingModal(booking) {
             this.selectedBooking = booking;
+            this.viewEvent = booking;
             this.showViewModal = true;
         },
 
@@ -1960,7 +2083,16 @@ export function createDashboardApp(config = {}) {
         },
 
         viewBooking(booking) {
-            this.openViewBookingModal(booking);
+            // Enhanced mapping: ensure relationship data is present for the modal
+            const mapped = {
+                ...booking,
+                room_name: booking.room_name || booking.room?.name || 'Room',
+                user_name: booking.user_name || booking.user?.name || 'Unknown',
+                formatted_time: booking.formatted_time || this.formatTimeRange(booking.start_time, booking.end_time),
+                status: booking.status || 'pending',
+                attendees: booking.attendees || 0,
+            };
+            this.openViewBookingModal(mapped);
         },
 
         formatDate(value) {

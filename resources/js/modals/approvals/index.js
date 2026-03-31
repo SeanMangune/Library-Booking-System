@@ -7,6 +7,12 @@ export function createApprovalsApp() {
         ...createApprovalDetailsModalState(),
         ...createApprovalSuccessModalState(),
         ...createApprovalRejectModalState(),
+
+        init() {
+            if (this.showModal || this.showSuccessModal || this.showRejectModal) {
+                document.body.style.overflow = 'hidden';
+            }
+        }
     };
 }
 

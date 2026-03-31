@@ -1,0 +1,25 @@
+=== All Users ===
+ID: 1 | Name: Juria An | Role: user
+ID: 3 | Name: Nadine Claire | Role: user
+ID: 2 | Name: Nutarte, James Wyne E. | Role: user
+ID: 5 | Name: Albert Miguel Dizon | Role: user
+ID: 6 | Name: Test User 1 | Role: user
+ID: 8 | Name: Admin | Role: admin
+ID: 9 | Name: Super Admin | Role: admin
+ID: 10 | Name: Test User 3 | Role: user
+ID: 7 | Name: Test User 2 | Role: user
+ID: 11 | Name: Admin Test | Role: admin
+ID: 12 | Name: MANGUNE, SEAN MICHAEL CALINAWAN | Role: user
+ID: 13 | Name: MANGUNE, SEAN MICHAEL CALINAWAN | Role: user
+ID: 14 | Name: MANGUNE, SEAN MICHAEL CALINAWAN | Role: user
+ID: 15 | Name: BARTOLOME, JOHN NOAH ALOG | Role: user
+ID: 16 | Name: MANGUNE, SEAN MICHAEL CALINAWAN | Role: user
+
+=== All QC ID Registrations ===
+ID: 2 | User ID: 16 | Full Name: MANGUNE, SEAN MICHAEL CALINAWAN | QC ID#: 005 000 01257479 | Status: verified
+
+=== User with CALINAWAN ===
+User ID: 12 | Name: MANGUNE, SEAN MICHAEL CALINAWAN
+No QC ID registration found
+
+Via qcidRegistration relation: null

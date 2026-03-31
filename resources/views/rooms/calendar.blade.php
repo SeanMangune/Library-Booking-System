@@ -15,15 +15,23 @@
         <!-- Main Calendar -->
         <div class="lg:col-span-3 lg:min-h-0 lg:flex lg:flex-col">
             <!-- Room Header -->
-            <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <h1 class="text-xl font-bold text-gray-900" x-text="selectedRoom?.name || 'All Rooms'"></h1>
-                        {{-- <p class="text-sm text-gray-500 mt-1">Manage bookings and view room status</p> --}}
+            <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl border border-indigo-500/20 shadow-lg p-5 sm:p-6 mb-6 relative overflow-hidden group/header">
+                <div class="absolute -right-4 -bottom-4 opacity-20 transform rotate-12 group-hover/header:scale-110 transition-transform duration-500 pointer-events-none">
+                    <i class="fa-solid fa-calendar-check text-8xl text-white"></i>
+                </div>
+                <div class="relative z-10 w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md shadow-lg hidden sm:flex shrink-0">
+                            <i class="w-6 h-6 text-white fa-icon fa-solid fa-building text-2xl leading-none"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl font-extrabold text-white tracking-tight" x-text="selectedRoom?.name || 'All Rooms'"></h1>
+                            <p class="text-indigo-100 mt-1 text-sm sm:text-base">View availability and schedule bookings.</p>
+                        </div>
                     </div>
                     <div class="flex items-center gap-3">
                         <button @click="openBookingModal()"
-                                class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                class="inline-flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-gray-50 text-indigo-700 text-sm font-semibold rounded-xl transition-all shadow-md">
                             <i class="w-4 h-4 fa-icon fa-solid fa-plus text-base leading-none"></i>
                             Create Booking
                         </button>
@@ -218,12 +226,28 @@
                                                 <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.cardholder_name || '—'"></dd>
                                             </div>
                                             <div class="flex items-start justify-between gap-4">
-                                                <dt class="text-gray-500">ID number</dt>
+                                                <dt class="text-gray-500">QC ID Number</dt>
                                                 <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.id_number || '—'"></dd>
                                             </div>
                                             <div class="flex items-start justify-between gap-4">
-                                                <dt class="text-gray-500">Validity</dt>
+                                                <dt class="text-gray-500">Birth Date</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.date_of_birth || '—'"></dd>
+                                            </div>
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">Blood Type</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.blood_type || '—'"></dd>
+                                            </div>
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">Date Issued</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.date_issued || '—'"></dd>
+                                            </div>
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">Valid Until</dt>
                                                 <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.valid_until || '—'"></dd>
+                                            </div>
+                                            <div class="flex items-start justify-between gap-4">
+                                                <dt class="text-gray-500">Address</dt>
+                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.address || '—'"></dd>
                                             </div>
                                         </dl>
                                     </div>

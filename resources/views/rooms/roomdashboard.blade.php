@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Booking Management</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         [x-cloak] { display: none !important; }
@@ -510,18 +511,18 @@
         // Parse data from JSON script block
         const data = JSON.parse(document.getElementById('dashboard-data').textContent);
         return {
-                showModal: false,
-                selectedBooking: null,
-                activeTab: data.tab,
+                showModal: this.$persist(false).as('staff_showModal'),
+                selectedBooking: this.$persist(null).as('staff_selectedBooking'),
+                activeTab: this.$persist(data.tab).as('staff_activeTab'),
                 isLoading: false,
                 actionType: null,
                 allowCapacityException: false,
                 showExceptionInput: false,
                 exceptionReason: '',
                 // Calendar
-                currentMonth: new Date().getMonth(),
-                currentYear: new Date().getFullYear(),
-                selectedDate: null,
+                currentMonth: this.$persist(new Date().getMonth()).as('staff_currentMonth'),
+                currentYear: this.$persist(new Date().getFullYear()).as('staff_currentYear'),
+                selectedDate: this.$persist(null).as('staff_selectedDate'),
                 calendarData: {},
                 monthNames: ['January', 'February', 'March', 'April', 'May', 'June', 
                              'July', 'August', 'September', 'October', 'November', 'December'],
@@ -600,6 +601,10 @@
                 // Methods
                 init() {
                     this.fetchCalendarData();
+                    this.filterBookings();
+                    if (this.showModal) {
+                        document.body.style.overflow = 'hidden';
+                    }
                 },
                 
                 formatDateKey(date) {

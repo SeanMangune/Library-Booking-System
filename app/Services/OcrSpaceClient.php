@@ -20,27 +20,103 @@ class OcrSpaceClient
             return ['success' => false, 'text' => '', 'raw' => []];
         }
 
+        $fileContents = file_get_contents($image->getRealPath()) ?: '';
+        $fileName = $image->getClientOriginalName();
+
+        // === ALWAYS run BOTH engines for maximum accuracy ===
+        // Engine 2: Best for photos/camera captures, handles rotated text
+        $engine2Text = $this->callOcrEngine($endpoint, $apiKey, $language, $fileContents, $fileName, '2', true);
+
+        // Engine 1: Best for clean/scanned images, better structured text
+        $engine1Text = $this->callOcrEngine($endpoint, $apiKey, $language, $fileContents, $fileName, '1', true);
+
+        // === Intelligent merge: keep the most complete result ===
+        $text = $this->mergeOcrResults($engine1Text, $engine2Text);
+
+        return [
+            'success' => trim($text) !== '',
+            'text' => trim($text),
+            'raw' => [],
+        ];
+    }
+
+    /**
+     * Intelligently merge OCR results from two engines.
+     * Prefers the version with more field labels detected, falling back to length.
+     */
+    private function mergeOcrResults(string $engine1Text, string $engine2Text): string
+    {
+        if ($engine1Text === '' && $engine2Text === '') {
+            return '';
+        }
+        if ($engine1Text === '') return $engine2Text;
+        if ($engine2Text === '') return $engine1Text;
+
+        // Count how many QC ID field labels each engine detected
+        $labels = [
+            'SEX', 'DATE OF BIRTH', 'CIVIL STATUS', 'DATE ISSUED',
+            'VALID UNTIL', 'ADDRESS', 'CARDHOLDER', 'LAST NAME',
+            'FIRST NAME', 'MIDDLE NAME', 'BLOOD TYPE', 'QUEZON',
+            'CITIZEN', 'KASAMA', 'REPUBLIC',
+        ];
+
+        $e1Upper = mb_strtoupper($engine1Text);
+        $e2Upper = mb_strtoupper($engine2Text);
+
+        $e1Labels = 0;
+        $e2Labels = 0;
+        foreach ($labels as $label) {
+            if (str_contains($e1Upper, $label)) $e1Labels++;
+            if (str_contains($e2Upper, $label)) $e2Labels++;
+        }
+
+        // If one engine detected significantly more labels, use it as primary
+        if ($e1Labels > $e2Labels + 2) {
+            $primary = $engine1Text;
+            $secondary = $engine2Text;
+        } elseif ($e2Labels > $e1Labels + 2) {
+            $primary = $engine2Text;
+            $secondary = $engine1Text;
+        } else {
+            // Similar label counts — use the longer one as primary
+            $primary = mb_strlen($engine1Text) >= mb_strlen($engine2Text) ? $engine1Text : $engine2Text;
+            $secondary = $primary === $engine1Text ? $engine2Text : $engine1Text;
+        }
+
+        // Always append secondary for the verifier to have maximum data
+        return trim($primary . "\n" . $secondary);
+    }
+
+    /**
+     * Call OCR.space API with a specific engine.
+     */
+    private function callOcrEngine(
+        string $endpoint,
+        string $apiKey,
+        string $language,
+        string $fileContents,
+        string $fileName,
+        string $engine,
+        bool $enableOverlay = false
+    ): string {
         try {
             $response = Http::asMultipart()
-                ->timeout(25)
+                ->timeout(40)
                 ->withHeaders([
                     'apikey' => $apiKey,
                 ])
-                ->attach(
-                    'file',
-                    file_get_contents($image->getRealPath()) ?: '',
-                    $image->getClientOriginalName()
-                )
+                ->attach('file', $fileContents, $fileName)
                 ->post($endpoint, [
                     'language' => $language,
-                    'isOverlayRequired' => 'false',
-                    'OCREngine' => '2',
+                    'isOverlayRequired' => $enableOverlay ? 'true' : 'false',
+                    'OCREngine' => $engine,
                     'scale' => 'true',
-                    'isTable' => 'false',
+                    'isTable' => 'true',
+                    'detectOrientation' => 'true',
                 ]);
 
             if (! $response->ok()) {
-                return ['success' => false, 'text' => '', 'raw' => []];
+                return '';
             }
 
             /** @var array<string, mixed> $body */
@@ -56,13 +132,9 @@ class OcrSpaceClient
                 }
             }
 
-            return [
-                'success' => trim($text) !== '',
-                'text' => trim($text),
-                'raw' => $body,
-            ];
+            return trim($text);
         } catch (\Throwable) {
-            return ['success' => false, 'text' => '', 'raw' => []];
+            return '';
         }
     }
 }

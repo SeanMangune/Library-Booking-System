@@ -24,7 +24,7 @@ class SettingsController extends Controller
     {
         $user = $this->actingUser($request);
         $settings = is_array($user->settings) ? $user->settings : [];
-        $staffUsers = $user->isAdmin()
+        $staffUsers = $user->isSuperAdmin()
             ? User::query()
                 ->whereIn('role', [User::ROLE_ADMIN, User::ROLE_LIBRARIAN])
                 ->orderByRaw("case when role = 'admin' then 0 else 1 end")
@@ -83,7 +83,7 @@ class SettingsController extends Controller
     {
         $actingUser = $this->actingUser($request);
 
-        abort_unless($actingUser->isAdmin(), 403);
+        abort_unless($actingUser->isSuperAdmin(), 403);
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],

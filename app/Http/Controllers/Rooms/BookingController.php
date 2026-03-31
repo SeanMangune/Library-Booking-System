@@ -13,6 +13,10 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\BookingPendingMail;
+use App\Mail\BookingApprovedMail;
+use App\Mail\BookingRejectedMail;
 
 class BookingController extends Controller
 {
@@ -91,8 +95,29 @@ class BookingController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'room_id' => 'required|exists:rooms,id',
-            'date' => 'required|date|after_or_equal:today',
-            'start_time' => 'required',
+            'date' => [
+                'required',
+                'date',
+                'after_or_equal:today',
+                function ($attribute, $value, $fail) {
+                    if (date('N', strtotime($value)) == 7) {
+                        $fail('Bookings are not allowed on Sundays.');
+                    }
+                },
+            ],
+            'start_time' => [
+                'required',
+                function ($attribute, $value, $fail) use ($request) {
+                    $selectedDate = $request->input('date');
+                    if ($selectedDate === date('Y-m-d')) {
+                        $now = now();
+                        $startTime = Carbon::parse($value);
+                        if ($startTime->lt($now->addMinutes(15))) {
+                            $fail('The selected time slot must be at least 15 minutes in the future.');
+                        }
+                    }
+                },
+            ],
             'end_time' => 'required|after:start_time',
             'attendees' => 'required|integer|min:1',
             'user_id' => 'nullable|exists:bookings,id',
@@ -148,10 +173,12 @@ class BookingController extends Controller
                 $validated['user_name'] ?? null,
             );
 
-            if (! $qcIdVerification['is_valid']) {
+            if (! $qcIdVerification['is_valid'] || ($qcIdVerification['is_fake'] ?? false)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Please upload a valid Quezon City Citizen ID (QC ID) before creating a booking.',
+                    'message' => ($qcIdVerification['is_fake'] ?? false) 
+                        ? 'FAKE QC ID DETECTED. Please upload a valid, authentic Quezon City Citizen ID.' 
+                        : 'Please upload a valid Quezon City Citizen ID (QC ID) before creating a booking.',
                     'verification' => $qcIdVerification,
                 ], 422);
             }
@@ -228,6 +255,22 @@ class BookingController extends Controller
                 'success' => false,
                 'message' => 'This time slot conflicts with an existing booking',
             ], 422);
+        }
+
+        if (! empty($booking->user_email)) {
+            try {
+                if ($booking->status === 'pending') {
+                    Mail::to($booking->user_email)->queue(new BookingPendingMail($booking));
+                } elseif ($booking->status === 'approved') {
+                    Mail::to($booking->user_email)->queue(new BookingApprovedMail($booking));
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Failed to send booking creation email.', [
+                    'booking_id' => $booking->id,
+                    'user_email' => $booking->user_email,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return response()->json([
@@ -377,16 +420,18 @@ class BookingController extends Controller
         $payload['qr_code_url'] = $qrDataUri ?? $fresh->getAttribute('qr_code_url') ?? null;
         $payload['approval_status'] = $fresh->status;
         $payload['qr_status'] = $fresh->booking_status;
-        $payload['qr_validity'] = $fresh->qr_validity;
+    // Always add plain QR code payload for frontend to use in QR code URL
+    $payload['qr_code_encrypted'] = $fresh->qr_token ?? $fresh->booking_code;
+    $payload['qr_validity'] = $fresh->qr_validity;
 
         try {
-            if ($fresh->user) {
-                $fresh->user->notify(new BookingApprovedNotification($fresh));
-            } elseif (! empty($fresh->user_email)) {
-                Notification::route('mail', $fresh->user_email)->notify(new BookingApprovedNotification($fresh));
+            if (! empty($fresh->user_email)) {
+                Mail::to($fresh->user_email)->queue(new BookingApprovedMail($fresh));
+            } elseif ($fresh->user && ! empty($fresh->user->email)) {
+                Mail::to($fresh->user->email)->queue(new BookingApprovedMail($fresh));
             }
         } catch (\Throwable $e) {
-            Log::warning('Booking approval notification failed.', [
+            Log::warning('Booking approval email failed.', [
                 'booking_id' => $fresh->id,
                 'user_id' => $fresh->user?->id,
                 'user_email' => $fresh->user_email,
@@ -407,6 +452,18 @@ class BookingController extends Controller
             'status' => 'rejected',
             'reason' => $request->get('reason'),
         ]);
+
+        try {
+            $email = $booking->user_email ?? $booking->user?->email;
+            if (! empty($email)) {
+                Mail::to($email)->queue(new BookingRejectedMail($booking));
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Booking rejection email failed.', [
+                'booking_id' => $booking->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return response()->json(['success' => true, 'message' => 'Booking rejected successfully']);
     }
@@ -441,7 +498,13 @@ class BookingController extends Controller
      */
     public function qrImage(Request $request, string $token)
     {
-        $booking = Booking::where('qr_token', $token)->first();
+        // Use the QR payload (token) as plain text
+        $decrypted = $token;
+
+        // Try to find booking by qr_token first, then by booking_code (for legacy/backup)
+        $booking = Booking::where('qr_token', $decrypted)
+            ->orWhere('booking_code', $decrypted)
+            ->first();
 
         if (! $booking) {
             return response('Not found', 404);
@@ -450,50 +513,24 @@ class BookingController extends Controller
         // Every QR render re-evaluates the booking lifecycle status (upcoming/valid/expired).
         $booking->syncBookingStatus();
 
-        // Build a public verification URL directly (route name may not exist in all installs)
-        $verifyUrl = url('/verify?token=' . $token);
+        // Try to load the PNG from storage
+        $path = "qrcodes/booking_{$booking->booking_code}.png";
+        if (\Storage::disk('public')->exists($path)) {
+            $png = \Storage::disk('public')->get($path);
+            return response($png, 200, ['Content-Type' => 'image/png']);
+        }
 
+        // Fallback: regenerate the QR code if not found in storage
         try {
-            // Use Endroid to generate a scannable PNG in-app
+            $payload = $booking->qr_token ?? $booking->booking_code;
             $builder = new \Endroid\QrCode\Builder\Builder();
             $result = $builder->build(
-                null, // writer
-                null, // writer options
-                null, // validate result
-                $verifyUrl, // data
-                null, // encoding
-                null, // error correction
-                480, // size
-                10 // margin
+                null, null, null, $payload, null, null, 480, 10
             );
-
             $png = $result->getString();
-
-            $headers = ['Content-Type' => 'image/png'];
-            if ($request->query('download')) {
-                $headers['Content-Disposition'] = 'attachment; filename="booking-' . $token . '.png"';
-            }
-
-            return response($png, 200, $headers);
+            return response($png, 200, ['Content-Type' => 'image/png']);
         } catch (\Throwable $e) {
-            // Fallback to external QR generator if Endroid fails for any reason
-            try {
-                $external = 'https://api.qrserver.com/v1/create-qr-code/?size=480x480&data=' . urlencode($verifyUrl);
-                $resp = \Illuminate\Support\Facades\Http::get($external);
-                $content = $resp->body();
-                $headers = ['Content-Type' => 'image/png'];
-                if ($request->query('download')) {
-                    $headers['Content-Disposition'] = 'attachment; filename="booking-' . $token . '.png"';
-                }
-                return response($content, 200, $headers);
-            } catch (\Throwable $e) {
-                // Last-resort: return fallback placeholder (keeps <img> from breaking)
-                if (file_exists(resource_path('images/qr-fallback.png'))) {
-                    return response()->file(resource_path('images/qr-fallback.png'));
-                }
-
-                return response('QR generation unavailable', 500);
-            }
+            return response('QR generation unavailable', 500);
         }
     }
 

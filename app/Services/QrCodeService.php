@@ -23,10 +23,10 @@ class QrCodeService
                 $booking->saveQuietly();
             }
 
-            // Prefer verification URL (token) so scanned QR redirects to the verify page.
-            $accessUrl = $booking->qr_token
-                ? url('/verify?token=' . $booking->qr_token)
-                : route('bookings.access', ['bookingCode' => $booking->booking_code]);
+            // Use plain qr_token or booking_code for the QR payload
+            $payload = $booking->qr_token
+                ? $booking->qr_token
+                : $booking->booking_code;
 
             // Build PNG using Endroid
             try {
@@ -35,7 +35,7 @@ class QrCodeService
                     null,
                     null,
                     null,
-                    $accessUrl,
+                    $payload,
                     null,
                     null,
                     320,

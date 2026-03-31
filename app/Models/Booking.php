@@ -6,9 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Carbon\Carbon;
 use App\Services\QrCodeService;
+use Illuminate\Support\Facades\Schema;
 
 class Booking extends Model
 {
+    private static bool $bookingStatusColumnResolved = false;
+
+    private static ?bool $bookingStatusColumnExists = null;
+
     protected $fillable = [
         'room_id',
         'title',
@@ -49,12 +54,16 @@ class Booking extends Model
     protected static function booted(): void
     {
         static::saving(function (Booking $booking) {
-            $booking->booking_status = $booking->determineBookingStatus();
-            $booking->qr_validity    = $booking->determineQrValidity();
+            if (self::hasBookingStatusColumn()) {
+                $booking->booking_status = $booking->determineBookingStatus();
+            }
+            $booking->qr_validity = $booking->determineQrValidity();
         });
 
         static::retrieved(function (Booking $booking) {
-            $booking->syncBookingStatus();
+            if (self::hasBookingStatusColumn()) {
+                $booking->syncBookingStatus();
+            }
             $booking->syncQrValidity();
         });
 
@@ -199,6 +208,10 @@ class Booking extends Model
     {
         $calculatedStatus = $this->determineBookingStatus();
 
+        if (! self::hasBookingStatusColumn()) {
+            return $calculatedStatus;
+        }
+
         if ($this->booking_status !== $calculatedStatus) {
             $this->forceFill(['booking_status' => $calculatedStatus]);
 
@@ -221,7 +234,7 @@ class Booking extends Model
      * Returns 'not_valid' for everything else (pending, cancelled, future/past dates,
      * or outside the scheduled time window).
      */
-    public function determineQrValidity(?Carbon $reference = null): string
+    public function determineQrValidity(?\Carbon\Carbon $reference = null): string
     {
         $reference ??= now();
 
@@ -234,9 +247,9 @@ class Booking extends Model
             return 'not_valid';
         }
 
-        $bookingDate = $this->date instanceof Carbon
+        $bookingDate = $this->date instanceof \Carbon\Carbon
             ? $this->date->copy()->startOfDay()
-            : Carbon::parse((string) $this->date)->startOfDay();
+            : \Carbon\Carbon::parse((string) $this->date)->startOfDay();
 
         $currentDate = $reference->copy()->startOfDay();
 
@@ -257,6 +270,34 @@ class Booking extends Model
         }
 
         return 'not_valid';
+
+        if ($this->booking_status !== $calculatedStatus) {
+            $this->forceFill(['booking_status' => $calculatedStatus]);
+
+            if ($persist && $this->exists) {
+                $this->saveQuietly();
+            }
+        }
+
+        return $calculatedStatus;
+    }
+
+    private static function hasBookingStatusColumn(): bool
+    {
+        if (self::$bookingStatusColumnResolved) {
+            return (bool) self::$bookingStatusColumnExists;
+        }
+
+        self::$bookingStatusColumnResolved = true;
+
+        try {
+            self::$bookingStatusColumnExists = Schema::hasColumn('bookings', 'booking_status');
+        } catch (\Throwable $exception) {
+            self::$bookingStatusColumnExists = false;
+        }
+
+
+        return (bool) self::$bookingStatusColumnExists;
     }
 
     /**
@@ -276,7 +317,6 @@ class Booking extends Model
 
         return $calculated;
     }
-
     private function normalizeBookingTime($time): ?string
     {
         if (blank($time)) {

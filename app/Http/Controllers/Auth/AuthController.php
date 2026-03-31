@@ -6,22 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
-use Laravel\Socialite\Contracts\User as SocialiteUser;
 use Laravel\Socialite\Two\AbstractProvider;
+use Laravel\Socialite\Two\User as SocialiteUser;
 use Laravel\Socialite\Two\GoogleProvider;
 use Laravel\Socialite\Two\InvalidStateException;
 
 class AuthController extends Controller
 {
-    private bool $usersTableColumnsResolved = false;
-
     private ?array $usersTableColumns = null;
-
+    private bool $usersTableColumnsResolved = false;
     public function showLogin()
     {
         return view('auth.login');
@@ -29,8 +28,6 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-
-
         $validated = $request->validate([
             'login' => ['required', 'string', 'max:255'],
             'password' => ['required'],
@@ -39,32 +36,116 @@ class AuthController extends Controller
         $remember = $request->boolean('remember');
         $identifier = trim((string) $validated['login']);
         $password = (string) $validated['password'];
+        $hasUsernameColumn = Schema::hasColumn('users', 'username');
+
+        // --- Account lockout check ---
+        $lockoutKey = 'login_lockout:' . $request->ip() . ':' . strtolower($identifier);
+        $attemptsKey = 'login_attempts:' . $request->ip() . ':' . strtolower($identifier);
+        $lockoutSeconds = 300; // 5 minutes
+
+        // Check if currently locked out
+        $lockedUntil = Cache::get($lockoutKey);
+        if ($lockedUntil && now()->timestamp < $lockedUntil) {
+            $remainingSeconds = (int) ($lockedUntil - now()->timestamp);
+            $errorMsg = 'Account locked due to too many failed attempts. Try again in ' . ceil($remainingSeconds / 60) . ' minute(s).';
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMsg,
+                    'locked' => true,
+                    'lockout_seconds' => $remainingSeconds,
+                    'attempts_remaining' => 0,
+                    'show_warning' => true,
+                ], 429);
+            }
+
+            return back()
+                ->withErrors([
+                    'login' => $errorMsg,
+                    'lockout_seconds' => $remainingSeconds,
+                    'locked' => true,
+                ])
+                ->onlyInput('login');
+        }
 
         $candidate = User::query()
-            ->where(function ($query) use ($identifier) {
+            ->where(function ($query) use ($identifier, $hasUsernameColumn) {
                 $query->where('email', $identifier);
-                if (Schema::hasColumn('users', 'username')) {
+                if ($hasUsernameColumn) {
                     $query->orWhere('username', $identifier);
                 }
             })
             ->first();
 
         if (! $candidate || ! Hash::check($password, $candidate->password)) {
-            $this->incrementLoginAttempts($request);
-            $attempts = $this->limiter()->attempts($this->throttleKey($request));
-            $errorMsg = 'Invalid username/email or password.';
-            if ($attempts >= 3 && $attempts < $maxAttempts) {
-                $errorMsg .= ' Attempt ' . $attempts . ' of ' . $maxAttempts . '.';
-            }
+            // --- Increment failed attempts ---
+            $attempts = (int) Cache::get($attemptsKey, 0) + 1;
+            Cache::put($attemptsKey, $attempts, $lockoutSeconds + 60);
+
+            $maxAttempts = 5;
+            $warnAtAttempt = 3;
+            $attemptsRemaining = max(0, $maxAttempts - $attempts);
+            $showWarning = $attempts >= $warnAtAttempt;
+
+            // Lockout after max attempts
             if ($attempts >= $maxAttempts) {
-                $errorMsg = 'Account locked due to too many failed login attempts. Please try again in 1 minute.';
+                Cache::put($lockoutKey, now()->timestamp + $lockoutSeconds, $lockoutSeconds);
+                Cache::forget($attemptsKey);
+
+                $errorMsg = 'Account locked due to too many failed attempts. Try again in 5 minutes.';
+
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $errorMsg,
+                        'locked' => true,
+                        'lockout_seconds' => $lockoutSeconds,
+                        'attempts_remaining' => 0,
+                        'show_warning' => true,
+                    ], 429);
+                }
+
+                return back()
+                    ->withErrors([
+                        'login' => $errorMsg,
+                        'lockout_seconds' => $lockoutSeconds,
+                        'locked' => true,
+                    ])
+                    ->onlyInput('login');
             }
+
+            // Warning after warn threshold
+            $errorMsg = 'Invalid username/email or password.';
+            if ($showWarning) {
+                $errorMsg .= " Warning: {$attemptsRemaining} attempt(s) remaining before account lockout.";
+            }
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMsg,
+                    'locked' => false,
+                    'lockout_seconds' => 0,
+                    'attempts_remaining' => $attemptsRemaining,
+                    'show_warning' => $showWarning,
+                    'total_attempts' => $attempts,
+                ], 422);
+            }
+
             return back()
-                ->withErrors(['login' => $errorMsg])
+                ->withErrors([
+                    'login' => $errorMsg,
+                    'attempts_remaining' => $attemptsRemaining,
+                    'show_warning' => $showWarning,
+                ])
                 ->onlyInput('login');
         }
 
-        // Login throttling is now handled by middleware in Laravel 12
+        // --- Successful login: clear attempts ---
+        Cache::forget($attemptsKey);
+        Cache::forget($lockoutKey);
+
         Auth::login($candidate, $remember);
         $request->session()->regenerate();
         return $this->redirectFor($candidate);
@@ -92,6 +173,7 @@ class AuthController extends Controller
         if (! $adminUser) {
             $adminUser = User::create([
                 'name' => 'Admin',
+                'username' => 'admin',
                 'email' => 'admin@local.test',
                 'password' => Hash::make('admin123'),
                 'role' => 'admin',
@@ -108,33 +190,98 @@ class AuthController extends Controller
         return $this->redirectFor($adminUser);
     }
 
+    public function showRegister()
+    {
+        return view('auth.login', ['openSignupOnLoad' => true]);
+    }
+
     public function register(Request $request)
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z\s,.\-]+$/'],
+            'username' => ['required', 'string', 'max:255', 'alpha_dash', 'unique:users,username'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => [
                 'required',
                 'string',
                 'min:8',
+                'max:16',
                 'confirmed',
-                'regex:/^(?=.*[A-Z])(?=.*\d).{8,}$/', // At least 1 capital, 1 number, min 8 chars
+                'regex:/^(?=.*[A-Z])(?=.*\d).{8,16}$/', // At least 1 capital, 1 number, 8-16 chars
             ],
+            'phone_number' => ['nullable', 'string', 'max:20'],
+            'qcid_number' => ['required', 'string', 'max:50'],
+            'user_type' => ['nullable', 'string'],
+            'employee_category' => ['nullable', 'string'],
+            'course' => ['nullable', 'string'],
+            'sex' => ['nullable', 'string'],
+            'civil_status' => ['nullable', 'string'],
+            'date_of_birth' => ['nullable', 'date'],
+            'date_issued' => ['nullable', 'date'],
+            'valid_until' => ['nullable', 'date'],
+            'address' => ['nullable', 'string', 'max:100'],
+            'ocr_text' => ['required', 'string'],
+            'qr_validated_id' => ['nullable', 'string', 'max:50'],
+            'qcid_image' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:25600'],
         ], [
             'password.regex' => 'Password must be at least 8 characters, contain at least one uppercase letter and one number.'
         ]);
 
+        // Save the uploaded QC ID image
+        $imagePath = $request->file('qcid_image')->store('qcid_images', 'public');
+
+        $ocrText = $validated['ocr_text'];
+        $ocrVerifier = app(\App\Services\QcIdOcrVerifier::class);
+        if ($ocrVerifier->detectFakeId($ocrText)) {
+            return back()->withErrors(['ocr_text' => 'The provided QC ID is invalid or a sample ID. Registration denied.'])->withInput();
+        }
+
+        // === QR Cross-Validation Gate (Server-side) ===
+        $qrValidatedId = trim((string) ($validated['qr_validated_id'] ?? ''));
+        $enteredId = trim((string) ($validated['qcid_number'] ?? ''));
+
+        if ($qrValidatedId !== '') {
+            // Normalize both IDs for comparison (strip spaces)
+            $qrClean = preg_replace('/\s+/', '', $qrValidatedId);
+            $enteredClean = preg_replace('/\s+/', '', $enteredId);
+
+            if ($qrClean !== $enteredClean) {
+                return back()->withErrors([
+                    'qcid_number' => "QC ID number mismatch! Your ID's QR code shows {$qrValidatedId}, but you entered {$enteredId}. The QC ID number must match what's on your physical card."
+                ])->withInput();
+            }
+        }
+
         $user = User::create([
             'name' => $validated['name'],
+            'username' => $validated['username'] ?? Str::slug($validated['name']) . '_' . Str::random(4),
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => 'user',
         ]);
 
-        Auth::login($user);
-        $request->session()->regenerate();
+        // Create the initial verified registration record
+        $user->qcidRegistration()->create([
+            'full_name' => $validated['name'],
+            'email' => $validated['email'],
+            'contact_number' => $validated['phone_number'],
+            'qcid_number' => $validated['qcid_number'],
+            'sex' => $validated['sex'],
+            'civil_status' => $validated['civil_status'],
+            'date_of_birth' => $validated['date_of_birth'],
+            'date_issued' => $validated['date_issued'],
+            'valid_until' => $validated['valid_until'],
+            'address' => $validated['address'],
+            'ocr_text' => $validated['ocr_text'],
+            'qcid_image_path' => $imagePath,
+            'verification_status' => 'verified', // Auto-verified since it came through the portal
+            'submitted_at' => now(),
+            'reviewed_at' => now(),
+        ]);
 
-        return $this->redirectFor($user);
+        return redirect()->route('login')
+            ->with('registration_success', 'Your account has been created successfully! Please log in with your username or email and password.')
+            ->with('registered_username', $user->username);
     }
 
     public function logout(Request $request)
@@ -333,7 +480,7 @@ class AuthController extends Controller
         return null;
     }
 
-    private function googleCreateAttributes(SocialiteUser $googleUser, ?string $email, string $providerId): array
+    private function googleCreateAttributes(\Laravel\Socialite\Contracts\User $googleUser, ?string $email, string $providerId): array
     {
         $attributes = [
             'name' => $googleUser->getName() ?: ($email ?: 'User'),
@@ -404,7 +551,6 @@ class AuthController extends Controller
 
         return $this->usersTableColumns;
     }
-
     private function redirectFor(?User $user)
     {
         // Intentionally ignore "intended" URLs so users can only land on allowed screens.

@@ -173,10 +173,10 @@
                 <div class="w-full text-center">
                     <h3 class="text-sm font-semibold text-gray-700 mb-3">Booking QR Code</h3>
                     <div class="inline-block p-4 bg-white border-2 border-gray-200 rounded-xl shadow-sm mb-0">
-                        <template x-if="selectedBooking?.qr_code_url">
-                            <img :src="selectedBooking.qr_code_url" alt="Booking QR Code" class="w-48 h-48 mx-auto object-contain">
+                        <template x-if="selectedBooking?.qr_code_url || selectedBooking?.qr_token">
+                            <img :src="selectedBooking.qr_code_url || `/bookings/qr/${selectedBooking.qr_token}`" alt="Booking QR Code" class="w-48 h-48 mx-auto object-contain">
                         </template>
-                        <template x-if="!selectedBooking?.qr_code_url">
+                        <template x-if="!selectedBooking?.qr_code_url && !selectedBooking?.qr_token">
                             <div class="w-48 h-48 flex items-center justify-center bg-gray-100 rounded-lg">
                                 <div class="text-center">
                                     <i class="w-12 h-12 text-gray-400 mx-auto mb-2 fa-icon fa-solid fa-qrcode text-5xl leading-none"></i>

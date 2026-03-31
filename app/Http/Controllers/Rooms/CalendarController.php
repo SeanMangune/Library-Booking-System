@@ -49,17 +49,22 @@ class CalendarController extends Controller
 
             $bookings = $query->get();
 
-            return response()->json($bookings->map(function ($booking) {
+            $user = $request->user();
+            $canViewAll = $user?->isAdmin() || $user?->isSuperAdmin() || $user?->isStaff();
+
+            return response()->json($bookings->map(function ($booking) use ($canViewAll, $user) {
                 $date = $this->asCarbonDate($booking->date);
 
                 $startTime = $this->normalizeTime($booking->start_time, '09:00:00');
                 $endTime   = $this->normalizeTime($booking->end_time, '10:00:00');
 
                 $roomName = $booking->room?->name;
+                $isOwner = $user && ($booking->user_id === $user->id || $booking->user_email === $user->email);
+                $canSeeDetails = $canViewAll || $isOwner;
 
                 return [
                     'id' => $booking->id,
-                    'title' => $booking->title ?: ($roomName ?: 'Booking'),
+                    'title' => $canSeeDetails ? ($booking->title ?: ($roomName ?: 'Booking')) : 'Occupied',
                     'start' => $date->format('Y-m-d') . 'T' . $startTime,
                     'end' => $date->format('Y-m-d') . 'T' . $endTime,
                     'backgroundColor' => $this->getEventColor($booking->status),
@@ -68,20 +73,18 @@ class CalendarController extends Controller
                         'room' => $roomName,
                         'room_name' => $roomName,
                         'roomId' => $booking->room_id,
-                        'purpose' => $booking->title,
+                        'purpose' => $canSeeDetails ? $booking->title : 'Occupied',
                         'attendees' => $booking->attendees,
-                        'userName' => $booking->user_name,
-                        'user_name' => $booking->user_name,
+                        'userName' => $canSeeDetails ? $booking->user_name : 'Occupied',
+                        'user_name' => $canSeeDetails ? $booking->user_name : 'Occupied',
                         'status' => $booking->status,
-                        'description' => $booking->description,
-                        // safer than relying on an accessor that may throw
-                        // ensure human-friendly date/time values are present
+                        'description' => $canSeeDetails ? $booking->description : '',
                         'formatted_time' => $booking->formatted_time,
                         'formatted_date' => $booking->formatted_date,
                         'date' => $date->format('M d, Y'),
 
-                        'booking_code' => $booking->booking_code ?? null,
-                        'qr_code_url' => $booking->qr_code_url ?? null,
+                        'booking_code' => $canSeeDetails ? ($booking->booking_code ?? null) : null,
+                        'qr_code_url' => $canSeeDetails ? ($booking->qr_code_url ?? null) : null,
                     ],
                 ];
             }));
@@ -114,25 +117,31 @@ class CalendarController extends Controller
 
             $bookings = $query->orderBy('start_time')->get();
 
+            $user = $request->user();
+            $canViewAll = $user?->isAdmin() || $user?->isSuperAdmin() || $user?->isStaff();
+
             return response()->json([
                 'date' => $date,
-                'bookings' => $bookings->map(function ($booking) {
+                'bookings' => $bookings->map(function ($booking) use ($canViewAll, $user) {
+                    $isOwner = $user && ($booking->user_id === $user->id || $booking->user_email === $user->email);
+                    $canSeeDetails = $canViewAll || $isOwner;
+
                     return [
                         'id' => $booking->id,
-                        'purpose' => $booking->title,
-                        'title' => $booking->title,
+                        'purpose' => $canSeeDetails ? $booking->title : 'Occupied',
+                        'title' => $canSeeDetails ? $booking->title : 'Occupied',
                         'room_name' => $booking->room?->name,
                         'room_id' => $booking->room_id,
                         'start_time' => $booking->start_time,
                         'end_time' => $booking->end_time,
                         'formatted_time' => $booking->formatted_time,
                         'formatted_date' => $booking->formatted_date,
-                        'user_name' => $booking->user_name,
+                        'user_name' => $canSeeDetails ? $booking->user_name : 'Occupied',
                         'attendees' => $booking->attendees,
                         'status' => $booking->status,
 
-                        'booking_code' => $booking->booking_code ?? null,
-                        'qr_code_url' => $booking->qr_code_url ?? null,
+                        'booking_code' => $canSeeDetails ? ($booking->booking_code ?? null) : null,
+                        'qr_code_url' => $canSeeDetails ? ($booking->qr_code_url ?? null) : null,
                     ];
                 }),
             ]);
@@ -168,26 +177,32 @@ class CalendarController extends Controller
 
             $bookings = $query->get();
 
+            $user = $request->user();
+            $canViewAll = $user?->isAdmin() || $user?->isSuperAdmin() || $user?->isStaff();
+
             $grouped = $bookings->groupBy(function ($booking) {
                 return $this->asCarbonDate($booking->date)->format('Y-m-d');
-            })->map(function ($dayBookings) {
-                return $dayBookings->map(function ($booking) {
+            })->map(function ($dayBookings) use ($canViewAll, $user) {
+                return $dayBookings->map(function ($booking) use ($canViewAll, $user) {
+                    $isOwner = $user && ($booking->user_id === $user->id || $booking->user_email === $user->email);
+                    $canSeeDetails = $canViewAll || $isOwner;
+
                     return [
                         'id' => $booking->id,
-                        'purpose' => $booking->title,
-                        'title' => $booking->title,
+                        'purpose' => $canSeeDetails ? $booking->title : 'Occupied',
+                        'title' => $canSeeDetails ? $booking->title : 'Occupied',
                         'room_name' => $booking->room?->name,
                         'room_id' => $booking->room_id,
                         'start_time' => $booking->start_time,
                         'end_time' => $booking->end_time,
                         'formatted_time' => $booking->formatted_time,
                         'formatted_date' => $booking->formatted_date,
-                        'user_name' => $booking->user_name,
+                        'user_name' => $canSeeDetails ? $booking->user_name : 'Occupied',
                         'status' => $booking->status,
                         'attendees' => $booking->attendees,
 
-                        'booking_code' => $booking->booking_code ?? null,
-                        'qr_code_url' => $booking->qr_code_url ?? null,
+                        'booking_code' => $canSeeDetails ? ($booking->booking_code ?? null) : null,
+                        'qr_code_url' => $canSeeDetails ? ($booking->qr_code_url ?? null) : null,
                     ];
                 })->values();
             });

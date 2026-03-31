@@ -81,9 +81,9 @@ class AdminStaffAndReportsTest extends TestCase
 
     public function test_librarian_can_open_the_reports_page(): void
     {
-        /** @var User $librarian */
-        $librarian = User::factory()->create([
-            'role' => User::ROLE_LIBRARIAN,
+        /** @var User $admin */
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
         ]);
 
         $room = Room::create([
@@ -111,11 +111,64 @@ class AdminStaffAndReportsTest extends TestCase
             ]);
         });
 
-        $response = $this->actingAs($librarian)->get(route('reports.index'));
+        $response = $this->actingAs($admin)->get(route('reports.index'));
 
         $response->assertOk();
         $response->assertSee('Detailed Reports');
         $response->assertViewHas('stats', fn (array $stats) => $stats['total'] === 1 && $stats['pending'] === 1);
         $response->assertViewHas('bookings', fn ($bookings) => $bookings->total() === 1);
+    }
+
+    public function test_reports_default_filters_include_all_booking_dates(): void
+    {
+        /** @var User $admin */
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+        ]);
+
+        $room = Room::create([
+            'name' => 'Collaborative Room B',
+            'slug' => 'collaborative-room-b',
+            'capacity' => 10,
+            'location' => 'Third Floor',
+            'status' => 'operational',
+            'requires_approval' => true,
+        ]);
+
+        Booking::withoutEvents(function () use ($room) {
+            Booking::create([
+                'room_id' => $room->id,
+                'title' => 'Older Booking',
+                'user_name' => 'Student One',
+                'user_email' => 'student1@example.com',
+                'date' => '2025-12-15',
+                'time' => '9:00 AM',
+                'start_time' => '09:00',
+                'end_time' => '10:00',
+                'duration' => '1h',
+                'attendees' => 8,
+                'status' => 'approved',
+            ]);
+
+            Booking::create([
+                'room_id' => $room->id,
+                'title' => 'Newer Booking',
+                'user_name' => 'Student Two',
+                'user_email' => 'student2@example.com',
+                'date' => '2026-03-20',
+                'time' => '10:00 AM',
+                'start_time' => '10:00',
+                'end_time' => '11:00',
+                'duration' => '1h',
+                'attendees' => 9,
+                'status' => 'pending',
+            ]);
+        });
+
+        $response = $this->actingAs($admin)->get(route('reports.index'));
+
+        $response->assertOk();
+        $response->assertViewHas('stats', fn (array $stats) => $stats['total'] === 2 && $stats['approved'] === 1 && $stats['pending'] === 1);
+        $response->assertViewHas('bookings', fn ($bookings) => $bookings->total() === 2);
     }
 }

@@ -1,0 +1,11 @@
+﻿app/Http/Controllers/Auth/AuthController.php
+app/Http/Controllers/QcIdVerificationController.php
+app/Services/QcIdOcrVerifier.php
+config/services.php
+resources/js/calendar.js
+resources/views/auth/login.blade.php
+resources/views/components/modals/approvals/details.blade.php
+resources/views/reports/index.blade.php
+resources/views/rooms/approvals.blade.php
+resources/views/rooms/calendar.blade.php
+resources/views/rooms/dashboard.blade.php

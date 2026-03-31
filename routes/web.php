@@ -20,6 +20,12 @@ Route::get('/', function () {
         : redirect()->route('login');
 });
 
+Route::get('/pwa', function () {
+    return Auth::check()
+        ? redirect()->route('dashboard')
+        : view('pwa.landing');
+})->name('pwa.landing');
+
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])
@@ -29,8 +35,7 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->name('register.post');
     Route::post('/signup/qc-id/verify', QcIdVerificationController::class)->name('signup.qcid.verify');
 
-    Route::get('/auth/google/redirect', [AuthController::class, 'googleRedirect'])->name('google.redirect');
-    Route::get('/auth/google/callback', [AuthController::class, 'googleCallback'])->name('google.callback');
+
 
     Route::post('/admin/login', [AuthController::class, 'adminLogin'])->name('admin.login');
 });
