@@ -30,14 +30,7 @@ class QcIdVerificationController extends Controller
         }
 
         $combinedText = trim(implode("\n", array_filter([$clientOcrText, $ocrSpaceText])));
-        if (mb_strlen($combinedText) < 5) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No readable text was detected. Please upload a QC ID Image.',
-                'verification' => null,
-                'ocr_text' => $combinedText,
-            ], 200);
-        }
+        // Text length checks removed to allow all images to cleanly fail as INVALID through the verifier.
 
         $verification = $verifier->verify(
             $combinedText,
