@@ -162,29 +162,30 @@
                         </button>
 
 
-                        <div id="installPromptContainer" class="hidden">
-                            <button id="installBtn" type="button" class="install-app-card group/install w-full relative overflow-hidden rounded-2xl border border-emerald-200/60 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 text-left transition-all duration-500 hover:border-emerald-300/80 hover:shadow-[0_0_30px_-5px_rgba(16,185,129,0.35)] active:scale-[0.98]">
+                        <div x-data="pwaInstallPrompt()" x-cloak class="mt-4">
+                            <button @click="promptInstall" type="button" class="block install-app-card group/install w-full relative overflow-hidden rounded-2xl border border-emerald-200/60 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 text-left transition-all duration-500 hover:border-emerald-300/80 hover:shadow-[0_0_30px_-5px_rgba(16,185,129,0.35)] active:scale-[0.98]">
                                 <!-- Animated gradient glow background -->
                                 <div class="absolute inset-0 rounded-2xl opacity-0 group-hover/install:opacity-100 transition-opacity duration-700 bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,0.08)_0%,transparent_70%)]"></div>
                                 <!-- Shimmer sweep -->
                                 <div class="absolute inset-0 -translate-x-full group-hover/install:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/40 to-transparent"></div>
                                 <div class="relative z-10 flex items-center gap-4">
                                     <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/25 group-hover/install:shadow-emerald-500/40 group-hover/install:scale-110 transition-all duration-500">
-                                        <i class="fa-solid fa-download text-white text-lg group-hover/install:animate-bounce"></i>
+                                        <i class="fa-solid fa-mobile-screen text-white text-lg group-hover/install:animate-bounce"></i>
                                     </div>
                                     <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-bold text-gray-900 group-hover/install:text-emerald-700 transition-colors duration-300">Install SmartSpace</p>
-                                        <p class="text-xs text-gray-500 group-hover/install:text-emerald-600/70 transition-colors duration-300 mt-0.5">Add to your device for quick access</p>
+                                        <p class="text-sm font-bold text-gray-900 group-hover/install:text-emerald-700 transition-colors duration-300">Install App</p>
+                                        <p class="text-xs text-gray-500 group-hover/install:text-emerald-600/70 transition-colors duration-300 mt-0.5">Quick access for PC & Mobile</p>
                                     </div>
                                     <div class="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 group-hover/install:bg-emerald-500 group-hover/install:text-white transition-all duration-300">
-                                        <i class="fa-solid fa-arrow-right text-xs"></i>
+                                        <i class="fa-solid fa-arrow-down text-xs"></i>
                                     </div>
                                 </div>
                             </button>
-                        </div>
 
-                        <div id="iosInstallHint" class="hidden rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm text-blue-800">
-                            Tap Share → Add to Home Screen
+                            <!-- iOS specific install hint -->
+                            <div x-show="showIosHint" x-transition.duration.300ms class="mt-2 text-center text-xs text-gray-500 bg-emerald-50/50 py-2 rounded-xl border border-emerald-100/50">
+                                Tap <i class="fa-solid fa-arrow-up-from-bracket mx-1 text-blue-500"></i> Share → <b>Add to Home Screen</b>
+                            </div>
                         </div>
                     </div>
                         </div>
@@ -895,120 +896,6 @@ function signupLoginApp($persist, initialSignupOpen) {
         },
     };
 }
-    let deferredInstallPrompt;
-    const isMobileBrowser = /android|iphone|ipad|ipod|mobile|blackberry|iemobile|opera mini/i.test(window.navigator.userAgent);
-    const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-    const iosInstallHint = document.getElementById('iosInstallHint');
-    const installBtn = document.getElementById('installBtn');
-    const installContainer = document.getElementById('installPromptContainer');
-    const installToast = document.getElementById('installToast');
-
-    const showInstallToast = (message) => {
-        if (!installToast) {
-            return;
-        }
-
-        installToast.textContent = message;
-        installToast.classList.remove('hidden', 'opacity-0', 'translate-y-3');
-
-        window.setTimeout(() => {
-            installToast.classList.add('opacity-0', 'translate-y-3');
-            window.setTimeout(() => {
-                installToast.classList.add('hidden');
-            }, 250);
-        }, 2600);
-    };
-
-    const markAppInstalled = () => {
-        try {
-            window.localStorage.setItem('smartspace_pwa_installed', '1');
-        } catch (error) {
-            console.warn('Unable to persist install state', error);
-        }
-    };
-
-    const isAppInstalled = () => {
-        if (isStandalone) {
-            return true;
-        }
-
-        try {
-            return window.localStorage.getItem('smartspace_pwa_installed') === '1';
-        } catch (error) {
-            console.warn('Unable to read install state', error);
-            return false;
-        }
-    };
-
-    const updateInstallUiState = () => {
-        const installed = isAppInstalled();
-
-        // Show Install App button for everyone who hasn't installed yet
-        if (installContainer) {
-            installContainer.classList.toggle('hidden', installed);
-        }
-    };
-
-    updateInstallUiState();
-
-    if (isIos && !isStandalone && iosInstallHint) {
-        iosInstallHint.classList.remove('hidden');
-    }
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredInstallPrompt = e;
-        updateInstallUiState();
-    });
-
-    installBtn?.addEventListener('click', async () => {
-        // Path 1: Native PWA install prompt is available
-        if (deferredInstallPrompt) {
-            deferredInstallPrompt.prompt();
-            const { outcome } = await deferredInstallPrompt.userChoice;
-
-            if (outcome === 'accepted') {
-                markAppInstalled();
-                showInstallToast('SmartSpace installed successfully!');
-                updateInstallUiState();
-            }
-
-            deferredInstallPrompt = null;
-            return;
-        }
-
-        // Path 2: iOS — show specific instructions
-        if (isIos) {
-            if (iosInstallHint) {
-                iosInstallHint.classList.remove('hidden');
-            }
-            showInstallToast('Tap the Share button, then "Add to Home Screen".');
-            return;
-        }
-
-        // Path 3: Desktop/Android — guide to browser install UI
-        const isChromium = /chrome|chromium|edg|opr|opera/i.test(navigator.userAgent);
-
-        if (isChromium) {
-            showInstallToast('Click the install icon (⊕) in your browser\'s address bar, or use Menu → "Install SmartSpace"');
-        } else {
-            showInstallToast('Use your browser menu to add SmartSpace to your home screen.');
-        }
-    });
-
-    window.addEventListener('appinstalled', () => {
-        deferredInstallPrompt = null;
-        markAppInstalled();
-        updateInstallUiState();
-
-        if (iosInstallHint) {
-            iosInstallHint.classList.add('hidden');
-        }
-
-        showInstallToast('SmartSpace has been installed!');
-    });
-
     // Register service worker for PWA support
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
@@ -1021,9 +908,54 @@ function signupLoginApp($persist, initialSignupOpen) {
             window.dispatchEvent(new CustomEvent('toggle-admin-login'));
         }
     });
-</script>
 
-<div id="installToast" class="hidden fixed left-1/2 bottom-6 z-50 w-[90%] max-w-sm -translate-x-1/2 rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white shadow-lg opacity-0 translate-y-3 transition-all duration-200"></div>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('pwaInstallPrompt', () => ({
+            deferredPrompt: null,
+            isIos: false,
+            showIosHint: false,
+            
+            init() {
+                // Check if already installed
+                if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+                    return;
+                }
+
+                // Detect iOS for manual install instructions
+                const userAgent = window.navigator.userAgent.toLowerCase();
+                if (/iphone|ipad|ipod/.test(userAgent)) {
+                    this.isIos = true;
+                }
+
+                window.addEventListener('beforeinstallprompt', (e) => {
+                    e.preventDefault();
+                    this.deferredPrompt = e;
+                });
+            },
+            
+            async promptInstall() {
+                // If it's already installed, let the user know
+                if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+                    alert("App is already installed!");
+                    return;
+                }
+
+                if (this.deferredPrompt) {
+                    this.deferredPrompt.prompt();
+                    const { outcome } = await this.deferredPrompt.userChoice;
+                    this.deferredPrompt = null;
+                } else if (this.isIos) {
+                    // Show iOS install hint since Safari doesn't support the prompt API
+                    this.showIosHint = true;
+                    setTimeout(() => { this.showIosHint = false; }, 8000);
+                } else {
+                    // PC / Alternative Desktop browser cross-platform fallback: download the shortcut exe
+                    window.location.href = "{{ route('download.shortcut') }}";
+                }
+            }
+        }));
+    });
+</script>
 @endpush
 
 @push('styles')
