@@ -169,9 +169,45 @@
                         @endforeach
                     </div>
                 </div>
-            </div>
 
-            <!-- Right Column: Calendar & Bookings (lg:col-span-8) -->
+                <!-- Today's QR Codes Quick Access -->
+                @php
+                    $todayBookings = $collabRoomBookings->filter(fn($b) => $b->date->isToday() && $b->status === 'approved')->values();
+                @endphp
+                @if($todayBookings->count() > 0)
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 animate-slide-in-up stagger-6">
+                    <div class="px-6 py-4 border-b border-gray-50 bg-gradient-to-r from-indigo-50 to-purple-50">
+                        <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                           <i class="fa-solid fa-qrcode text-indigo-600"></i>
+                           Today's QR Codes
+                           <span class="px-2 py-0.5 text-[10px] font-black rounded-full bg-indigo-100 text-indigo-700">{{ $todayBookings->count() }}</span>
+                        </h3>
+                        <p class="text-xs text-gray-500 mt-0.5">Quick access to today's booking QR codes</p>
+                    </div>
+                    <div class="p-3 space-y-2 max-h-[320px] overflow-y-auto">
+                        @foreach($todayBookings as $qrBooking)
+                        <div class="flex items-center gap-3 p-3 rounded-xl border border-gray-50 hover:border-indigo-200 hover:bg-indigo-50/30 transition-all cursor-pointer group/qr"
+                             @click="viewBooking({{ json_encode($qrBooking) }})">
+                            @if($qrBooking->qr_code_url)
+                            <div class="w-12 h-12 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center shrink-0 overflow-hidden group-hover/qr:border-indigo-300 transition-colors">
+                                <img src="{{ $qrBooking->qr_code_url }}" alt="QR" class="w-10 h-10 object-contain">
+                            </div>
+                            @else
+                            <div class="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 group-hover/qr:border-indigo-300 transition-colors">
+                                <i class="fa-solid fa-qrcode text-gray-300"></i>
+                            </div>
+                            @endif
+                            <div class="flex-1 min-w-0">
+                                <h4 class="text-sm font-bold text-gray-900 truncate group-hover/qr:text-indigo-700 transition-colors">{{ $qrBooking->room->name }}</h4>
+                                <p class="text-xs text-gray-500">{{ $qrBooking->formatted_time }} &bull; {{ $qrBooking->user_name }}</p>
+                            </div>
+                            <i class="fa-solid fa-chevron-right text-gray-300 group-hover/qr:text-indigo-400 text-xs transition-colors"></i>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+            </div>
             <div id="admin-calendar-section" class="lg:col-span-8 space-y-6">
                 <!-- Mini Calendar Subsection -->
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all duration-300 animate-slide-in-up stagger-2">

@@ -170,30 +170,48 @@
 
             <!-- If already approved, show details and QR code only -->
             <template x-if="selectedBooking?.status === 'approved'">
-                <div class="w-full text-center">
-                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Booking QR Code</h3>
-                    <div class="inline-block p-4 bg-white border-2 border-gray-200 rounded-xl shadow-sm mb-0">
-                        <template x-if="selectedBooking?.qr_code_url || selectedBooking?.qr_token">
-                            <img :src="selectedBooking.qr_code_url || `/bookings/qr/${selectedBooking.qr_token}`" alt="Booking QR Code" class="w-48 h-48 mx-auto object-contain">
-                        </template>
-                        <template x-if="!selectedBooking?.qr_code_url && !selectedBooking?.qr_token">
-                            <div class="w-48 h-48 flex items-center justify-center bg-gray-100 rounded-lg">
-                                <div class="text-center">
-                                    <i class="w-12 h-12 text-gray-400 mx-auto mb-2 fa-icon fa-solid fa-qrcode text-5xl leading-none"></i>
-                                    <p class="text-sm text-gray-500">QR Code</p>
-                                    <p class="text-xs text-gray-400">Not available</p>
+                <div class="w-full relative overflow-hidden rounded-2xl border border-purple-200/60 bg-gradient-to-br from-purple-50/80 via-indigo-50/60 to-white p-5"
+                     style="animation: approvalQrFade 0.4s ease-out both;">
+                    <!-- Decorative glow -->
+                    <div class="absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br from-purple-200/30 to-indigo-200/30 rounded-full blur-2xl pointer-events-none"></div>
+                    <div class="absolute -bottom-8 -left-8 w-24 h-24 bg-gradient-to-br from-indigo-200/20 to-purple-200/20 rounded-full blur-2xl pointer-events-none"></div>
+
+                    <div class="relative z-10 text-center">
+                        <div class="flex items-center justify-center gap-2 mb-3">
+                            <i class="fa-solid fa-qrcode text-purple-600"></i>
+                            <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Booking QR Code</h3>
+                        </div>
+
+                        <div class="inline-block p-3 bg-white rounded-xl shadow-sm border border-gray-100 mb-3">
+                            <template x-if="selectedBooking?.qr_code_url || selectedBooking?.qr_token">
+                                <img :src="selectedBooking.qr_code_url || `/bookings/qr/${selectedBooking.qr_token}`" alt="Booking QR Code" class="w-44 h-44 mx-auto object-contain">
+                            </template>
+                            <template x-if="!selectedBooking?.qr_code_url && !selectedBooking?.qr_token">
+                                <div class="w-44 h-44 flex items-center justify-center bg-gray-50 rounded-lg">
+                                    <div class="text-center">
+                                        <i class="fa-solid fa-qrcode text-gray-300 text-4xl mb-2"></i>
+                                        <p class="text-xs text-gray-400">QR unavailable</p>
+                                    </div>
                                 </div>
-                            </div>
-                        </template>
-                    </div>
-                    <div class="mt-4">
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold"
+                            </template>
+                        </div>
+
+                        <p class="text-xs text-gray-500 mb-3">Present this QR Code at the room scanner or librarian on duty</p>
+
+                        <!-- Booking Status Badge -->
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
                             :class="{
                                 'bg-emerald-100 text-emerald-700': (selectedBooking?.booking_status || selectedBooking?.qr_status) === 'valid',
                                 'bg-red-100 text-red-700': (selectedBooking?.booking_status || selectedBooking?.qr_status) === 'expired',
                                 'bg-amber-100 text-amber-700': (selectedBooking?.booking_status || selectedBooking?.qr_status || 'upcoming') === 'upcoming'
-                            }"
-                            x-text="((selectedBooking?.booking_status || selectedBooking?.qr_status || 'upcoming').toString().charAt(0).toUpperCase() + (selectedBooking?.booking_status || selectedBooking?.qr_status || 'upcoming').toString().slice(1))">
+                            }">
+                            <span class="w-1.5 h-1.5 rounded-full"
+                                  :class="{
+                                      'bg-emerald-500': (selectedBooking?.booking_status || selectedBooking?.qr_status) === 'valid',
+                                      'bg-red-500': (selectedBooking?.booking_status || selectedBooking?.qr_status) === 'expired',
+                                      'bg-amber-500': (selectedBooking?.booking_status || selectedBooking?.qr_status || 'upcoming') === 'upcoming'
+                                  }"></span>
+                            <span x-text="((selectedBooking?.booking_status || selectedBooking?.qr_status || 'upcoming').toString().charAt(0).toUpperCase() + (selectedBooking?.booking_status || selectedBooking?.qr_status || 'upcoming').toString().slice(1))"></span>
                         </span>
                     </div>
                 </div>

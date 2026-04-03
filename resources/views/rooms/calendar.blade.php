@@ -128,7 +128,7 @@
     </div>
 
     <!-- Booking Modal -->
-    <x-modals.calendar.booking />
+    <x-modals.calendar.booking :rooms="$rooms" />
 
     <!-- Booking Success Modal -->
     <x-modals.calendar.success />

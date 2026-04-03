@@ -2087,10 +2087,18 @@ export function createDashboardApp(config = {}) {
             const mapped = {
                 ...booking,
                 room_name: booking.room_name || booking.room?.name || 'Room',
+                room_location: booking.room_location || booking.room?.location || '',
                 user_name: booking.user_name || booking.user?.name || 'Unknown',
+                user_email: booking.user_email || booking.user?.email || '',
                 formatted_time: booking.formatted_time || this.formatTimeRange(booking.start_time, booking.end_time),
+                formatted_date: booking.formatted_date || booking.date || '',
                 status: booking.status || 'pending',
                 attendees: booking.attendees || 0,
+                description: booking.description || '',
+                title: booking.title || booking.purpose || '',
+                qr_token: booking.qr_token || null,
+                qr_code_url: booking.qr_code_url || (booking.qr_token ? `/bookings/qr/${booking.qr_token}` : null),
+                booking_status: booking.booking_status || null,
             };
             this.openViewBookingModal(mapped);
         },

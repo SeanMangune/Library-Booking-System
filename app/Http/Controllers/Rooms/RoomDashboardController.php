@@ -168,11 +168,19 @@ class RoomDashboardController extends Controller
                     'title' => $canViewAll ? ($booking->title ?: $booking->user_name) : 'Occupied',
                     'purpose' => $canViewAll ? $booking->title : 'Occupied',
                     'room_name' => $booking->room->name,
+                    'room_location' => $booking->room->location ?? null,
                     'start_time' => $booking->start_time,
                     'end_time' => $booking->end_time,
                     'formatted_time' => $booking->formatted_time,
+                    'formatted_date' => $booking->formatted_date,
                     'user_name' => $canViewAll ? $booking->user_name : 'Occupied',
+                    'user_email' => $canViewAll ? $booking->user_email : null,
+                    'attendees' => $booking->attendees,
                     'status' => $booking->status,
+                    'booking_status' => $booking->booking_status ?? $booking->determineBookingStatus(),
+                    'qr_token' => $booking->qr_token,
+                    'qr_code_url' => $booking->qr_code_url,
+                    'description' => $canViewAll ? $booking->description : null,
                 ];
             })->values();
         });

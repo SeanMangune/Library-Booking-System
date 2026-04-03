@@ -180,6 +180,9 @@
                                 'attendees' => $booking->attendees,
                                 'status' => $booking->status,
                                 'description' => $booking->description,
+                                'booking_status' => $booking->booking_status ?? $booking->determineBookingStatus(),
+                                'qr_token' => $booking->qr_token,
+                                'qr_code_url' => $booking->qr_code_url,
                             ];
                         @endphp
                         <td class="px-6 py-4">
