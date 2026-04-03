@@ -33,6 +33,8 @@ class User extends Authenticatable
         'provider',
         'provider_id',
         'settings',
+        'otp_code',
+        'otp_expires_at',
     ];
 
     /**

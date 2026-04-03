@@ -35,6 +35,11 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->name('register.post');
     Route::post('/signup/qc-id/verify', QcIdVerificationController::class)->name('signup.qcid.verify');
 
+    // Password Reset via OTP
+    Route::get('/forgot-password', [\App\Http\Controllers\Auth\ForgotPasswordOTPController::class, 'showLinkRequestForm'])->name('password.request');
+    Route::post('/forgot-password', [\App\Http\Controllers\Auth\ForgotPasswordOTPController::class, 'sendOtpCode'])->name('password.email');
+    Route::get('/verify-otp', [\App\Http\Controllers\Auth\ForgotPasswordOTPController::class, 'showVerifyForm'])->name('password.verify.form');
+    Route::post('/verify-otp', [\App\Http\Controllers\Auth\ForgotPasswordOTPController::class, 'verifyOtp'])->name('password.verify.post');
 
 
     Route::post('/admin/login', [AuthController::class, 'adminLogin'])->name('admin.login');

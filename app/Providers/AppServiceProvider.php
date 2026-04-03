@@ -19,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Native SMTP configuration handles authentication automatically
+        // No OAuth Refresh tokens needed!
     }
 }

@@ -4,8 +4,12 @@ namespace App\Http\Controllers\Rooms;
 
 use App\Http\Controllers\Controller;
 use App\Models\Room;
+use App\Models\User;
+use App\Mail\RoomAddedMail;
+use App\Mail\RoomStatusChangedMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
 class RoomController extends Controller
@@ -57,7 +61,13 @@ class RoomController extends Controller
         $validated['slug'] = Str::slug($validated['name']) . '-' . Str::random(5);
         $validated['requires_approval'] = $request->boolean('requires_approval');
 
-        Room::create($validated);
+        $room = Room::create($validated);
+
+        // Notify all users about the exciting new room!
+        $users = User::where('role', 'user')->get();
+        foreach ($users as $u) {
+            Mail::to($u->email)->queue(new RoomAddedMail($room));
+        }
 
         return response()->json(['success' => true, 'message' => 'Room created successfully']);
     }
@@ -85,7 +95,25 @@ class RoomController extends Controller
 
         $validated['requires_approval'] = $request->boolean('requires_approval');
 
+        // Check if status changes between operational and closed/maintenance
+        $oldStatus = $room->status;
         $room->update($validated);
+        
+        $newStatus = $room->status;
+        if ($oldStatus !== $newStatus) {
+            // If it became operational (active) or was closed (inactive)
+            $isActive = $newStatus === 'operational';
+            $wasActive = $oldStatus === 'operational';
+            
+            if ($isActive !== $wasActive) {
+                // Email all users about the status change
+                $users = User::where('role', 'user')->get();
+                $mailStatus = $isActive ? 'active' : 'inactive';
+                foreach ($users as $u) {
+                    Mail::to($u->email)->queue(new RoomStatusChangedMail($room, $mailStatus));
+                }
+            }
+        }
 
         return response()->json(['success' => true, 'message' => 'Room updated successfully']);
     }

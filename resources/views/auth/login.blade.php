@@ -145,11 +145,12 @@
                                     </button>
                                 </div>
                             </div>
-                            <div class="flex items-center">
+                            <div class="flex items-center justify-between mt-2">
                                 <label class="inline-flex items-center gap-2 text-sm text-gray-600">
                                     <input type="checkbox" name="remember" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
                                     Remember me
                                 </label>
+                                <a href="{{ route('password.request') }}" class="text-sm font-semibold text-indigo-600 hover:text-indigo-500 transition-colors">Forgot password?</a>
                             </div>
                             <button type="submit" class="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors">
                                 Login
