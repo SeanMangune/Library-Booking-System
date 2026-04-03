@@ -83,7 +83,7 @@
             @endif
         @endif
 
-        <x-modals.auth.signup-error />
+
 
         @php
             $signupFields = [
@@ -194,6 +194,7 @@
             </div>
 
             <x-modals.auth.signup />
+            <x-modals.auth.signup-error />
 
         </div>
     </div>
