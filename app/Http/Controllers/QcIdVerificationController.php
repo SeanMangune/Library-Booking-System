@@ -30,7 +30,7 @@ class QcIdVerificationController extends Controller
         }
 
         $combinedText = trim(implode("\n", array_filter([$clientOcrText, $ocrSpaceText])));
-        if (mb_strlen($combinedText) < 20) {
+        if (mb_strlen($combinedText) < 5) {
             return response()->json([
                 'success' => false,
                 'message' => 'No readable text was detected. Please upload a QC ID Image.',
