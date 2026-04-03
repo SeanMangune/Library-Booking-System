@@ -111,7 +111,9 @@ class QcIdOcrVerifier
         $hasStrongQcMarker = in_array('qc_citizen_card', $markerKeys)
             || in_array('kasama_pag_unlad', $markerKeys);
         if ($rejectedIdType !== null) {
-            if (!$hasStrongQcMarker) {
+            // Rejection should only happen if we have a moderate-to-high confidence signal for another ID
+            // AND we lack strong QC signals.
+            if (!$hasStrongQcMarker && $score < 60) {
                 $looksLikeQcId = false;
                 $confidenceScore = 0;
             } else {
@@ -233,6 +235,8 @@ class QcIdOcrVerifier
             '/CITI\s*ZEN/',
             '/CITIZ/',
             '/IZEN\s*CARD/',
+            '/CITI\s*Z/',
+            '/TI\s*ZEN\s*C/',
         ];
         foreach ($citizenPatterns as $p) {
             if (preg_match($p, $normalized)) {
@@ -406,7 +410,7 @@ class QcIdOcrVerifier
         $definitions = [
             'qc_citizen_card' => [
                 'label' => 'QC Citizen Card',
-                'pattern' => '/Q\s*C?\s*CITIZEN\s*CARD|QCITIZENCARD|Q\s*CITIZENCARD|QC\s*CITIZEN\s*CARD|CITIZENCARD|QC\s*CARD/',
+                'pattern' => '/Q\s*C?\s*CITIZEN\s*CARD|QCITIZENCARD|Q\s*CITIZENCARD|QC\s*CITIZEN\s*CARD|CITIZENCARD|QC\s*CARD|CITIZEN\s*CARD/',
             ],
             'republic_of_the_philippines' => [
                 'label' => 'Republic of the Philippines',

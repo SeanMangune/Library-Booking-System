@@ -62,6 +62,10 @@ class QcIdVerificationController extends Controller
             // QR validation confirms this is a real QC ID (contains a valid QR structure)
             $verification['qr_validated'] = true;
             $verification['qr_profile_extracted'] = true;
+            
+            // CRITICAL: If QR is validated, the ID is considered Verified regardless of OCR score
+            $verification['is_valid'] = true;
+            $verification['id_assessment'] = 'Verified';
         }
 
         if (! $verification['is_valid']) {
