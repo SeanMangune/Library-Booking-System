@@ -83,11 +83,8 @@ class QcIdOcrVerifier
             $score += 8;
         }
 
-        // ── decision ────────────────────────────────────────────────────
-        // Threshold: 40 points is enough – a single "CITIZENCARD" marker
-        // (30) plus any two fragment hits or a couple of parsed fields
-        // will cross this bar.
-        $looksLikeQcId = $score >= 40;
+        // Threshold: 70 points is required for a strict verification.
+        $looksLikeQcId = $score >= 70;
 
         // Optional name-match gate – only applied when a name was
         // entered AND the card name was successfully parsed.
@@ -98,7 +95,7 @@ class QcIdOcrVerifier
             // because OCR frequently garbles names.
             if (!$nameMatches) {
                 $score -= 15;
-                $looksLikeQcId = $score >= 40;
+                $looksLikeQcId = $score >= 70;
             }
         }
 
@@ -111,14 +108,11 @@ class QcIdOcrVerifier
         $hasStrongQcMarker = in_array('qc_citizen_card', $markerKeys)
             || in_array('kasama_pag_unlad', $markerKeys);
         if ($rejectedIdType !== null) {
-            // Rejection should only happen if we have a moderate-to-high confidence signal for another ID
-            // AND we lack strong QC signals.
-            if (!$hasStrongQcMarker && $score < 60) {
+            // Hard rejection if a non-QC ID marker is detected, 
+            // unless we have an extremely high confidence QC marker (like CITIZENCARD).
+            if (!$hasStrongQcMarker) {
                 $looksLikeQcId = false;
                 $confidenceScore = 0;
-            } else {
-                // Strong QC markers present – false positive, ignore
-                // Keep the non-QC signal for fake QC ID checks.
             }
         }
 
@@ -410,7 +404,7 @@ class QcIdOcrVerifier
         $definitions = [
             'qc_citizen_card' => [
                 'label' => 'QC Citizen Card',
-                'pattern' => '/Q\s*C?\s*CITIZEN\s*CARD|QCITIZENCARD|Q\s*CITIZENCARD|QC\s*CITIZEN\s*CARD|CITIZENCARD|QC\s*CARD|CITIZEN\s*CARD/',
+                'pattern' => '/(?<!SENIOR\s)Q\s*C?\s*CITIZEN\s*CARD|QCITIZENCARD|Q\s*CITIZENCARD|QC\s*CITIZEN\s*CARD|CITIZENCARD|QC\s*CARD|(?<!SENIOR\s)CITIZEN\s*CARD/',
             ],
             'republic_of_the_philippines' => [
                 'label' => 'Republic of the Philippines',
@@ -1447,8 +1441,8 @@ class QcIdOcrVerifier
         $value = preg_replace('/\s+/', ' ', trim($value)) ?? trim($value);
         $value = trim($value, ' .,');
 
-        // Remove known OCR noise labels that may appear in a name line
-        $value = preg_replace('/\b(?:LAST\s*NAME|FIRST\s*NAME|MIDDLE\s*NAME|CARDHOLDER|SIGNATURE)\b/', '', $value) ?? $value;
+        // Remove known OCR noise labels and agency/layout text that may appear in a name line
+        $value = preg_replace('/\b(?:LAST\s*NAME|FIRST\s*NAME|MIDDLE\s*NAME|CARDHOLDER|SIGNATURE|NCR|REGION|NATIONAL|CAPITAL|CITY|POSTAL|PHILPOST|PHLPOST|PHL\s*POST|PHILIPPINE\s*POSTAL|AGENCY)\b/', '', $value) ?? $value;
         $value = trim(preg_replace('/\s+/', ' ', $value) ?? $value);
 
         // OCR sometimes prefixes a stray single character before
