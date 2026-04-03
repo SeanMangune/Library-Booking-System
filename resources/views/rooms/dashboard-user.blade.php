@@ -121,7 +121,7 @@
                             </div>
                             <div class="flex items-center justify-between p-3 bg-blue-50 rounded-xl">
                                 <dt class="text-blue-800 font-semibold text-xs uppercase">QC ID Number</dt>
-                                <dd class="font-bold text-blue-700 font-mono">{{ $qcIdRegistration->qcid_number ?? '—' }}</dd>
+                                <dd class="font-bold text-blue-700 font-mono">{{ $qcIdRegistration->qcid_number ?? '-' }}</dd>
                             </div>
                         </dl>
                         @else
@@ -146,7 +146,7 @@
                             Upcoming Bookings
                         </h3>
                         <a href="{{ route('reservations.index') }}" class="text-xs font-semibold text-teal-600 hover:text-teal-700 transition-colors">
-                            View All →
+                            View All &rarr;
                         </a>
                     </div>
                     <div class="p-4">
@@ -297,7 +297,7 @@
                                         <p class="text-sm font-bold text-gray-900 group-hover:text-teal-700 transition-colors" x-text="event.room_name"></p>
                                         <div class="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
                                             <span class="flex items-center gap-1 font-medium"><i class="fa-regular fa-clock"></i> <span x-text="event.formatted_time || ''"></span></span>
-                                            <span class="opacity-50">•</span>
+                                            <span class="opacity-50">&bull;</span>
                                             <span class="flex items-center gap-1"><i class="fa-solid fa-user"></i> <span x-text="event.user_name || ''"></span></span>
                                         </div>
                                     </div>
@@ -345,7 +345,7 @@
                                 <p class="text-sm font-semibold text-gray-900">{{ $booking->room->name ?? 'Room' }}</p>
                                 <p class="text-xs text-gray-500">
                                     {{ $booking->date->format('M j, Y') }}
-                                    @if($booking->time) • {{ $booking->time }} @endif
+                                    @if($booking->time) &bull; {{ $booking->time }} @endif
                                 </p>
                             </div>
                             <span class="text-[10px] font-bold uppercase tracking-wide
@@ -367,357 +367,16 @@
     </div>
 
     <!-- View Booking Modal -->
-    <div x-show="showViewModal" x-cloak class="modal p-4" :class="{ 'modal-open': showViewModal }" @keydown.escape.window="showViewModal = false">
-            <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col transform transition-all"
-                 @click.stop
-                 x-show="showViewModal"
-                 x-transition:enter="ease-out duration-300"
-                 x-transition:enter-start="opacity-0 scale-95"
-                 x-transition:enter-end="opacity-100 scale-100"
-                 x-transition:leave="ease-in duration-200"
-                 x-transition:leave-start="opacity-100 scale-100"
-                 x-transition:leave-end="opacity-0 scale-95">
-                <div class="bg-gradient-to-r from-teal-600 to-teal-700 px-6 py-4 rounded-t-2xl">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-lg font-bold text-white">Booking Details</h3>
-                        <button @click="showViewModal = false" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-                    </div>
-                </div>
-                <div class="p-6 flex-1 min-h-0 overflow-y-auto">
-                    <dl class="space-y-4 text-sm">
-                        <div class="flex justify-between"><dt class="text-gray-500">Room</dt><dd class="font-semibold text-gray-900" x-text="viewEvent?.room_name || '—'"></dd></div>
-                        <div class="flex justify-between"><dt class="text-gray-500">Time</dt><dd class="font-semibold text-gray-900" x-text="viewEvent?.formatted_time || '—'"></dd></div>
-                        <div class="flex justify-between"><dt class="text-gray-500">Booked by</dt><dd class="font-semibold text-gray-900" x-text="viewEvent?.user_name || '—'"></dd></div>
-                        <div class="flex justify-between"><dt class="text-gray-500">Status</dt><dd class="font-semibold text-emerald-700" x-text="(viewEvent?.status || '—').charAt(0).toUpperCase() + (viewEvent?.status || '').slice(1)"></dd></div>
-                    </dl>
-                </div>
-                <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 rounded-b-2xl">
-                    <button @click="showViewModal = false" class="w-full px-4 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-lg transition-colors">Close</button>
-                </div>
-            </div>
-            <button type="button" class="modal-backdrop fixed inset-0 bg-black/40 transition-opacity" @click="showViewModal = false">close</button>
-    </div>
+    <x-modals.dashboarduser.view-booking />
 
     <!-- Day Events Modal -->
-    <div x-show="showDayEventsModal" x-cloak class="modal p-4" :class="{ 'modal-open': showDayEventsModal }" @keydown.escape.window="showDayEventsModal = false">
-            <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col transform transition-all"
-                 @click.stop
-                 x-show="showDayEventsModal"
-                 x-transition:enter="ease-out duration-300"
-                 x-transition:enter-start="opacity-0 scale-95"
-                 x-transition:enter-end="opacity-100 scale-100"
-                 x-transition:leave="ease-in duration-200"
-                 x-transition:leave-start="opacity-100 scale-100"
-                 x-transition:leave-end="opacity-0 scale-95">
-                <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 rounded-t-2xl">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-lg font-semibold text-white">All Bookings</h3>
-                            <p class="text-indigo-100 text-sm" x-text="selectedDay?.date ? new Date(selectedDay.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''"></p>
-                        </div>
-                        <button @click="showDayEventsModal = false" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-                    </div>
-                </div>
-                <div class="p-4 flex-1 min-h-0 overflow-y-auto">
-                    <div class="space-y-3">
-                        <template x-for="event in selectedDay?.events || []" :key="event.id">
-                            <div class="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 cursor-pointer transition-colors border border-gray-100"
-                                 @click="openViewBookingModal(event); showDayEventsModal = false;">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div>
-                                        <h4 class="font-semibold text-gray-900" x-text="event.room_name"></h4>
-                                        <p class="text-xs text-gray-500 mt-1" x-text="(event.formatted_time || '') + ' • ' + (event.user_name || '')"></p>
-                                    </div>
-                                    <span class="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700" x-text="(event.status || '').charAt(0).toUpperCase() + (event.status || '').slice(1)"></span>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-                <div class="px-6 py-4 bg-gray-50 rounded-b-2xl border-t border-gray-100">
-                    <button @click="showDayEventsModal = false" class="w-full px-4 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-lg transition-colors">Close</button>
-                </div>
-            </div>
-            <button type="button" class="modal-backdrop fixed inset-0 bg-black/40 transition-opacity" @click="showDayEventsModal = false">close</button>
-    </div>
+    <x-modals.dashboarduser.day-events />
 
     <!-- Stats Modal -->
-    <div x-show="showStatsModal" x-cloak class="modal p-4" :class="{ 'modal-open': showStatsModal }" @keydown.escape.window="showStatsModal = false">
-            <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col transform transition-all"
-                 @click.stop
-                 x-show="showStatsModal"
-                 x-transition:enter="ease-out duration-300"
-                 x-transition:enter-start="opacity-0 scale-95"
-                 x-transition:enter-end="opacity-100 scale-100"
-                 x-transition:leave="ease-in duration-200"
-                 x-transition:leave-start="opacity-100 scale-100"
-                 x-transition:leave-end="opacity-0 scale-95">
-                <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 rounded-t-2xl">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-lg font-semibold text-white" x-text="statsModalTitle"></h3>
-                            <p class="text-indigo-100 text-sm" x-text="statsModalList.length + ' Bookings'"></p>
-                        </div>
-                        <button @click="showStatsModal = false" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-                    </div>
-                </div>
-                <div class="p-4 flex-1 min-h-0 overflow-y-auto">
-                    <div class="space-y-3">
-                        <template x-for="event in statsModalList" :key="event.id">
-                            <div class="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 cursor-pointer transition-colors border border-gray-100"
-                                 @click="openViewBookingModal(event); showStatsModal = false;">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div>
-                                        <h4 class="font-semibold text-gray-900" x-text="event.room ? event.room.name : (event.room_name || 'Room')"></h4>
-                                        <p class="text-xs text-gray-500 mt-1" x-text="(new Date(event.date).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})) + ' • ' + (event.time || event.formatted_time || '')"></p>
-                                    </div>
-                                    <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700" 
-                                          :class="event.status === 'pending' ? '!bg-amber-100 !text-amber-700' : (event.status === 'rejected' || event.status === 'cancelled' ? '!bg-red-100 !text-red-700' : '')"
-                                          x-text="event.status"></span>
-                                </div>
-                            </div>
-                        </template>
-                        <template x-if="statsModalList.length === 0">
-                            <div class="text-center py-6">
-                                <p class="text-sm text-gray-500">No bookings found in this category.</p>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-                <div class="px-6 py-4 bg-gray-50 rounded-b-2xl border-t border-gray-100">
-                    <button @click="showStatsModal = false" class="w-full px-4 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-lg transition-colors">Close</button>
-                </div>
-            </div>
-            <button type="button" class="modal-backdrop fixed inset-0 bg-black/40 transition-opacity" @click="showStatsModal = false">close</button>
-    </div>
+    <x-modals.dashboarduser.stats />
 
     <!-- Create Booking Modal -->
-    <div x-show="showBookingModal" x-cloak class="modal p-4" :class="{ 'modal-open': showBookingModal }" @keydown.escape.window="closeBookingModal()">
-        <div class="modal-box w-11/12 max-w-2xl p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
-                <!-- Modal Header -->
-                <div class="bg-gradient-to-r from-teal-600 to-teal-700 px-6 py-6 rounded-t-2xl relative overflow-hidden">
-                    <div class="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-                        <i class="fa-solid fa-calendar-plus text-8xl text-white"></i>
-                    </div>
-                    <div class="flex items-center justify-between relative z-10">
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md shadow-lg">
-                                <i class="w-6 h-6 text-white fa-icon fa-solid fa-calendar-days text-2xl leading-none"></i>
-                            </div>
-                            <div>
-                                <h2 class="text-xl font-black text-white tracking-tight">New Booking</h2>
-                                <p class="text-teal-50 text-xs font-medium opacity-90 uppercase tracking-widest mt-0.5" x-text="hasVerifiedRegistration ? 'QC ID Verified' : 'QC ID Verification Required'"></p>
-                            </div>
-                        </div>
-                        <button @click="closeBookingModal()" class="text-white/80 hover:text-white bg-white/10 p-2 rounded-xl hover:bg-white/20 transition-all">
-                            <i class="w-6 h-6 fa-icon fa-solid fa-xmark text-2xl leading-none"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Modal Body -->
-                <form method="POST" enctype="multipart/form-data" @submit.prevent="submitBooking()" class="flex flex-col min-h-0">
-                    @csrf
-                    <div class="p-6 flex-1 min-h-0 overflow-y-auto">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Left Column -->
-                        <div>
-                            <h3 class="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-4">
-                                <span class="w-1 h-4 bg-teal-600 rounded"></span>
-                                Booking Information
-                            </h3>
-
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Purpose <span class="text-red-500">*</span>
-                                    </label>
-                                    <input type="text" x-model="bookingForm.purpose" required
-                                           placeholder="e.g., Group study, Thesis consultation"
-                                           class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Book for User <span class="text-red-500">*</span>
-                                    </label>
-                                    <input type="text" x-model="bookingForm.user_name" required
-                                           placeholder="Enter user name..."
-                                           :readonly="hasVerifiedRegistration"
-                                           :class="hasVerifiedRegistration ? 'bg-gray-50 text-gray-600 cursor-not-allowed' : ''"
-                                           class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                                    <template x-if="hasVerifiedRegistration">
-                                        <p class="mt-1 text-xs text-emerald-600 flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Auto-filled from verified QC ID</p>
-                                    </template>
-                                </div>
-
-                                <div class="rounded-xl border border-gray-200 bg-gray-50/80 p-4">
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">
-                                        QC ID Verification <span class="text-red-500">*</span>
-                                    </label>
-
-                                    {{-- Upload section: only show when user is NOT already verified --}}
-                                    <template x-if="!hasVerifiedRegistration">
-                                        <div>
-                                            <p class="text-xs text-gray-600 mb-2">Upload a clear photo of a Quezon City Citizen ID.</p>
-                                            <input type="file" name="qcid_image" accept="image/*"
-                                                class="block w-full text-sm text-gray-700 border border-gray-300 rounded-lg cursor-pointer focus:ring-2 focus:ring-teal-500 focus:border-teal-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
-                                                @change="handleQcIdUpload($event)">
-
-                                            <template x-if="qcIdPreviewUrl">
-                                                <div class="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
-                                                    <img :src="qcIdPreviewUrl" alt="QC ID preview" class="h-48 w-full object-cover">
-                                                </div>
-                                            </template>
-
-                                            <div x-show="qcIdIsProcessing" x-cloak class="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-4 mt-4">
-                                                <div class="flex items-center justify-between gap-4">
-                                                    <div>
-                                                        <p class="text-sm font-semibold text-teal-800" x-text="qcIdStatusMessage || 'Reading QC ID…'"></p>
-                                                        <p class="text-xs text-teal-700 mt-1">OCR is extracting text and checking the QC ID layout.</p>
-                                                    </div>
-                                                    <div class="text-lg font-extrabold text-teal-700" x-text="Math.round(qcIdProgress) + '%' "></div>
-                                                </div>
-                                                <div class="mt-3 h-2 rounded-full bg-teal-100 overflow-hidden">
-                                                    <div class="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-200" :style="`width: ${Math.round(qcIdProgress)}%`"></div>
-                                                </div>
-                                            </div>
-
-                                            <div x-show="qcIdError" x-cloak class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 mt-4" x-text="qcIdError"></div>
-                                        </div>
-                                    </template>
-
-                                    <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm mt-4">
-                                        <div class="flex items-center justify-between gap-3">
-                                            <div>
-                                                <p class="text-sm font-semibold text-gray-900">Verification snapshot</p>
-                                                <p class="text-xs text-gray-500" x-text="hasVerifiedRegistration ? 'Extracted details from the verified card.' : 'Detected details from the uploaded card.'"></p>
-                                            </div>
-                                            <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
-                                                :class="qcIdVerification?.is_valid ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
-                                                x-text="qcIdVerification?.is_valid ? 'QC ID verified' : 'Waiting for upload'"></span>
-                                        </div>
-                                        <dl class="mt-4 space-y-3 text-sm">
-                                            <div class="flex items-start justify-between gap-4">
-                                                <dt class="text-gray-500">Cardholder</dt>
-                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.cardholder_name || '—'"></dd>
-                                            </div>
-                                            <div class="flex items-start justify-between gap-4">
-                                                <dt class="text-gray-500">ID number</dt>
-                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.id_number || '—'"></dd>
-                                            </div>
-                                            <div class="flex items-start justify-between gap-4">
-                                                <dt class="text-gray-500">Validity</dt>
-                                                <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.valid_until || '—'"></dd>
-                                            </div>
-                                        </dl>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                                    <textarea x-model="bookingForm.description" rows="3"
-                                              placeholder="Add any additional details..."
-                                              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"></textarea>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Right Column -->
-                        <div>
-                            <h3 class="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-4">
-                                <span class="w-1 h-4 bg-teal-600 rounded"></span>
-                                Schedule & Room
-                            </h3>
-
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Room <span class="text-red-500">*</span>
-                                    </label>
-                                    <select x-model="bookingForm.room_id" required
-                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                                        <option value="">Select a room</option>
-                                        @foreach($rooms as $room)
-                                        <option value="{{ $room->id }}">{{ $room->name }} (Capacity: {{ $room->standardBookingCapacityLimit() }})</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Date <span class="text-red-500">*</span>
-                                    </label>
-                                    <select x-model="bookingForm.date" required
-                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                                        <option value="">Select a date</option>
-                                        <template x-for="dateOption in bookingDateOptions" :key="dateOption.value">
-                                            <option :value="dateOption.value" x-text="dateOption.label"></option>
-                                        </template>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Time Slot <span class="text-red-500">*</span>
-                                    </label>
-                                    <select x-model="bookingForm.time_slot" required
-                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                                        <option value="">Select a time slot</option>
-                                        <template x-for="slot in bookingTimeSlots" :key="slot.value">
-                                            <option :value="slot.value" x-text="slot.label"></option>
-                                        </template>
-                                    </select>
-                                    <div x-show="isLoadingTimeConflictSuggestions" x-cloak class="mt-2 text-xs text-gray-500">
-                                        Checking nearby available slots...
-                                    </div>
-                                    <div x-show="timeConflictMessage || timeConflictSuggestions.length" x-cloak class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
-                                        <p class="text-xs font-medium text-amber-800" x-text="timeConflictMessage"></p>
-                                        <div x-show="timeConflictSuggestions.length" x-cloak class="mt-2 flex flex-wrap gap-2">
-                                            <template x-for="suggestedSlot in timeConflictSuggestions" :key="suggestedSlot.value">
-                                                <button type="button"
-                                                        @click="applySuggestedTimeSlot(suggestedSlot.value)"
-                                                        class="inline-flex items-center rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100 transition-colors"
-                                                        x-text="suggestedSlot.label"></button>
-                                            </template>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Number of Attendees <span class="text-red-500">*</span>
-                                    </label>
-                                     <input type="number" x-model="bookingForm.attendees" min="1" :max="attendeeInputMax || null" required
-                                           class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                                     <p x-show="attendeeGuidance" x-cloak class="mt-1 text-xs text-gray-500" x-text="attendeeGuidance"></p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                    <!-- Footer -->
-                    <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-white shrink-0">
-                        <p x-show="!hasVerifiedRegistration && !qcIdVerification?.is_valid" x-cloak class="mr-auto text-sm text-amber-600">
-                            Upload and verify a QC ID before creating the booking.
-                        </p>
-                        <button type="button" @click="closeBookingModal()"
-                                class="px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
-                            Cancel
-                        </button>
-                        <button type="submit" :disabled="isSubmitting || (!hasVerifiedRegistration && !qcIdVerification?.is_valid)"
-                                class="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                            <span class="flex items-center gap-2">
-                                <i x-show="isSubmitting" class="animate-spin w-4 h-4 fa-icon fa-solid fa-spinner text-base leading-none"></i>
-                                <span x-text="isSubmitting ? 'Creating...' : 'Create Booking'"></span>
-                            </span>
-                        </button>
-                    </div>
-                </form>
-        </div>
-        <button type="button" class="modal-backdrop fixed inset-0 bg-black/40" @click="closeBookingModal()">close</button>
-    </div>
+    <x-modals.dashboarduser.create-booking :rooms="$rooms" />
 
 </div>
 

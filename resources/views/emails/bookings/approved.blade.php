@@ -25,6 +25,12 @@ To access your room, present the QR Code generated below to the room scanner or 
     <p style="font-size: 12px; color: #64748b; margin-top: 10px;">Booking Ref: {{ $booking->booking_code }}</p>
 </div>
 
+@if($booking->qr_token)
+<x-mail::button :url="url('/verify?token='.$booking->qr_token)">
+Open Verification Page
+</x-mail::button>
+@endif
+
 Please arrive on time. Bookings may be forfeited if you arrive more than 15 minutes late.
 
 Thanks,<br>

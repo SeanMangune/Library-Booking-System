@@ -51,6 +51,7 @@ class RoomController extends Controller
             'description' => 'nullable|string',
         ]);
 
+        $this->ensureRoomNameAllowed($validated['name']);
         $this->ensureCollaborativeCapacityFloor($validated['name'], (int) $validated['capacity']);
 
         $validated['slug'] = Str::slug($validated['name']) . '-' . Str::random(5);
@@ -79,6 +80,7 @@ class RoomController extends Controller
             'description' => 'nullable|string',
         ]);
 
+        $this->ensureRoomNameAllowed($validated['name']);
         $this->ensureCollaborativeCapacityFloor($validated['name'], (int) $validated['capacity']);
 
         $validated['requires_approval'] = $request->boolean('requires_approval');
@@ -108,6 +110,20 @@ class RoomController extends Controller
         if (Str::contains(Str::lower($name), ['collaborative', 'collab']) && $capacity !== 10) {
             throw ValidationException::withMessages([
                 'capacity' => 'Collaborative rooms must use a fixed base capacity of 10. Capacity 12 is only an approval extension, not the room base capacity.',
+            ]);
+        }
+    }
+
+    private function ensureRoomNameAllowed(string $name): void
+    {
+        $normalizedName = Str::of($name)->lower()->squish()->value();
+        $matchesBlockedPattern = Str::contains($normalizedName, ['conference room', 'library room']);
+        $looksLikeConferenceRoom = Str::contains($normalizedName, 'conference') && Str::contains($normalizedName, 'room');
+        $looksLikeLibraryRoom = Str::contains($normalizedName, 'library') && Str::contains($normalizedName, 'room');
+
+        if ($matchesBlockedPattern || $looksLikeConferenceRoom || $looksLikeLibraryRoom) {
+            throw ValidationException::withMessages([
+                'name' => 'This room type has been removed from the system and cannot be created or updated.',
             ]);
         }
     }

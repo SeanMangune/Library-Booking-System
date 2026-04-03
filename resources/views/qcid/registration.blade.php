@@ -118,7 +118,7 @@
                                             <div class="flex items-center justify-between gap-4">
                                                 <div>
                                                     <p class="text-sm font-semibold text-teal-800"
-                                                        x-text="statusMessage || 'Reading QC ID…'"></p>
+                                                        x-text="statusMessage || 'Reading QC ID...'"></p>
                                                     <p class="text-xs text-teal-700 mt-1">OCR is extracting text and
                                                         checking the QC ID layout.</p>
                                                 </div>
@@ -153,37 +153,37 @@
                                                 <div class="flex items-start justify-between gap-4">
                                                     <dt class="text-gray-500">Cardholder</dt>
                                                     <dd class="text-right font-semibold text-gray-900"
-                                                        x-text="verification?.cardholder_name || '—'"></dd>
+                                                        x-text="verification?.cardholder_name || '-'"></dd>
                                                 </div>
                                                 <div class="flex items-start justify-between gap-4">
                                                     <dt class="text-gray-500">ID number</dt>
                                                     <dd class="text-right font-semibold text-gray-900"
-                                                        x-text="verification?.id_number || '—'"></dd>
+                                                        x-text="verification?.id_number || '-'"></dd>
                                                 </div>
                                                 <div class="flex items-start justify-between gap-4">
                                                     <dt class="text-gray-500">Birth date</dt>
                                                     <dd class="text-right font-semibold text-gray-900"
-                                                        x-text="verification?.date_of_birth || '—'"></dd>
+                                                        x-text="verification?.date_of_birth || '-'"></dd>
                                                 </div>
                                                 <div class="flex items-start justify-between gap-4">
                                                     <dt class="text-gray-500">Blood type</dt>
                                                     <dd class="text-right font-semibold text-gray-900"
-                                                        x-text="verification?.blood_type || '—'"></dd>
+                                                        x-text="verification?.blood_type || '-'"></dd>
                                                 </div>
                                                 <div class="flex items-start justify-between gap-4">
                                                     <dt class="text-gray-500">Date issued</dt>
                                                     <dd class="text-right font-semibold text-gray-900"
-                                                        x-text="verification?.date_issued || '—'"></dd>
+                                                        x-text="verification?.date_issued || '-'"></dd>
                                                 </div>
                                                 <div class="flex items-start justify-between gap-4">
                                                     <dt class="text-gray-500">Validity</dt>
                                                     <dd class="text-right font-semibold text-gray-900"
-                                                        x-text="verification?.valid_until || '—'"></dd>
+                                                        x-text="verification?.valid_until || '-'"></dd>
                                                 </div>
                                                 <div class="flex items-start justify-between gap-4">
                                                     <dt class="text-gray-500">Address</dt>
                                                     <dd class="text-right font-semibold text-gray-900"
-                                                        x-text="verification?.address || '—'"></dd>
+                                                        x-text="verification?.address || '-'"></dd>
                                                 </div>
                                             </dl>
                                         </div>
@@ -357,12 +357,12 @@
                                 <div class="flex items-start justify-between gap-4">
                                     <span class="text-indigo-200">Stored cardholder</span>
                                     <span
-                                        class="text-right font-semibold text-white">{{ $registration?->full_name ?? '—' }}</span>
+                                        class="text-right font-semibold text-white">{{ $registration?->full_name ?? '-' }}</span>
                                 </div>
                                 <div class="flex items-start justify-between gap-4">
                                     <span class="text-indigo-200">QC ID number</span>
                                     <span
-                                        class="text-right font-semibold text-white">{{ $registration?->qcid_number ?? '—' }}</span>
+                                        class="text-right font-semibold text-white">{{ $registration?->qcid_number ?? '-' }}</span>
                                 </div>
                                 <div class="flex items-start justify-between gap-4">
                                     <span class="text-indigo-200">Review note</span>
@@ -383,52 +383,7 @@
             </div>
         </div>
 
-        <div x-show="showConfidenceModal" x-cloak class="modal p-4" :class="{ 'modal-open': showConfidenceModal }"
-            @keydown.escape.window="closeConfidenceModal()">
-            <div class="modal-box w-11/12 max-w-md p-0 bg-transparent border-0 shadow-none overflow-visible" @click.stop>
-                <div
-                    class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 max-h-[88vh] overflow-y-auto">
-                    <div
-                        class="relative overflow-hidden rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 p-4">
-                        <div
-                            class="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-indigo-200/50 blur-2xl">
-                        </div>
-                        <div
-                            class="pointer-events-none absolute -left-10 -bottom-10 h-24 w-24 rounded-full bg-fuchsia-200/40 blur-2xl">
-                        </div>
-                        <div class="relative flex items-start justify-between gap-4">
-                            <div>
-                                <p class="text-xs font-semibold uppercase tracking-wide text-indigo-600">Extraction
-                                    confidence</p>
-                                <h3 class="mt-1 text-lg font-bold text-slate-900" x-text="confidenceFieldTitle()"></h3>
-                            </div>
-                            <button type="button" @click="closeConfidenceModal()"
-                                class="rounded-lg border border-slate-200 bg-white/80 px-2 py-1 text-slate-600 hover:bg-white">×</button>
-                        </div>
-                    </div>
-
-                    <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Current status</p>
-                        <p class="mt-1 text-sm font-semibold" :class="confidenceTextClass(confidenceField)"
-                            x-text="confidenceLabel(confidenceField)"></p>
-                        <p class="mt-3 text-sm text-slate-700" x-text="confidenceReason(confidenceField)"></p>
-                    </div>
-
-                    <p class="mt-4 text-sm text-slate-600" x-show="confidenceNeedsManualEntry(confidenceField)">
-                        This field was not auto-filled because the text is unreadable or inconsistent across OCR passes.
-                        Please enter it manually and double-check against the physical ID.
-                    </p>
-
-                    <div class="mt-5 flex justify-end">
-                        <button type="button" @click="closeConfidenceModal()"
-                            class="inline-flex items-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Got
-                            it</button>
-                    </div>
-                </div>
-            </div>
-            <button type="button" class="modal-backdrop fixed inset-0 bg-black/40"
-                @click="closeConfidenceModal()">close</button>
-        </div>
+        <x-modals.qcid.confidence />
     </div>
 
     @push('scripts')
@@ -545,7 +500,7 @@
 
                     get overallConfidenceLabel() {
                         if (!this.verification?.is_valid) {
-                            return '—';
+                            return '-';
                         }
 
                         return `${this.overallConfidenceScore}%`;
@@ -1699,7 +1654,7 @@
                             throw new Error('Unable to prepare the QC ID image for OCR.');
                         }
 
-                        this.statusMessage = 'Reading full QC ID image…';
+                        this.statusMessage = 'Reading full QC ID image...';
                         const fullText = await this.recognizeCanvas(enhancedCanvas, {
                             tessedit_pageseg_mode: 6,
                         }, true);
@@ -1881,7 +1836,7 @@
 
                         const regionText = {};
                         for (const region of regions) {
-                            this.statusMessage = `Reading ${region.label}…`;
+                            this.statusMessage = `Reading ${region.label}...`;
                             regionText[region.key] = await this.recognizeBestRegion(enhancedCanvas, region);
                         }
 
@@ -1939,7 +1894,7 @@
 
                         this.isProcessing = true;
                         this.hasShownAutoConfidenceModal = false;
-                        this.statusMessage = 'Enhancing image for OCR…';
+                        this.statusMessage = 'Enhancing image for OCR...';
                         this.errorMessage = '';
 
                         try {
@@ -1954,7 +1909,7 @@
                             console.log('[QC ID OCR] Client hints:', clientHints);
                             console.log('[QC ID OCR] Structured text:', extractedText);
                             this.form.ocr_text = extractedText;
-                            this.statusMessage = 'Validating QC ID markers…';
+                            this.statusMessage = 'Validating QC ID markers...';
 
                             const response = await fetch('/rooms/qc-id/verify', {
                                 method: 'POST',

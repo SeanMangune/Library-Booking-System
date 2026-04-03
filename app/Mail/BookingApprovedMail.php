@@ -2,12 +2,14 @@
 
 namespace App\Mail;
 
+use Endroid\QrCode\Builder\Builder;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use Throwable;
 
 use App\Models\Booking;
 
@@ -55,6 +57,44 @@ class BookingApprovedMail extends Mailable
      */
     public function attachments(): array
     {
-        return [];
+        $token = (string) ($this->booking->qr_token ?? '');
+
+        if ($token === '') {
+            return [];
+        }
+
+        $png = $this->buildQrPng($token);
+        if ($png === null) {
+            return [];
+        }
+
+        $safeCode = preg_replace('/[^A-Za-z0-9_-]+/', '-', (string) ($this->booking->booking_code ?? $this->booking->id));
+        $filename = 'booking-qr-' . trim((string) $safeCode, '-') . '.png';
+
+        return [
+            Attachment::fromData(fn () => $png, $filename)
+                ->withMime('image/png'),
+        ];
+    }
+
+    private function buildQrPng(string $token): ?string
+    {
+        try {
+            $verifyUrl = url('/verify?token=' . $token);
+            $result = (new Builder())->build(
+                null,
+                null,
+                null,
+                $verifyUrl,
+                null,
+                null,
+                480,
+                10
+            );
+
+            return $result->getString();
+        } catch (Throwable $exception) {
+            return null;
+        }
     }
 }

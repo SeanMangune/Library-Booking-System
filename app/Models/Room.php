@@ -9,12 +9,12 @@ use Illuminate\Support\Str;
 
 class Room extends Model
 {
-    private const EXCLUDED_ROOM_SLUGS = [
+    private const EXCLUDED_ROOM_SLUG_PREFIXES = [
         'conference-room',
         'library-room',
     ];
 
-    private const EXCLUDED_ROOM_NAMES = [
+    private const EXCLUDED_ROOM_NAME_PATTERNS = [
         'conference room',
         'library room',
     ];
@@ -136,7 +136,7 @@ class Room extends Model
 
     public function scopeOperational($query)
     {
-        return $query->where('status', 'operational');
+        return $query->visible()->where('status', 'operational');
     }
 
     public function scopeByStatus($query, $status)
@@ -166,19 +166,28 @@ class Room extends Model
     public function scopeVisible($query)
     {
         return $query
-            ->where(function ($scoped) {
-                $scoped->whereNull('slug')
-                    ->orWhereNotIn('slug', self::EXCLUDED_ROOM_SLUGS);
-            })
-            ->whereRaw('LOWER(name) NOT IN (?, ?)', self::EXCLUDED_ROOM_NAMES);
+            // Exclude exact and suffixed slugs (e.g., conference-room-abcde)
+            ->whereRaw("LOWER(COALESCE(slug, '')) NOT LIKE ?", [self::EXCLUDED_ROOM_SLUG_PREFIXES[0] . '%'])
+            ->whereRaw("LOWER(COALESCE(slug, '')) NOT LIKE ?", [self::EXCLUDED_ROOM_SLUG_PREFIXES[1] . '%'])
+            // Exclude names with spacing/casing variants and extended labels
+            ->whereRaw("LOWER(TRIM(COALESCE(name, ''))) NOT LIKE ?", ['%' . self::EXCLUDED_ROOM_NAME_PATTERNS[0] . '%'])
+            ->whereRaw("LOWER(TRIM(COALESCE(name, ''))) NOT LIKE ?", ['%' . self::EXCLUDED_ROOM_NAME_PATTERNS[1] . '%'])
+            // Catch non-standard separators/spaces like "conference  room" or "library-room"
+            ->whereRaw("LOWER(TRIM(COALESCE(name, ''))) NOT LIKE ?", ['%conference%room%'])
+            ->whereRaw("LOWER(TRIM(COALESCE(name, ''))) NOT LIKE ?", ['%library%room%']);
     }
 
     public function isExcludedRoom(): bool
     {
-        $normalizedName = Str::lower(trim((string) $this->name));
-        $normalizedSlug = Str::lower(trim((string) $this->slug));
+        $normalizedName = Str::of((string) $this->name)->lower()->squish()->value();
+        $normalizedSlug = Str::of((string) $this->slug)->lower()->trim()->value();
 
-        return in_array($normalizedName, self::EXCLUDED_ROOM_NAMES, true)
-            || in_array($normalizedSlug, self::EXCLUDED_ROOM_SLUGS, true);
+        $looksLikeConferenceRoom = Str::contains($normalizedName, 'conference') && Str::contains($normalizedName, 'room');
+        $looksLikeLibraryRoom = Str::contains($normalizedName, 'library') && Str::contains($normalizedName, 'room');
+
+        return Str::contains($normalizedName, self::EXCLUDED_ROOM_NAME_PATTERNS)
+            || $looksLikeConferenceRoom
+            || $looksLikeLibraryRoom
+            || Str::startsWith($normalizedSlug, self::EXCLUDED_ROOM_SLUG_PREFIXES);
     }
 }

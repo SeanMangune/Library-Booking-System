@@ -6,7 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\QcIdRegistration;
 use App\Models\Room;
-use App\Notifications\BookingApprovedNotification;
+use App\Models\User;
+use App\Notifications\NewBookingSubmittedForStaffNotification;
 use App\Services\QcIdOcrVerifier;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -273,6 +274,24 @@ class BookingController extends Controller
             }
         }
 
+        try {
+            $booking->loadMissing('room');
+
+            $adminRecipients = User::query()
+                ->where('role', User::ROLE_ADMIN)
+                ->when($actingUser?->id, fn ($query, $userId) => $query->where('id', '!=', $userId))
+                ->get();
+
+            if ($adminRecipients->isNotEmpty()) {
+                Notification::send($adminRecipients, new NewBookingSubmittedForStaffNotification($booking));
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Failed to notify admins about new booking submission.', [
+                'booking_id' => $booking->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'message' => $requiresCapacityPermission
@@ -492,9 +511,8 @@ class BookingController extends Controller
     }
 
     /**
-     * Return a PNG QR image for the provided booking qr_token.
-     * Uses an external QR generator as a reliable fallback so the image is always scannable.
-     * Supports ?download=1 to return Content-Disposition: attachment
+     * Return a PNG QR image for the provided booking token.
+     * QR payload prefers a public verify URL when qr_token exists.
      */
     public function qrImage(Request $request, string $token)
     {
@@ -513,16 +531,11 @@ class BookingController extends Controller
         // Every QR render re-evaluates the booking lifecycle status (upcoming/valid/expired).
         $booking->syncBookingStatus();
 
-        // Try to load the PNG from storage
-        $path = "qrcodes/booking_{$booking->booking_code}.png";
-        if (\Storage::disk('public')->exists($path)) {
-            $png = \Storage::disk('public')->get($path);
-            return response($png, 200, ['Content-Type' => 'image/png']);
-        }
-
-        // Fallback: regenerate the QR code if not found in storage
+        // Render QR dynamically so the payload is always up-to-date and verifiable.
         try {
-            $payload = $booking->qr_token ?? $booking->booking_code;
+            $payload = $booking->qr_token
+                ? url('/verify?token=' . $booking->qr_token)
+                : ($booking->booking_code ?? $decrypted);
             $builder = new \Endroid\QrCode\Builder\Builder();
             $result = $builder->build(
                 null, null, null, $payload, null, null, 480, 10

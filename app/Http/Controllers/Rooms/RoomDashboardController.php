@@ -22,7 +22,7 @@ class RoomDashboardController extends Controller
         $month = $request->get('month', now()->month);
         $year = $request->get('year', now()->year);
         $calendarData = $this->getCalendarData($month, $year, $user);
-        $rooms = Room::operational()->orderBy('name')->get();
+        $rooms = Room::query()->visible()->operational()->orderBy('name')->get();
 
         if ($isStaff) {
             return $this->adminDashboard($request, $user, $today, $twoWeeksAhead, $calendarData, $rooms);
@@ -44,13 +44,14 @@ class RoomDashboardController extends Controller
             ->values();
 
         $stats = [
-            'pending' => Booking::where('status', 'pending')->count(),
-            'approved' => Booking::where('status', 'approved')->count(),
-            'rejected' => Booking::where('status', 'rejected')->count(),
-            'today' => Booking::whereDate('date', $today)->where('status', 'approved')->count(),
+            'pending' => Booking::whereHas('room', fn ($roomQuery) => $roomQuery->visible())->where('status', 'pending')->count(),
+            'approved' => Booking::whereHas('room', fn ($roomQuery) => $roomQuery->visible())->where('status', 'approved')->count(),
+            'rejected' => Booking::whereHas('room', fn ($roomQuery) => $roomQuery->visible())->where('status', 'rejected')->count(),
+            'today' => Booking::whereHas('room', fn ($roomQuery) => $roomQuery->visible())->whereDate('date', $today)->where('status', 'approved')->count(),
         ];
 
         $pendingBookings = Booking::with('room')
+            ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
             ->where('status', 'pending')
             ->orderBy('created_at', 'desc')
             ->take(10)
@@ -71,6 +72,7 @@ class RoomDashboardController extends Controller
     private function userDashboard($request, $user, $today, $twoWeeksAhead, $calendarData, $rooms)
     {
         $userBookings = Booking::with('room')
+            ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
             ->where('user_id', $user->id)
             ->orderBy('date', 'desc')
             ->orderBy('start_time', 'desc')
@@ -78,6 +80,7 @@ class RoomDashboardController extends Controller
             ->get();
 
         $upcomingBookings = Booking::with('room')
+            ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
             ->where('user_id', $user->id)
             ->where('status', 'approved')
             ->where('date', '>=', $today)
@@ -89,11 +92,16 @@ class RoomDashboardController extends Controller
         $userStats = [
             'total' => Booking::where('user_id', $user->id)->count(),
             'upcoming' => $upcomingBookings->count(),
-            'pending' => Booking::where('user_id', $user->id)->where('status', 'pending')->count(),
-            'approved' => Booking::where('user_id', $user->id)->where('status', 'approved')->count(),
+            'pending' => Booking::whereHas('room', fn ($roomQuery) => $roomQuery->visible())->where('user_id', $user->id)->where('status', 'pending')->count(),
+            'approved' => Booking::whereHas('room', fn ($roomQuery) => $roomQuery->visible())->where('user_id', $user->id)->where('status', 'approved')->count(),
         ];
 
-        $allUserBookings = Booking::with('room')->where('user_id', $user->id)->orderBy('date', 'desc')->orderBy('start_time', 'desc')->get();
+        $allUserBookings = Booking::with('room')
+            ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
+            ->where('user_id', $user->id)
+            ->orderBy('date', 'desc')
+            ->orderBy('start_time', 'desc')
+            ->get();
         $userStatsBookings = [
             'total' => $allUserBookings,
             'upcoming' => $upcomingBookings,
@@ -105,6 +113,7 @@ class RoomDashboardController extends Controller
         $isVerified = $qcIdRegistration !== null && $qcIdRegistration->verification_status === 'verified';
 
         $collabRoomBookings = Booking::with('room')
+            ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
             ->where('status', 'approved')
             ->whereBetween('date', [$today, $twoWeeksAhead])
             ->orderBy('date')
@@ -114,10 +123,10 @@ class RoomDashboardController extends Controller
             ->values();
 
         $stats = [
-            'pending' => Booking::where('status', 'pending')->count(),
-            'approved' => Booking::where('status', 'approved')->count(),
-            'rejected' => Booking::where('status', 'rejected')->count(),
-            'today' => Booking::whereDate('date', $today)->where('status', 'approved')->count(),
+            'pending' => Booking::whereHas('room', fn ($roomQuery) => $roomQuery->visible())->where('status', 'pending')->count(),
+            'approved' => Booking::whereHas('room', fn ($roomQuery) => $roomQuery->visible())->where('status', 'approved')->count(),
+            'rejected' => Booking::whereHas('room', fn ($roomQuery) => $roomQuery->visible())->where('status', 'rejected')->count(),
+            'today' => Booking::whereHas('room', fn ($roomQuery) => $roomQuery->visible())->whereDate('date', $today)->where('status', 'approved')->count(),
         ];
 
         $isStaff = false;

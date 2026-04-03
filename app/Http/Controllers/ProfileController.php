@@ -29,7 +29,7 @@ class ProfileController extends Controller
             ->orWhere('user_email', $user->email);
 
         $stats = [
-            'rooms' => Room::count(),
+            'rooms' => Room::query()->visible()->count(),
             'bookings_total' => (clone $bookingQuery)->count(),
             'bookings_pending' => (clone $bookingQuery)->where('status', 'pending')->count(),
             'bookings_approved' => (clone $bookingQuery)->where('status', 'approved')->count(),

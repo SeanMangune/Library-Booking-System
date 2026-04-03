@@ -71,9 +71,10 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/calendar-data', [CalendarController::class, 'monthData'])->name('calendar.data');
 
-    // QR image endpoint (used by frontend)
-    Route::get('/bookings/qr/{token}', [BookingController::class, 'qrImage'])->name('bookings.qr');
 });
+
+// Public QR image endpoint used in approval emails and booking modals
+Route::get('/bookings/qr/{token}', [BookingController::class, 'qrImage'])->name('bookings.qr');
 
 // Admin-only access (keeps the existing system behavior)
 Route::middleware(['auth', 'role:admin'])->group(function () {

@@ -2,6 +2,34 @@ function csrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.content || '';
 }
 
+function removeBookingCardFromPendingList(bookingId) {
+    if (!bookingId) {
+        return;
+    }
+
+    const cards = document.querySelectorAll('.booking-card[data-booking]');
+    let removedAny = false;
+
+    cards.forEach((card) => {
+        try {
+            const booking = JSON.parse(card.dataset.booking || '{}');
+            if (Number(booking.id) === Number(bookingId)) {
+                card.remove();
+                removedAny = true;
+            }
+        } catch (error) {
+            // Ignore malformed dataset payloads and continue scanning.
+        }
+    });
+
+    if (removedAny) {
+        const remainingCards = document.querySelectorAll('.booking-card[data-booking]').length;
+        if (remainingCards === 0) {
+            window.location.reload();
+        }
+    }
+}
+
 export function createApprovalDetailsModalState() {
     return {
         showModal: false,
@@ -71,6 +99,7 @@ export function createApprovalDetailsModalState() {
                 }
 
                 this.approvedBooking = booking;
+                removeBookingCardFromPendingList(this.selectedBooking.id);
                 this.qrImageFailed = false;
                 this.showModal = false;
                 this.showSuccessModal = true;
