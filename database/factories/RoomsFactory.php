@@ -19,7 +19,7 @@ class RoomsFactory extends Factory
         return [
             'name' => $this->faker->word(),
             'capacity' => $this->faker->numberBetween(1, 100),
-            'location' => $this->faker->address(),
+            'location' => '2F Library',
             'available' => $this->faker->boolean(),
         ];
     }

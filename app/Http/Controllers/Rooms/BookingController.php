@@ -138,6 +138,13 @@ class BookingController extends Controller
             ], 422);
         }
 
+        if (! $room->isOperational()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This room is currently unavailable due to status changes.',
+            ], 422);
+        }
+
         $requestedAttendees = (int) $validated['attendees'];
 
         if ($room->exceedsBookingLimitFor($requestedAttendees, $actingUser)) {

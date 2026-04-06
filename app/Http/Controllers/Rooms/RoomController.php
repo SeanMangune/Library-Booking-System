@@ -10,25 +10,19 @@ use App\Mail\RoomStatusChangedMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class RoomController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Room::query()->visible();
+        $this->syncCompletedMaintenanceWindows();
 
-        // Apply filters
-        if ($request->filled('status') && $request->status !== 'all') {
-            $query->where('status', $request->status);
-        }
+        $query = Room::query()->visible();
 
         if ($request->filled('capacity') && $request->capacity !== 'all') {
             $query->where('capacity', '>=', $request->capacity);
-        }
-
-        if ($request->filled('location') && $request->location !== 'all') {
-            $query->where('location', $request->location);
         }
 
         if ($request->filled('search')) {
@@ -36,30 +30,30 @@ class RoomController extends Controller
         }
 
         $rooms = $query->orderBy('name')->get();
-        $locations = Room::query()->visible()->distinct()->pluck('location')->filter()->values();
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $status = (string) $request->status;
+            $rooms = $rooms
+                ->filter(fn (Room $room) => $room->effective_status === $status)
+                ->values();
+        }
+
         $capacities = Room::query()->visible()->distinct()->pluck('capacity')->sort()->values();
 
-        return view('rooms.manage', compact('rooms', 'locations', 'capacities'));
+        return view('rooms.manage', compact('rooms', 'capacities'));
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'capacity' => 'required|integer|min:1',
-            'location' => 'nullable|string|max:255',
-            'status' => 'required|in:operational,maintenance,closed',
-            'requires_approval' => 'boolean',
-            'status_start_at' => 'nullable|date',
-            'status_end_at' => 'nullable|date|after_or_equal:status_start_at',
-            'description' => 'nullable|string',
-        ]);
+        $validated = $this->validateRoomPayload($request);
 
         $this->ensureRoomNameAllowed($validated['name']);
         $this->ensureCollaborativeCapacityFloor($validated['name'], (int) $validated['capacity']);
 
         $validated['slug'] = Str::slug($validated['name']) . '-' . Str::random(5);
+        $validated['location'] = '2F Library';
         $validated['requires_approval'] = $request->boolean('requires_approval');
+        $validated = $this->normalizeStatusSchedulePayload($validated);
 
         $room = Room::create($validated);
 
@@ -74,39 +68,39 @@ class RoomController extends Controller
 
     public function show(Room $room)
     {
+        if ($room->status === 'maintenance' && $room->effective_status === 'operational' && $room->status_end_at && $room->status_end_at->lessThanOrEqualTo(now())) {
+            $room->forceFill([
+                'status' => 'operational',
+                'status_start_at' => null,
+                'status_end_at' => null,
+            ])->saveQuietly();
+            $room->refresh();
+        }
+
         return response()->json($room);
     }
 
     public function update(Request $request, Room $room)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'capacity' => 'required|integer|min:1',
-            'location' => 'nullable|string|max:255',
-            'status' => 'required|in:operational,maintenance,closed',
-            'requires_approval' => 'boolean',
-            'status_start_at' => 'nullable|date',
-            'status_end_at' => 'nullable|date|after_or_equal:status_start_at',
-            'description' => 'nullable|string',
-        ]);
+        $validated = $this->validateRoomPayload($request);
 
         $this->ensureRoomNameAllowed($validated['name']);
         $this->ensureCollaborativeCapacityFloor($validated['name'], (int) $validated['capacity']);
 
+        $validated['location'] = '2F Library';
         $validated['requires_approval'] = $request->boolean('requires_approval');
+        $validated = $this->normalizeStatusSchedulePayload($validated, $room);
 
-        // Check if status changes between operational and closed/maintenance
-        $oldStatus = $room->status;
+        $oldStatus = $room->effective_status;
         $room->update($validated);
-        
-        $newStatus = $room->status;
+        $room->refresh();
+
+        $newStatus = $room->effective_status;
         if ($oldStatus !== $newStatus) {
-            // If it became operational (active) or was closed (inactive)
             $isActive = $newStatus === 'operational';
             $wasActive = $oldStatus === 'operational';
             
             if ($isActive !== $wasActive) {
-                // Email all users about the status change
                 $users = User::where('role', 'user')->get();
                 $mailStatus = $isActive ? 'active' : 'inactive';
                 foreach ($users as $u) {
@@ -116,6 +110,60 @@ class RoomController extends Controller
         }
 
         return response()->json(['success' => true, 'message' => 'Room updated successfully']);
+    }
+
+    private function validateRoomPayload(Request $request): array
+    {
+        $status = (string) $request->input('status');
+
+        return $request->validate([
+            'name' => 'required|string|max:255',
+            'capacity' => 'required|integer|min:1',
+            'location' => 'nullable|string|max:255',
+            'status' => 'required|in:operational,maintenance,closed',
+            'requires_approval' => 'boolean',
+            'status_start_at' => [
+                Rule::requiredIf(fn () => $status === 'maintenance'),
+                'nullable',
+                'date',
+            ],
+            'status_end_at' => [
+                Rule::requiredIf(fn () => $status === 'maintenance'),
+                'nullable',
+                'date',
+                'after_or_equal:status_start_at',
+            ],
+            'description' => 'nullable|string',
+        ]);
+    }
+
+    private function normalizeStatusSchedulePayload(array $validated, ?Room $existingRoom = null): array
+    {
+        if (($validated['status'] ?? null) !== 'maintenance') {
+            $validated['status_start_at'] = null;
+            $validated['status_end_at'] = null;
+
+            return $validated;
+        }
+
+        if ($existingRoom && $existingRoom->isMaintenanceOngoing()) {
+            $validated['status_start_at'] = $existingRoom->status_start_at?->format('Y-m-d H:i:s');
+        }
+
+        return $validated;
+    }
+
+    private function syncCompletedMaintenanceWindows(): void
+    {
+        Room::query()
+            ->where('status', 'maintenance')
+            ->whereNotNull('status_end_at')
+            ->where('status_end_at', '<=', now())
+            ->update([
+                'status' => 'operational',
+                'status_start_at' => null,
+                'status_end_at' => null,
+            ]);
     }
 
     public function destroy(Room $room)
