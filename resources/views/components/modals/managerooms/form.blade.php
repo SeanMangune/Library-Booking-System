@@ -99,7 +99,7 @@
                                     <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
                                         <i class="w-4 h-4 fa-icon fa-solid fa-circle-check text-base leading-none"></i>
                                     </span>
-                                    <select x-model="roomForm.status" required
+                                    <select x-model="roomForm.status" @change="onStatusChange()" required
                                             class="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm appearance-none bg-white">
                                         <option value="">Choose status</option>
                                         <option value="operational">Operational</option>
@@ -115,10 +115,17 @@
                                         <i class="w-4 h-4 fa-icon fa-solid fa-calendar-days text-base leading-none"></i>
                                     </span>
                                     <input type="text" x-model="roomForm.status_start_at"
+                                           :disabled="!canEditStatusStart()"
+                                           :readonly="!canEditStatusStart()"
+                                         :style="canEditStatusStart() ? '' : 'cursor: not-allowed !important;'"
                                            x-init="flatpickr($el, { enableTime: true, dateFormat: 'Y-m-d H:i', minuteIncrement: 15 })"
                                            placeholder="Select start date/time"
-                                           class="w-full pl-[2.1rem] pr-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs sm:text-sm bg-gray-50 cursor-pointer">
+                                           :class="canEditStatusStart() ? 'bg-gray-50 cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-not-allowed'"
+                                           class="w-full pl-[2.1rem] pr-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs sm:text-sm">
                                 </div>
+                                <p class="mt-1 text-xs text-gray-500" x-show="isMaintenanceOngoing()" x-cloak>
+                                    Start date/time is locked while maintenance is ongoing.
+                                </p>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">End Date/Time</label>
@@ -127,9 +134,13 @@
                                         <i class="w-4 h-4 fa-icon fa-solid fa-calendar-days text-base leading-none"></i>
                                     </span>
                                     <input type="text" x-model="roomForm.status_end_at"
+                                           :disabled="!canEditStatusEnd()"
+                                           :readonly="!canEditStatusEnd()"
+                                         :style="canEditStatusEnd() ? '' : 'cursor: not-allowed !important;'"
                                            x-init="flatpickr($el, { enableTime: true, dateFormat: 'Y-m-d H:i', minuteIncrement: 15 })"
                                            placeholder="Select end date/time"
-                                           class="w-full pl-[2.1rem] pr-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs sm:text-sm bg-gray-50 cursor-pointer">
+                                           :class="canEditStatusEnd() ? 'bg-gray-50 cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-not-allowed'"
+                                           class="w-full pl-[2.1rem] pr-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs sm:text-sm">
                                 </div>
                             </div>
                         </div>

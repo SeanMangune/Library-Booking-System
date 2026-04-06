@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +36,11 @@ class Room extends Model
         'requires_approval' => 'boolean',
         'status_start_at' => 'datetime',
         'status_end_at' => 'datetime',
+    ];
+
+    protected $appends = [
+        'effective_status',
+        'maintenance_ongoing',
     ];
 
     public function setRequiresApprovalAttribute($value): void
@@ -80,7 +86,55 @@ class Room extends Model
 
     public function isOperational(): bool
     {
-        return $this->status === 'operational';
+        return $this->effectiveStatus() === 'operational';
+    }
+
+    public function effectiveStatus(?CarbonInterface $now = null): string
+    {
+        $now ??= now();
+
+        if ($this->status !== 'maintenance') {
+            return (string) $this->status;
+        }
+
+        if (! $this->status_start_at) {
+            return 'maintenance';
+        }
+
+        if ($this->status_start_at->greaterThan($now)) {
+            return 'operational';
+        }
+
+        if ($this->status_end_at && $this->status_end_at->lessThanOrEqualTo($now)) {
+            return 'operational';
+        }
+
+        return 'maintenance';
+    }
+
+    public function isMaintenanceOngoing(?CarbonInterface $now = null): bool
+    {
+        $now ??= now();
+
+        if ($this->status !== 'maintenance' || ! $this->status_start_at) {
+            return false;
+        }
+
+        if ($this->status_start_at->greaterThan($now)) {
+            return false;
+        }
+
+        return ! $this->status_end_at || $this->status_end_at->greaterThan($now);
+    }
+
+    public function getEffectiveStatusAttribute(): string
+    {
+        return $this->effectiveStatus();
+    }
+
+    public function getMaintenanceOngoingAttribute(): bool
+    {
+        return $this->isMaintenanceOngoing();
     }
 
     public function isCollaborative(): bool
@@ -136,7 +190,19 @@ class Room extends Model
 
     public function scopeOperational($query)
     {
-        return $query->visible()->where('status', 'operational');
+        return $query->visible()->where(function ($statusQuery) {
+            $statusQuery->where('status', 'operational')
+                ->orWhere(function ($scheduledMaintenance) {
+                    $scheduledMaintenance->where('status', 'maintenance')
+                        ->whereNotNull('status_start_at')
+                        ->where('status_start_at', '>', now());
+                })
+                ->orWhere(function ($completedMaintenance) {
+                    $completedMaintenance->where('status', 'maintenance')
+                        ->whereNotNull('status_end_at')
+                        ->where('status_end_at', '<=', now());
+                });
+        });
     }
 
     public function scopeByStatus($query, $status)

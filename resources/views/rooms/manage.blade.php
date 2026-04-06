@@ -31,11 +31,11 @@
 
     <!-- Filters -->
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select x-model="filters.status" @change="applyFilters()"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer">
                     <option value="all">All Statuses</option>
                     <option value="operational">Operational</option>
                     <option value="maintenance">Maintenance</option>
@@ -45,20 +45,10 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Capacity</label>
                 <select x-model="filters.capacity" @change="applyFilters()"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer">
                     <option value="all">All Capacities</option>
                     @foreach($capacities as $cap)
                     <option value="{{ $cap }}">{{ $cap }}+ people</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                <select x-model="filters.location" @change="applyFilters()"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="all">All Locations</option>
-                    @foreach($locations as $loc)
-                    <option value="{{ $loc }}">{{ $loc }}</option>
                     @endforeach
                 </select>
             </div>
@@ -91,7 +81,7 @@
                     @forelse($rooms as $room)
                     <tr class="room-row hover:bg-gray-50 transition-colors" 
                         data-name="{{ strtolower($room->name) }}"
-                        data-status="{{ $room->status }}"
+                        data-status="{{ $room->effective_status }}"
                         data-capacity="{{ $room->capacity }}"
                         data-location="{{ $room->location }}">
                         <td class="px-6 py-4 whitespace-nowrap">
@@ -105,20 +95,20 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
-                                @if($room->status === 'operational') bg-green-100 text-green-700
-                                @elseif($room->status === 'maintenance') bg-yellow-100 text-yellow-700
+                                @if($room->effective_status === 'operational') bg-green-100 text-green-700
+                                @elseif($room->effective_status === 'maintenance') bg-yellow-100 text-yellow-700
                                 @else bg-red-100 text-red-700 @endif">
-                                {{ ucfirst($room->status) }}
+                                {{ ucfirst($room->effective_status) }}
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex items-center gap-2">
                                 <button @click='openEditModal(@json($room))'
-                                        class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                        class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer">
                                     <i class="w-4 h-4 fa-icon fa-solid fa-pen-to-square text-base leading-none"></i>
                                 </button>
                                 <button @click='openDeleteModal(@json($room))'
-                                        class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                        class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
                                     <i class="w-4 h-4 fa-icon fa-solid fa-trash-can text-base leading-none"></i>
                                 </button>
                             </div>
@@ -159,8 +149,7 @@ function roomManagement() {
         
         filters: {
             status: 'all',
-            capacity: 'all',
-            location: 'all'
+            capacity: 'all'
         },
 
         roomForm: {
@@ -199,10 +188,74 @@ function roomManagement() {
                 location: room.location || '',
                 status: room.status,
                 requires_approval: room.requires_approval || false,
-                status_start_at: room.status_start_at || '',
-                status_end_at: room.status_end_at || '',
+                status_start_at: this.normalizeDateTimeForInput(room.status_start_at),
+                status_end_at: this.normalizeDateTimeForInput(room.status_end_at),
             };
             this.showModal = true;
+        },
+
+        normalizeDateTimeForInput(value) {
+            if (!value) {
+                return '';
+            }
+
+            const parsed = this.parseDateTime(value);
+
+            if (!parsed) {
+                return String(value);
+            }
+
+            const pad = (num) => String(num).padStart(2, '0');
+
+            return `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())} ${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
+        },
+
+        parseDateTime(value) {
+            if (!value) {
+                return null;
+            }
+
+            const normalized = String(value).replace(' ', 'T');
+            const parsed = new Date(normalized);
+
+            return Number.isNaN(parsed.getTime()) ? null : parsed;
+        },
+
+        isMaintenanceStatusSelected() {
+            return this.roomForm.status === 'maintenance';
+        },
+
+        isMaintenanceOngoing() {
+            if (!this.isMaintenanceStatusSelected()) {
+                return false;
+            }
+
+            const startAt = this.parseDateTime(this.roomForm.status_start_at);
+            const endAt = this.parseDateTime(this.roomForm.status_end_at);
+            const now = new Date();
+
+            if (!startAt || now < startAt) {
+                return false;
+            }
+
+            return !endAt || now < endAt;
+        },
+
+        canEditStatusStart() {
+            return this.isMaintenanceStatusSelected() && !this.isMaintenanceOngoing();
+        },
+
+        canEditStatusEnd() {
+            return this.isMaintenanceStatusSelected();
+        },
+
+        onStatusChange() {
+            if (this.roomForm.status === 'maintenance') {
+                return;
+            }
+
+            this.roomForm.status_start_at = '';
+            this.roomForm.status_end_at = '';
         },
 
         closeModal() {
@@ -303,7 +356,6 @@ function roomManagement() {
             const params = new URLSearchParams();
             if (this.filters.status !== 'all') params.append('status', this.filters.status);
             if (this.filters.capacity !== 'all') params.append('capacity', this.filters.capacity);
-            if (this.filters.location !== 'all') params.append('location', this.filters.location);
             
             window.location.href = '{{ route("rooms.index") }}' + (params.toString() ? '?' + params.toString() : '');
         }

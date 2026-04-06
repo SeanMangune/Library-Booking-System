@@ -169,6 +169,22 @@
         /* Smooth hover lift for interactive cards */
         .hover-lift { transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease; }
         .hover-lift:hover { transform: translateY(-3px); box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.12); }
+        /* Modal cursor behavior */
+        .modal button,
+        .modal [role="button"],
+        .modal a,
+        .modal input:not(:disabled),
+        .modal select:not(:disabled),
+        .modal textarea:not(:disabled),
+        .modal label {
+            cursor: pointer;
+        }
+        .modal input:disabled,
+        .modal select:disabled,
+        .modal textarea:disabled,
+        .modal button:disabled {
+            cursor: not-allowed !important;
+        }
         .sidebar-brand,
         .sidebar-section-label,
         .sidebar-text,
@@ -392,10 +408,10 @@
 
                 @if($isStaff)
                     <a href="{{ route('rooms.index') }}" 
-                       title="Manage Rooms"
+                       title="Rooms"
                        class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-indigo-200 hover:text-white transition-all duration-200 mb-1 {{ request()->routeIs('rooms.*') ? 'active' : '' }}">
                         <i class="w-5 h-5 fa-icon fa-solid fa-building text-xl leading-none"></i>
-                        <span class="sidebar-text">Manage Rooms</span>
+                        <span class="sidebar-text">Rooms</span>
                     </a>
 
                     <a href="{{ route('approvals.index') }}" 
