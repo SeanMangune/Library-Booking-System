@@ -45,7 +45,7 @@ class RefreshGoogleMailToken
             $transport = $event->message->getHeaders();
             // In Symfony we need to use xoauth2 auth mode
             config(['mail.mailers.smtp.password' => $accessToken]);
-            config(['mail.mailers.smtp.username' => env('MAIL_USERNAME', 'LibrarySmartSpace@gmail.com')]);
+            config(['mail.mailers.smtp.username' => env('MAIL_USERNAME', 'smartspacelibrary@gmail.com')]);
             config(['mail.mailers.smtp.host' => 'smtp.gmail.com']);
             config(['mail.mailers.smtp.port' => 465]);
             

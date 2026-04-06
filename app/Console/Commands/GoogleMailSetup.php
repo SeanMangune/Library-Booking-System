@@ -37,7 +37,7 @@ class GoogleMailSetup extends Command
         $this->line("");
         $this->line($authUrl);
         $this->line("");
-        $this->info("3. Login with your LibrarySmartSpace@gmail.com account and authorize the application.");
+        $this->info("3. Login with your smartspacelibrary@gmail.com account and authorize the application.");
         $this->info("4. Important: The browser will redirect you to a broken page or your dashboard with ?code= in the URL link (e.g. http://127.0.0.1:8000/?code=4/xxxx...)");
         $this->info("5. Copy ONLY the long text code after '?code=' and paste it below:");
 
