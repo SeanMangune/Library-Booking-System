@@ -1148,10 +1148,12 @@ export function createDashboardApp(config = {}) {
         showRoomModal: false,
         selectedRoom: null,
         selectedRoomCount: 0,
+        selectedRoomBookings: [],
         
-        openRoomModal(room, count) {
+        openRoomModal(room, count, bookings = []) {
             this.selectedRoom = room;
             this.selectedRoomCount = count || 0;
+            this.selectedRoomBookings = bookings;
             this.showRoomModal = true;
         },
 
@@ -2161,6 +2163,9 @@ export function createDashboardApp(config = {}) {
         },
 
         openViewBookingModal(booking) {
+            this.showRoomModal = false;
+            this.showDayEventsModal = false;
+            
             this.selectedBooking = booking;
             this.viewEvent = booking;
             this.showViewModal = true;

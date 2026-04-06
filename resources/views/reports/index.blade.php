@@ -643,6 +643,54 @@ html { scroll-behavior: smooth; }
     background: #eef2ff !important;
     border-color: #c7d2fe !important;
 }
+
+/* ═══ Reports Print Overrides ═══ */
+@media print {
+    /* Force all scrolled/animated content visible */
+    .report-reveal,
+    .report-reveal.is-visible {
+        opacity: 1 !important;
+        transform: none !important;
+        filter: none !important;
+    }
+    /* Remove animation delays */
+    .animate-slide-in-up,
+    [class*="stagger-"] {
+        animation: none !important;
+        opacity: 1 !important;
+    }
+    /* Hide interactive elements */
+    .report-nav-shell,
+    #report-floating-nav,
+    .report-filter-shell,
+    .print\\:hidden {
+        display: none !important;
+    }
+    /* Make content fill the page */
+    .content-shell {
+        margin-left: 0 !important;
+    }
+    main { padding: 0.5rem !important; }
+    /* Remove shadows and borders for cleaner print */
+    .shadow-sm, .shadow-lg, .shadow-xl, .shadow-2xl {
+        box-shadow: none !important;
+    }
+    .rounded-2xl { border-radius: 8px !important; }
+    /* Ensure gradients print with colors */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    /* Page breaks */
+    #report-summary { page-break-after: avoid; }
+    #room-breakdown, #top-requesters { page-break-inside: avoid; }
+    #detailed-bookings { page-break-before: auto; }
+    table { font-size: 11px; }
+    /* Show the header banner nicely */
+    .bg-gradient-to-br {
+        border: 2px solid #4f46e5 !important;
+    }
+}
 </style>
 @endpush
 @endsection

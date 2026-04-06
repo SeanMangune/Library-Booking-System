@@ -148,11 +148,13 @@
                     <div class="p-4 space-y-3">
                         @foreach($rooms as $room)
                         @php
-                            $roomBookingCount = $collabRoomBookings->where('room_id', $room->id)->count();
+                            $roomBookings = $collabRoomBookings->where('room_id', $room->id)->values();
+                            $todayBookingsForRoom = $roomBookings->filter(fn($b) => $b->date->isToday())->values();
+                            $roomBookingCount = $roomBookings->count();
                             $utilPercent = min(100, $roomBookingCount * 10);
                         @endphp
                         <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-indigo-50 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-300 cursor-pointer border border-transparent hover:border-indigo-100 group/room"
-                             @click="openRoomModal({{ json_encode($room) }}, {{ $roomBookingCount }})">
+                             @click="openRoomModal({{ json_encode($room) }}, {{ $roomBookingCount }}, {{ json_encode($todayBookingsForRoom) }})">
                             <div class="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0 border border-gray-100 group-hover/room:border-indigo-200 group-hover/room:bg-indigo-600 transition-colors">
                                 <i class="fa-solid fa-door-open text-gray-400 group-hover/room:text-white transition-colors"></i>
                             </div>
@@ -333,14 +335,14 @@
         </div>
     </div>
 
-    <!-- View Booking Details Modal -->
-    <x-modals.dashboard.view-booking />
-
     <!-- Day Events Modal (for +X more) -->
     <x-modals.dashboard.day-events />
 
     <!-- Room Details Modal -->
     <x-modals.dashboard.room-details />
+
+    <!-- View Booking Details Modal (Highest z-index of info modals) -->
+    <x-modals.dashboard.view-booking />
 
     <!-- Create Booking Modal -->
     <x-modals.dashboard.create-booking :rooms="$rooms" />

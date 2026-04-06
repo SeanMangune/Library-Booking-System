@@ -287,21 +287,23 @@
                         <!-- List View -->
                         <div x-show="calendarView === 'listWeek'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" class="space-y-3">
                             <template x-for="(event, idx) in listEvents" :key="idx">
-                                <div class="flex items-center gap-4 p-4 rounded-xl border border-gray-100 bg-gray-50/40 hover:bg-white hover:shadow-sm hover:-translate-y-0.5 transition-all cursor-pointer group"
+                                <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl border border-gray-100 bg-gray-50/40 hover:bg-white hover:shadow-sm hover:-translate-y-0.5 transition-all cursor-pointer group"
                                      @click="openViewBookingModal(event)">
-                                    <div class="text-center shrink-0 w-12 h-12 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center group-hover:border-teal-300 group-hover:bg-teal-50 transition-colors">
-                                        <p class="text-[9px] font-bold text-teal-600 uppercase" x-text="new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', {weekday: 'short'})"></p>
-                                        <p class="text-lg font-black text-gray-900 group-hover:text-teal-700" x-text="new Date(event.date + 'T00:00:00').getDate()"></p>
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-bold text-gray-900 group-hover:text-teal-700 transition-colors" x-text="event.room_name"></p>
-                                        <div class="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
-                                            <span class="flex items-center gap-1 font-medium"><i class="fa-regular fa-clock"></i> <span x-text="event.formatted_time || ''"></span></span>
-                                            <span class="opacity-50">&bull;</span>
-                                            <span class="flex items-center gap-1"><i class="fa-solid fa-user"></i> <span x-text="event.user_name || ''"></span></span>
+                                    <div class="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                                        <div class="text-center shrink-0 w-12 h-12 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center group-hover:border-teal-300 group-hover:bg-teal-50 transition-colors">
+                                            <p class="text-[9px] font-bold text-teal-600 uppercase" x-text="new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', {weekday: 'short'})"></p>
+                                            <p class="text-lg font-black text-gray-900 group-hover:text-teal-700" x-text="new Date(event.date + 'T00:00:00').getDate()"></p>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-bold text-gray-900 group-hover:text-teal-700 transition-colors truncate" x-text="event.room_name"></p>
+                                            <div class="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 mt-0.5 text-xs text-gray-500">
+                                                <span class="flex items-center gap-1 font-medium truncate"><i class="fa-regular fa-clock"></i> <span x-text="event.formatted_time || ''"></span></span>
+                                                <span class="hidden sm:inline opacity-50">&bull;</span>
+                                                <span class="flex items-center gap-1 truncate"><i class="fa-solid fa-user"></i> <span x-text="event.user_name || ''"></span></span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <span class="shrink-0 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white transition-colors border border-emerald-200 group-hover:border-emerald-600">Approved</span>
+                                    <span class="self-start sm:self-center shrink-0 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white transition-colors border border-emerald-200 group-hover:border-emerald-600 ml-15 sm:ml-0">Approved</span>
                                 </div>
                             </template>
                             <template x-if="listEvents.length === 0">

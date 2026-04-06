@@ -226,7 +226,7 @@
             </div>
 
             <!-- Detail Grid Premium -->
-            <div class="mt-6 pt-6 border-t border-gray-100 grid grid-cols-2 lg:grid-cols-4 gap-6 relative transition-all duration-300 group-hover:border-indigo-100">
+            <div class="mt-6 pt-6 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 relative transition-all duration-300 group-hover:border-indigo-100">
                 <div class="flex flex-col">
                     <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 group-hover:text-indigo-400 transition-colors">Date</span>
                     <div class="flex items-center gap-2">

@@ -67,7 +67,7 @@
                 </div>
             </template>
 
-            <div class="grid grid-cols-2 gap-3 mb-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                 <div class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl">
                     <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
                         <i class="w-5 h-5 text-purple-600 fa-icon fa-solid fa-building text-xl leading-none"></i>

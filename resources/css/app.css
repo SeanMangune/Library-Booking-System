@@ -98,3 +98,59 @@
     box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
+
+/* ═══ Print Styles ═══ */
+@media print {
+    /* Force all report-reveal sections visible */
+    .report-reveal,
+    .report-reveal.is-visible {
+        opacity: 1 !important;
+        transform: none !important;
+        filter: none !important;
+    }
+
+    /* Hide non-printable UI */
+    aside, header, .modal, .modal-backdrop,
+    .sidebar-shell, .content-shell > header,
+    .report-nav-shell, #report-floating-nav,
+    #swUpdateToast, button, a[href],
+    .print\:hidden { display: none !important; }
+
+    /* Reset main content for printing */
+    .content-shell {
+        margin-left: 0 !important;
+    }
+    main {
+        animation: none !important;
+        padding: 0 !important;
+    }
+    body {
+        background: white !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    /* Show table headers/data in print */
+    table { page-break-inside: auto; }
+    tr { page-break-inside: avoid; page-break-after: auto; }
+    thead { display: table-header-group; }
+    /* Ensure cards don't break across pages */
+    .bg-white.rounded-2xl { page-break-inside: avoid; }
+}
+
+/* ═══ Mobile Enhancements ═══ */
+@media (max-width: 640px) {
+    /* Larger tap targets on mobile */
+    .sidebar-link { min-height: 48px; }
+    /* Smoother momentum scrolling */
+    .overflow-y-auto, .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Prevent horizontal overflow globally */
+    body { overflow-x: hidden; }
+    /* Make modals full-width on mobile */
+    .modal-box {
+        width: 95% !important;
+        max-height: 92vh !important;
+        margin: auto;
+    }
+}

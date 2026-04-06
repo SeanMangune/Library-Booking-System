@@ -41,11 +41,11 @@
                               x-text="selectedBooking?.status?.charAt(0).toUpperCase() + selectedBooking?.status?.slice(1)"></span>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
                         <div class="p-4 bg-gray-50 rounded-xl">
                             <p class="text-xs font-medium text-gray-500 mb-1">Room</p>
-                            <p class="font-semibold text-gray-900" x-text="selectedBooking?.room_name"></p>
-                            <p class="text-sm text-gray-500" x-text="selectedBooking?.room_location || 'No location'"></p>
+                            <p class="font-semibold text-gray-900 truncate" x-text="selectedBooking?.room_name"></p>
+                            <p class="text-sm text-gray-500 truncate" x-text="selectedBooking?.room_location || 'No location'"></p>
                         </div>
                         <div class="p-4 bg-gray-50 rounded-xl">
                             <p class="text-xs font-medium text-gray-500 mb-1">Date & Time</p>
@@ -54,8 +54,8 @@
                         </div>
                         <div class="p-4 bg-gray-50 rounded-xl">
                             <p class="text-xs font-medium text-gray-500 mb-1">Booked By</p>
-                            <p class="font-semibold text-gray-900" x-text="selectedBooking?.user_name"></p>
-                            <p class="text-sm text-gray-500" x-text="selectedBooking?.user_email"></p>
+                            <p class="font-semibold text-gray-900 truncate" x-text="selectedBooking?.user_name"></p>
+                            <p class="text-sm text-gray-500 truncate" x-text="selectedBooking?.user_email"></p>
                         </div>
                         <div class="p-4 bg-gray-50 rounded-xl">
                             <p class="text-xs font-medium text-gray-500 mb-1">Attendees</p>

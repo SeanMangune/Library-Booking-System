@@ -3,7 +3,7 @@
 <head>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#2563eb">
-    <link rel="apple-touch-icon" href="/images/icons/icon-192.svg">
+    <link rel="apple-touch-icon" href="/images/smartspace-logo.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
@@ -184,6 +184,63 @@
         .modal textarea:disabled,
         .modal button:disabled {
             cursor: not-allowed !important;
+        }
+        /* Mobile bottom nav */
+        .mobile-bottom-nav {
+            display: none;
+        }
+        @media (max-width: 1023px) {
+            .mobile-bottom-nav {
+                display: flex;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 45;
+                background: rgba(255,255,255,0.92);
+                backdrop-filter: blur(20px) saturate(180%);
+                -webkit-backdrop-filter: blur(20px) saturate(180%);
+                border-top: 1px solid rgba(0,0,0,0.06);
+                padding: 0.35rem 0.5rem;
+                padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
+                justify-content: space-around;
+                align-items: center;
+                box-shadow: 0 -4px 20px rgba(0,0,0,0.06);
+            }
+            .mobile-bottom-nav a {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 2px;
+                padding: 0.4rem 0.75rem;
+                border-radius: 0.75rem;
+                font-size: 0.6rem;
+                font-weight: 700;
+                color: #9ca3af;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+                transition: all 0.2s ease;
+                text-decoration: none;
+                -webkit-tap-highlight-color: transparent;
+            }
+            .mobile-bottom-nav a:active {
+                transform: scale(0.93);
+            }
+            .mobile-bottom-nav a.active {
+                color: #6366f1;
+                background: rgba(99, 102, 241, 0.08);
+            }
+            .mobile-bottom-nav a i {
+                font-size: 1.15rem;
+                transition: transform 0.2s ease;
+            }
+            .mobile-bottom-nav a.active i {
+                transform: scale(1.1);
+            }
+            /* Pad main content so it doesn't hide behind bottom nav */
+            main {
+                padding-bottom: 5rem !important;
+            }
         }
         .sidebar-brand,
         .sidebar-section-label,
@@ -621,6 +678,31 @@
         <!-- Overlay for mobile sidebar -->
          <div x-show="sidebarOpen && !canHoverSidebar" @click="sidebarOpen = false" x-cloak
              class="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"></div>
+
+        <!-- Mobile Bottom Navigation -->
+        <nav class="mobile-bottom-nav">
+            <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                <i class="fa-solid fa-house"></i>
+                <span>Home</span>
+            </a>
+            @if($isStaff)
+            <a href="{{ route('approvals.index') }}" class="{{ request()->routeIs('approvals.*') ? 'active' : '' }}" style="position:relative">
+                <i class="fa-solid fa-circle-check"></i>
+                @if($pendingApprovalCount > 0)
+                <span style="position:absolute;top:0;right:0.25rem;min-width:16px;height:16px;display:flex;align-items:center;justify-content:center;background:#ef4444;color:#fff;font-size:9px;font-weight:800;border-radius:999px;line-height:1;padding:0 4px;">{{ $pendingApprovalCount }}</span>
+                @endif
+                <span>Approvals</span>
+            </a>
+            @endif
+            <a href="{{ route('reservations.index') }}" class="{{ request()->routeIs('reservations.*') ? 'active' : '' }}">
+                <i class="fa-solid fa-file"></i>
+                <span>Bookings</span>
+            </a>
+            <a href="{{ route('calendar.index') }}" class="{{ request()->routeIs('calendar.*') ? 'active' : '' }}">
+                <i class="fa-solid fa-calendar-days"></i>
+                <span>Calendar</span>
+            </a>
+        </nav>
     </div>
 
     <div id="swUpdateToast" class="hidden fixed left-1/2 bottom-6 z-50 w-[92%] max-w-md -translate-x-1/2 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm shadow-xl">

@@ -1,4 +1,4 @@
-﻿    <div x-show="showRoomModal" x-cloak class="modal p-4" :class="{ 'modal-open': showRoomModal }" @keydown.escape.window="showRoomModal = false">
+    <div x-show="showRoomModal" x-cloak class="modal p-4" :class="{ 'modal-open': showRoomModal }" @keydown.escape.window="showRoomModal = false">
         <div class="modal-box w-11/12 max-w-sm p-0 bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col transform transition-all" 
              @click.stop
              x-show="showRoomModal"
@@ -48,13 +48,34 @@
                     </div>
                 </div>
 
-                <div class="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 mb-2 flex items-center justify-between">
-                    <div>
-                        <h4 class="text-sm font-bold text-gray-900">Today's Approvals</h4>
-                        <p class="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">Upcoming & ongoing</p>
+                <div class="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 mb-2 flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="text-sm font-bold text-gray-900">Today's Approvals</h4>
+                            <p class="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">Upcoming & ongoing</p>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center text-lg font-black shadow-md">
+                            <span x-text="selectedRoomBookings?.length || 0"></span>
+                        </div>
                     </div>
-                    <div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center text-lg font-black shadow-md">
-                        <span x-text="selectedRoomCount || 0"></span>
+                    
+                    <div x-show="selectedRoomBookings?.length > 0" x-cloak class="mt-2 space-y-2 max-h-48 overflow-y-auto pr-1">
+                        <template x-for="booking in selectedRoomBookings" :key="booking.id">
+                            <div class="bg-white border text-left border-indigo-100 rounded-lg p-2.5 flex items-center gap-3 cursor-pointer hover:border-indigo-300 transition-colors" @click="viewBooking(booking)">
+                                <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-500 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-clock text-xs"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs font-bold text-gray-900 truncate" x-text="booking.user_name"></p>
+                                    <p class="text-[10px] text-gray-500 truncate" x-text="booking.formatted_time"></p>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-[10px] text-gray-300"></i>
+                            </div>
+                        </template>
+                    </div>
+                    <div x-show="!selectedRoomBookings?.length" x-cloak class="mt-2 text-center py-4 bg-white/50 rounded-lg border border-dashed border-indigo-200">
+                        <i class="fa-solid fa-bed text-indigo-200 text-2xl mb-1"></i>
+                        <p class="text-xs font-medium text-gray-500">No bookings scheduled today.</p>
                     </div>
                 </div>
             </div>

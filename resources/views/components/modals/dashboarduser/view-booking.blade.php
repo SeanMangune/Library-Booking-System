@@ -46,7 +46,7 @@
                     </div>
 
                     <!-- Info Grid -->
-                    <div class="grid grid-cols-2 gap-3 mb-5">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
                         <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                             <div class="w-9 h-9 rounded-lg bg-teal-100 flex items-center justify-center shrink-0">
                                 <i class="fa-solid fa-building text-teal-600"></i>

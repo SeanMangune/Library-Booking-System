@@ -111,13 +111,14 @@
         </form>
     </div>
 
-    <!-- Reservations Table -->
+    <!-- Reservations -->
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-200">
             <p class="text-sm text-gray-600">Showing {{ $bookings->firstItem() ?? 0 }} to {{ $bookings->lastItem() ?? 0 }} of {{ $bookings->total() }} results</p>
         </div>
         
-        <div class="overflow-x-auto">
+        <!-- Desktop Table (hidden on mobile) -->
+        <div class="hidden sm:block overflow-x-auto">
             <table class="w-full">
                 <thead class="bg-gray-50 border-b border-gray-200">
                     <tr>
@@ -211,6 +212,72 @@
                     @endforelse
                 </tbody>
             </table>
+        </div>
+
+        <!-- Mobile Card View (visible only on mobile) -->
+        <div class="sm:hidden divide-y divide-gray-100">
+            @forelse($bookings as $booking)
+            @php
+                $viewData = [
+                    'id' => $booking->id,
+                    'title' => $booking->title,
+                    'room_name' => $booking->room->name,
+                    'room_location' => $booking->room->location,
+                    'date' => $booking->date->format('M d, Y'),
+                    'formatted_date' => $booking->formatted_date,
+                    'formatted_time' => $booking->formatted_time,
+                    'user_name' => $booking->user_name,
+                    'user_email' => $booking->user_email,
+                    'attendees' => $booking->attendees,
+                    'status' => $booking->status,
+                    'description' => $booking->description,
+                    'booking_status' => $booking->booking_status ?? $booking->determineBookingStatus(),
+                    'qr_token' => $booking->qr_token,
+                    'qr_code_url' => $booking->qr_code_url,
+                ];
+            @endphp
+            <div class="p-4 hover:bg-gray-50 transition-colors cursor-pointer active:bg-gray-100"
+                 data-booking="{{ json_encode($viewData) }}"
+                 x-on:click="viewBooking(JSON.parse($el.dataset.booking))">
+                <div class="flex items-start justify-between gap-3 mb-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-10 h-10 rounded-lg {{ $booking->status === 'cancelled' ? 'bg-gray-100' : 'bg-indigo-100' }} flex items-center justify-center shrink-0">
+                            <i class="{{ $booking->status === 'cancelled' ? 'text-gray-500' : 'text-indigo-600' }} fa-solid fa-building"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-semibold text-gray-900 truncate">{{ $booking->room->name }}</p>
+                            <p class="text-xs text-gray-500">{{ $booking->room->location ?? '' }}</p>
+                        </div>
+                    </div>
+                    <span class="shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold
+                        @if($booking->status === 'pending') bg-amber-100 text-amber-700
+                        @elseif($booking->status === 'approved') bg-green-100 text-green-700
+                        @elseif($booking->status === 'rejected') bg-red-100 text-red-700
+                        @else bg-gray-100 text-gray-700 @endif">
+                        {{ ucfirst($booking->status) }}
+                    </span>
+                </div>
+                <div class="flex items-center gap-4 text-xs text-gray-500">
+                    <span class="flex items-center gap-1">
+                        <i class="fa-regular fa-calendar"></i>
+                        {{ $booking->date->format('M d, Y') }}
+                    </span>
+                    <span class="flex items-center gap-1">
+                        <i class="fa-regular fa-clock"></i>
+                        {{ $booking->formatted_time }}
+                    </span>
+                    <span class="flex items-center gap-1">
+                        <i class="fa-solid fa-users"></i>
+                        {{ $booking->attendees }}
+                    </span>
+                </div>
+            </div>
+            @empty
+            <div class="p-8 text-center">
+                <i class="fa-solid fa-calendar-days text-gray-300 text-4xl mb-3"></i>
+                <p class="text-sm text-gray-500">No reservations found</p>
+            </div>
+            @endforelse
         </div>
 
         <!-- Pagination -->
