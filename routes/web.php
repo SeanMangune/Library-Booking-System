@@ -20,6 +20,14 @@ Route::get('/', function () {
         : redirect()->route('login');
 });
 
+Route::get('/download-shortcut', function () {
+    $filePath = public_path('SmartSpace.exe');
+    if (!file_exists($filePath)) {
+        abort(404);
+    }
+    return response()->download($filePath, 'SmartSpace.exe');
+})->name('download.shortcut');
+
 Route::get('/pwa', function () {
     return Auth::check()
         ? redirect()->route('dashboard')

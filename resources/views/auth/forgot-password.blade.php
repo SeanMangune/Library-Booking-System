@@ -41,14 +41,33 @@
             @endif
 
             @if($errors->any())
-                <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-3">
-                    <i class="fa-solid fa-triangle-exclamation text-red-600 mt-0.5"></i>
-                    <div class="text-sm font-medium text-red-800">
-                        <ul class="list-disc list-inside space-y-1">
-                            @foreach($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
+                <!-- Visually appealing animated error popup -->
+                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+                     x-transition:enter="transition ease-out duration-400"
+                     x-transition:enter-start="opacity-0 -translate-y-8 sm:-translate-y-12 sm:scale-95"
+                     x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                     x-transition:leave="transition ease-in duration-300"
+                     x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                     x-transition:leave-end="opacity-0 -translate-y-8 sm:-translate-y-12 sm:scale-95"
+                     class="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4" x-cloak>
+                    <div class="bg-white/95 backdrop-blur-xl border border-red-200 shadow-2xl shadow-red-500/20 rounded-2xl p-4 flex items-start gap-4">
+                        <div class="flex-shrink-0 w-11 h-11 rounded-full bg-red-100 flex items-center justify-center animate-pulse shadow-inner">
+                            <i class="fa-solid fa-user-xmark text-red-600 text-lg"></i>
+                        </div>
+                        <div class="flex-1 pt-1">
+                            <h3 class="text-sm font-bold text-red-900">Account Not Found</h3>
+                            <div class="mt-0.5 text-sm text-red-600 font-medium">
+                                @foreach($errors->all() as $error)
+                                    <p>{{ $error }}</p>
+                                @endforeach
+                            </div>
+                        </div>
+                        <div class="flex-shrink-0 flex pt-1">
+                            <button @click="show = false" type="button" class="inline-flex rounded-lg bg-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 transition-colors">
+                                <span class="sr-only">Close</span>
+                                <i class="fa-solid fa-xmark text-sm leading-none"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             @endif

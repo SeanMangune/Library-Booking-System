@@ -21,6 +21,8 @@ class ForgotPasswordOTPController extends Controller
     {
         $request->validate([
             'email' => ['required', 'email', 'exists:users,email'],
+        ], [
+            'email.exists' => 'This email does not exist in our system.',
         ]);
 
         $user = User::where('email', $request->email)->first();

@@ -422,18 +422,14 @@ class BookingController extends Controller
                 $verifyUrl = url('/verify?token=' . $booking->qr_token);
                 $builder = new \Endroid\QrCode\Builder\Builder();
                 $result = $builder->build(
-                    null, // writer
-                    null, // writer options
-                    null, // validate result
-                    $verifyUrl, // data
-                    null, // encoding
-                    null, // error correction
-                    480, // size
-                    10 // margin
+                    writer: new \Endroid\QrCode\Writer\SvgWriter(),
+                    data: $verifyUrl,
+                    size: 480,
+                    margin: 10
                 );
 
-                $png = $result->getString();
-                $qrDataUri = 'data:image/png;base64,' . base64_encode($png);
+                $svg = $result->getString();
+                $qrDataUri = 'data:image/svg+xml;base64,' . base64_encode($svg);
             } catch (\Throwable $e) {
                 // fallback: leave qrDataUri null (frontend can still use qr_code_url)
                 $qrDataUri = null;
@@ -543,12 +539,17 @@ class BookingController extends Controller
             $payload = $booking->qr_token
                 ? url('/verify?token=' . $booking->qr_token)
                 : ($booking->booking_code ?? $decrypted);
+            
             $builder = new \Endroid\QrCode\Builder\Builder();
             $result = $builder->build(
-                null, null, null, $payload, null, null, 480, 10
+                writer: new \Endroid\QrCode\Writer\SvgWriter(),
+                data: $payload,
+                size: 480,
+                margin: 10
             );
-            $png = $result->getString();
-            return response($png, 200, ['Content-Type' => 'image/png']);
+            
+            $svg = $result->getString();
+            return response($svg, 200, ['Content-Type' => 'image/svg+xml']);
         } catch (\Throwable $e) {
             return response('QR generation unavailable', 500);
         }

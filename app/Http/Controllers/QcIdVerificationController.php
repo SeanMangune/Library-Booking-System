@@ -30,14 +30,7 @@ class QcIdVerificationController extends Controller
         }
 
         $combinedText = trim(implode("\n", array_filter([$clientOcrText, $ocrSpaceText])));
-        if (mb_strlen($combinedText) < 20) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No readable text was detected. Please upload a QC ID Image.',
-                'verification' => null,
-                'ocr_text' => $combinedText,
-            ], 200);
-        }
+        // Text length checks removed to allow all images to cleanly fail as INVALID through the verifier.
 
         $verification = $verifier->verify(
             $combinedText,
@@ -69,6 +62,10 @@ class QcIdVerificationController extends Controller
             // QR validation confirms this is a real QC ID (contains a valid QR structure)
             $verification['qr_validated'] = true;
             $verification['qr_profile_extracted'] = true;
+            
+            // CRITICAL: If QR is validated, the ID is considered Verified regardless of OCR score
+            $verification['is_valid'] = true;
+            $verification['id_assessment'] = 'Verified';
         }
 
         if (! $verification['is_valid']) {

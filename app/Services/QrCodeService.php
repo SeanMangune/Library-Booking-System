@@ -32,26 +32,23 @@ class QrCodeService
             try {
                 $builder = new \Endroid\QrCode\Builder\Builder();
                 $result = $builder->build(
-                    null,
-                    null,
-                    null,
-                    $payload,
-                    null,
-                    null,
-                    320,
-                    2
+                    writer: new \Endroid\QrCode\Writer\SvgWriter(),
+                    data: $payload,
+                    size: 320,
+                    margin: 2
                 );
 
-                $png = $result->getString();
+                $svg = $result->getString();
+                $content = $svg;
             } catch (\Throwable $inner) {
                 Log::warning('Endroid QR build failed', ['message' => $inner->getMessage()]);
                 return;
             }
 
-            // Save PNG to storage for archival/legacy use but DO NOT attempt to persist a
+            // Save SVG to storage for archival/legacy use but DO NOT attempt to persist a
             // non-existent `qr_code_path` column in the bookings table.
-            $path = "qrcodes/booking_{$booking->booking_code}.png";
-            Storage::disk('public')->put($path, $png);
+            $path = "qrcodes/booking_{$booking->booking_code}.svg";
+            Storage::disk('public')->put($path, $content);
         } catch (\Throwable $e) {
             Log::error('QR generation failed', [
                 'booking_id' => $booking->id ?? null,

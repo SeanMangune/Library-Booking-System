@@ -27,6 +27,10 @@ window.FullCalendarPlugins = {
 
 function todayDateString() {
     const d = new Date();
+    // Skip Sunday by moving to Monday
+    if (d.getDay() === 0) {
+        d.setDate(d.getDate() + 1);
+    }
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
@@ -203,8 +207,8 @@ function buildBookingDateOptions(daysAhead = BOOKING_DATE_RANGE_DAYS) {
         const date = new Date(today);
         date.setDate(today.getDate() + dayOffset);
 
-        // Skip Sunday - Removed to allow same day booking if it's Sunday
-        // if (date.getDay() === 0) continue;
+        // Skip Sunday since the library is closed
+        if (date.getDay() === 0) continue;
 
         const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         options.push({
@@ -220,6 +224,12 @@ function buildBookingDateOptions(daysAhead = BOOKING_DATE_RANGE_DAYS) {
 
 function ensureBookingDateOption(options, dateValue) {
     if (!dateValue || !/^\d{4}-\d{2}-\d{2}$/.test(String(dateValue))) {
+        return;
+    }
+
+    // Explicitly prevent adding Sunday into the options
+    const testDate = new Date(`${dateValue}T00:00:00`);
+    if (!Number.isNaN(testDate.getTime()) && testDate.getDay() === 0) {
         return;
     }
 
