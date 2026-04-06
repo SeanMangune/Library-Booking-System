@@ -1,4 +1,4 @@
-﻿@props(['rooms' => collect()])
+@props(['rooms' => collect()])
 
     <div x-show="showBookingModal" x-cloak class="modal p-4" :class="{ 'modal-open': showBookingModal }" @keydown.escape.window="closeBookingModal()">
         <div class="modal-box w-11/12 max-w-2xl p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
@@ -179,14 +179,23 @@
                                     <div x-show="isLoadingTimeConflictSuggestions" x-cloak class="mt-2 text-xs text-gray-500">
                                         Checking nearby available slots...
                                     </div>
+                                    <div x-show="pendingWarning && !timeConflictMessage" x-cloak class="mt-2 rounded-lg border border-yellow-300 bg-yellow-50 p-3">
+                                        <p class="text-xs font-medium text-yellow-800" x-text="pendingWarning"></p>
+                                    </div>
                                     <div x-show="timeConflictMessage || timeConflictSuggestions.length" x-cloak class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
                                         <p class="text-xs font-medium text-amber-800" x-text="timeConflictMessage"></p>
                                         <div x-show="timeConflictSuggestions.length" x-cloak class="mt-2 flex flex-wrap gap-2">
                                             <template x-for="suggestedSlot in timeConflictSuggestions" :key="suggestedSlot.value">
                                                 <button type="button"
                                                         @click="applySuggestedTimeSlot(suggestedSlot.value)"
-                                                        class="inline-flex items-center rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100 transition-colors"
-                                                        x-text="suggestedSlot.label"></button>
+                                                        class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors"
+                                                        :class="suggestedSlot.hasPending
+                                                            ? 'border-yellow-400 bg-yellow-50 text-yellow-800 hover:bg-yellow-100'
+                                                            : 'border-amber-300 bg-white text-amber-800 hover:bg-amber-100'"
+                                                        :title="suggestedSlot.hasPending ? 'This slot has a pending reservation' : ''">
+                                                    <span x-text="suggestedSlot.label"></span>
+                                                    <span x-show="suggestedSlot.hasPending" class="ml-1 inline-block w-2 h-2 rounded-full bg-yellow-400" title="Pending reservation"></span>
+                                                </button>
                                             </template>
                                         </div>
                                     </div>

@@ -33,21 +33,24 @@
                 
                 <div class="room-card">
                     <h2 class="room-title">{{ $room->name }}</h2>
-                    <p class="room-location">📍 {{ $room->location ?? 'SmartSpace Campus' }}</p>
+                    <p class="room-location">📍 {{ $room->location ?? '2F Library' }}</p>
                     <p class="room-details">
-                        <strong>Capacity:</strong> Up to {{ $room->max_capacity }} people<br>
-                        <strong>Type:</strong> {{ ucfirst($room->type) }} Room
+                        <strong>Capacity:</strong> Up to {{ $room->capacity }} people<br>
+                        <strong>Type:</strong> {{ $room->isCollaborative() ? 'Collaborative' : 'Standard' }} Room<br>
+                        @if($room->requires_approval)
+                        <strong>Note:</strong> This room requires librarian approval for bookings.
+                        @endif
                     </p>
                 </div>
                 
                 <p>Be among the first to experience this new space. Head over to your dashboard to check its availability and make a reservation today.</p>
                 
                 <div class="btn-container">
-                    <a href="{{ config('app.url') }}/rooms" class="btn">Book This Room</a>
+                    <a href="{{ config('app.url') }}/dashboard" class="btn">Book This Room</a>
                 </div>
             </div>
             <div class="footer">
-                <p>&copy; {{ date('Y') }} SmartSpace. All rights reserved.</p>
+                <p>&copy; {{ date('Y') }} SmartSpace Library. All rights reserved.</p>
             </div>
         </div>
     </div>

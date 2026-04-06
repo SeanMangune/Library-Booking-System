@@ -20,6 +20,8 @@
         .status-badge { display: inline-block; padding: 6px 12px; border-radius: 9999px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
         .badge-active { background-color: #d1fae5; color: #047857; }
         .badge-inactive { background-color: #fef3c7; color: #b45309; }
+        .detail-row { font-size: 14px; color: #475569; margin: 6px 0; }
+        .detail-label { font-weight: 600; color: #334155; }
         .btn-container { text-align: center; margin-top: 32px; }
         .btn { display: inline-block; background-color: #4f46e5; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 16px; }
         .footer { padding: 32px 40px; text-align: center; border-top: 1px solid #e2e8f0; background-color: #f8fafc; }
@@ -43,22 +45,39 @@
                 
                 <div class="status-box {{ $status === 'active' ? 'status-active' : 'status-inactive' }}">
                     <h2 class="status-title">{{ $room->name }}</h2>
+                    <p class="detail-row">📍 {{ $room->location ?? '2F Library' }}</p>
                     <span class="status-badge {{ $status === 'active' ? 'badge-active' : 'badge-inactive' }}">
                         {{ $status === 'active' ? 'Now Open' : 'Temporarily Closed' }}
                     </span>
+                    @if($status !== 'active' && $room->status === 'maintenance')
+                        @if($room->status_start_at && $room->status_end_at)
+                        <p class="detail-row" style="margin-top: 16px;">
+                            <span class="detail-label">Maintenance Period:</span><br>
+                            {{ $room->status_start_at->format('M j, Y') }} &mdash; {{ $room->status_end_at->format('M j, Y') }}
+                        </p>
+                        @elseif($room->status_start_at)
+                        <p class="detail-row" style="margin-top: 16px;">
+                            <span class="detail-label">Closed Since:</span> {{ $room->status_start_at->format('M j, Y') }}
+                        </p>
+                        @endif
+                    @endif
                 </div>
                 
                 @if($status === 'active')
                 <p>You can now check availability and start reserving this space again from your dashboard.</p>
                 <div class="btn-container">
-                    <a href="{{ config('app.url') }}/rooms" class="btn">View Bookings</a>
+                    <a href="{{ config('app.url') }}/dashboard" class="btn">View Dashboard</a>
                 </div>
                 @else
-                <p>We apologize for any inconvenience. Existing bookings may be affected, and our administrative team will reach out directly if your reservation needs to be rescheduled.</p>
+                <p>We apologize for any inconvenience. If you have an existing booking for this room, our team will reach out if your reservation needs to be rescheduled.</p>
+                <p>In the meantime, you can check other available rooms from your dashboard.</p>
+                <div class="btn-container">
+                    <a href="{{ config('app.url') }}/dashboard" class="btn">Find Another Room</a>
+                </div>
                 @endif
             </div>
             <div class="footer">
-                <p>&copy; {{ date('Y') }} SmartSpace. All rights reserved.</p>
+                <p>&copy; {{ date('Y') }} SmartSpace Library. All rights reserved.</p>
             </div>
         </div>
     </div>

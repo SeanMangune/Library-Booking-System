@@ -282,7 +282,8 @@ function toBookingRange(startValue, endValue) {
     };
 }
 
-function hasInclusiveTimeConflict(existingRange, candidateRange) {
+function hasTimeOverlap(existingRange, candidateRange) {
+    // Exclusive boundary: 11:00-12:00 does NOT conflict with 12:00-13:00
     return existingRange.start < candidateRange.end && existingRange.end > candidateRange.start;
 }
 
@@ -307,7 +308,50 @@ function slotConflictsWithRanges(slotValue, ranges) {
         return false;
     }
 
-    return ranges.some((range) => hasInclusiveTimeConflict(range, slotRange));
+    return ranges.some((range) => hasTimeOverlap(range, slotRange));
+}
+
+/**
+ * Check if a slot has any pending (not yet approved) reservations.
+ * Returns true if there is at least one pending event overlapping this slot.
+ */
+function slotHasPendingReservation(slotValue, events) {
+    const slot = resolveBookingTimeSlot(slotValue);
+    const slotRange = toBookingRange(slot?.start_time, slot?.end_time);
+
+    if (!slotRange || !Array.isArray(events)) {
+        return false;
+    }
+
+    return events
+        .filter((evt) => {
+            const status = (evt?.status || evt?.extendedProps?.status || '').toLowerCase();
+            return status === 'pending';
+        })
+        .some((evt) => {
+            const range = toBookingRange(
+                evt?.start || evt?.start_time || evt?.extendedProps?.start_time,
+                evt?.end || evt?.end_time || evt?.extendedProps?.end_time,
+            );
+            return range && hasTimeOverlap(range, slotRange);
+        });
+}
+
+function normalizeApprovedEventRanges(events) {
+    if (!Array.isArray(events)) {
+        return [];
+    }
+
+    return events
+        .filter((evt) => {
+            const status = (evt?.status || evt?.extendedProps?.status || '').toLowerCase();
+            return status === 'approved';
+        })
+        .map((event) => toBookingRange(
+            event?.start || event?.start_time || event?.extendedProps?.start_time,
+            event?.end || event?.end_time || event?.extendedProps?.end_time,
+        ))
+        .filter(Boolean);
 }
 
 function buildNearbyAvailableTimeSuggestions(slotValue, events, selectedDate = null, limit = 4) {
@@ -329,7 +373,8 @@ function buildNearbyAvailableTimeSuggestions(slotValue, events, selectedDate = n
         }
     }
 
-    const occupiedRanges = normalizeEventRanges(events);
+    // Only treat approved bookings as hard conflicts for suggestions
+    const approvedRanges = normalizeApprovedEventRanges(events);
 
     return BOOKING_TIME_SLOTS
         .filter((slot) => slot.value !== selectedSlot.value)
@@ -338,13 +383,15 @@ function buildNearbyAvailableTimeSuggestions(slotValue, events, selectedDate = n
             if (currentMinutes > -1 && slotRange && slotRange.start <= currentMinutes) {
                 return false;
             }
-            return !slotConflictsWithRanges(slot.value, occupiedRanges);
+            return !slotConflictsWithRanges(slot.value, approvedRanges);
         })
         .map((slot) => {
             const slotRange = toBookingRange(slot.start_time, slot.end_time);
+            const hasPending = slotHasPendingReservation(slot.value, events);
 
             return {
                 ...slot,
+                hasPending,
                 distance: Math.abs((slotRange?.start ?? 0) - selectedRange.start),
             };
         })
@@ -522,6 +569,8 @@ export function createRoomCalendarApp(config = {}) {
         timeConflictSuggestions: [],
         timeConflictMessage: '',
         isLoadingTimeConflictSuggestions: false,
+        pendingWarning: '',
+        _lastFetchedEvents: [],
 
         bookingForm: createRoomBookingForm(config),
 
@@ -651,6 +700,7 @@ export function createRoomCalendarApp(config = {}) {
         clearTimeConflictSuggestions() {
             this.timeConflictSuggestions = [];
             this.timeConflictMessage = '';
+            this.pendingWarning = '';
         },
 
         async loadNearbyTimeSuggestions() {
@@ -674,13 +724,23 @@ export function createRoomCalendarApp(config = {}) {
                 }
 
                 const events = await response.json();
+                this._lastFetchedEvents = Array.isArray(events) ? events : [];
                 const suggestions = buildNearbyAvailableTimeSuggestions(
                     this.bookingForm.time_slot,
-                    Array.isArray(events) ? events : [],
+                    this._lastFetchedEvents,
                     this.bookingForm.date
                 );
 
                 this.timeConflictSuggestions = suggestions;
+
+                // Check if selected slot has pending reservations (not a hard conflict)
+                const hasPendingForSelected = slotHasPendingReservation(this.bookingForm.time_slot, this._lastFetchedEvents);
+                if (hasPendingForSelected && !this.timeConflictMessage) {
+                    this.pendingWarning = '⚠️ There is a pending reservation for this time slot. Your booking may also be held for approval.';
+                } else {
+                    this.pendingWarning = '';
+                }
+
                 return suggestions;
             } catch (error) {
                 console.error('Failed to load nearby booking slots:', error);
@@ -1079,6 +1139,8 @@ export function createDashboardApp(config = {}) {
         timeConflictSuggestions: [],
         timeConflictMessage: '',
         isLoadingTimeConflictSuggestions: false,
+        pendingWarning: '',
+        _lastFetchedEvents: [],
         bookingForm: createDashboardBookingForm(config),
 
         viewEvent: null,
@@ -1403,6 +1465,7 @@ export function createDashboardApp(config = {}) {
         clearTimeConflictSuggestions() {
             this.timeConflictSuggestions = [];
             this.timeConflictMessage = '';
+            this.pendingWarning = '';
         },
 
         async loadNearbyTimeSuggestions() {
@@ -1426,13 +1489,23 @@ export function createDashboardApp(config = {}) {
                 }
 
                 const events = await response.json();
+                this._lastFetchedEvents = Array.isArray(events) ? events : [];
                 const suggestions = buildNearbyAvailableTimeSuggestions(
                     this.bookingForm.time_slot,
-                    Array.isArray(events) ? events : [],
+                    this._lastFetchedEvents,
                     this.bookingForm.date
                 );
 
                 this.timeConflictSuggestions = suggestions;
+
+                // Check if selected slot has pending reservations (not a hard conflict)
+                const hasPendingForSelected = slotHasPendingReservation(this.bookingForm.time_slot, this._lastFetchedEvents);
+                if (hasPendingForSelected && !this.timeConflictMessage) {
+                    this.pendingWarning = '\u26a0\ufe0f There is a pending reservation for this time slot. Your booking may also be held for approval.';
+                } else {
+                    this.pendingWarning = '';
+                }
+
                 return suggestions;
             } catch (error) {
                 console.error('Failed to load nearby booking slots:', error);
@@ -1440,6 +1513,12 @@ export function createDashboardApp(config = {}) {
             } finally {
                 this.isLoadingTimeConflictSuggestions = false;
             }
+        },
+
+        applySuggestedTimeSlot(slotValue) {
+            applyBookingTimeSlot(this.bookingForm, slotValue);
+            this.clearTimeConflictSuggestions();
+            this.qcIdError = '';
         },
 
         async runQcIdVerification(file) {

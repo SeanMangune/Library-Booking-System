@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\BookingPendingMail;
 use App\Mail\BookingApprovedMail;
 use App\Mail\BookingRejectedMail;
+use App\Mail\BookingCancelledMail;
 
 class BookingController extends Controller
 {
@@ -241,12 +242,10 @@ class BookingController extends Controller
                 ->where('date', $validated['date'])
                 ->whereIn('status', $activeConflictStatuses)
                 ->where(function ($query) use ($validated) {
-                    $query->whereBetween('start_time', [$validated['start_time'], $validated['end_time']])
-                        ->orWhereBetween('end_time', [$validated['start_time'], $validated['end_time']])
-                        ->orWhere(function ($q) use ($validated) {
-                            $q->where('start_time', '<=', $validated['start_time'])
-                                ->where('end_time', '>=', $validated['end_time']);
-                        });
+                    // Exclusive boundary overlap: end times touching start times are NOT conflicts
+                    // e.g., 11:00-12:00 does NOT conflict with 12:00-13:00
+                    $query->where('start_time', '<', $validated['end_time'])
+                          ->where('end_time', '>', $validated['start_time']);
                 })
                 ->lockForUpdate()
                 ->exists();
@@ -368,7 +367,24 @@ class BookingController extends Controller
             ], 403);
         }
 
+        $booking->loadMissing('room');
         $booking->update(['status' => 'cancelled']);
+
+        // Determine who cancelled: admin or the user themselves
+        $cancelledBy = ($canManageAll && !$isOwner) ? 'admin' : 'user';
+
+        // Send cancellation email to the booking owner
+        try {
+            $email = $booking->user_email ?? $booking->user?->email;
+            if (! empty($email)) {
+                Mail::to($email)->queue(new BookingCancelledMail($booking, $cancelledBy));
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Booking cancellation email failed.', [
+                'booking_id' => $booking->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return response()->json(['success' => true, 'message' => 'Booking cancelled successfully']);
     }
@@ -501,7 +517,7 @@ class BookingController extends Controller
             $query->where('room_id', $request->room);
         }
 
-        $bookings = $query->orderBy('date')->orderBy('start_time')->paginate(15);
+        $bookings = $query->orderByDesc('date')->orderByDesc('start_time')->paginate(15);
         $rooms = Room::query()->visible()->orderBy('name')->get();
 
         $stats = [

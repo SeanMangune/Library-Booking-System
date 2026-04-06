@@ -63,17 +63,17 @@ class BookingApprovedMail extends Mailable
             return [];
         }
 
-        $png = $this->buildQrPng($token);
-        if ($png === null) {
+        $qrData = $this->buildQrPng($token);
+        if ($qrData === null) {
             return [];
         }
 
         $safeCode = preg_replace('/[^A-Za-z0-9_-]+/', '-', (string) ($this->booking->booking_code ?? $this->booking->id));
-        $filename = 'booking-qr-' . trim((string) $safeCode, '-') . '.png';
+        $filename = 'booking-qr-' . trim((string) $safeCode, '-') . '.svg';
 
         return [
-            Attachment::fromData(fn () => $png, $filename)
-                ->withMime('image/png'),
+            Attachment::fromData(fn () => $qrData, $filename)
+                ->withMime('image/svg+xml'),
         ];
     }
 
@@ -82,14 +82,10 @@ class BookingApprovedMail extends Mailable
         try {
             $verifyUrl = url('/verify?token=' . $token);
             $result = (new Builder())->build(
-                null,
-                null,
-                null,
-                $verifyUrl,
-                null,
-                null,
-                480,
-                10
+                writer: new \Endroid\QrCode\Writer\SvgWriter(),
+                data: $verifyUrl,
+                size: 480,
+                margin: 10
             );
 
             return $result->getString();
