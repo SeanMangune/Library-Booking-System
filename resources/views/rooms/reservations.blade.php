@@ -4,9 +4,7 @@
 
 @section('breadcrumb')
 <i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
-<span class="text-gray-500">Rooms</span>
-<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
-<span class="text-gray-700 font-medium">Room Reservations</span>
+<span class="text-gray-700 font-medium">{{ (auth()->user()?->isAdmin() || auth()->user()?->isSuperAdmin()) ? 'All Reservations' : 'My Reservations' }}</span>
 @endsection
 
 @section('content')
@@ -145,8 +143,8 @@
                             </div>
                         </td>
                         <td class="px-6 py-4">
-                            <p class="text-sm font-medium text-gray-900">{{ $booking->title ?: $booking->user_name }}</p>
-                            <p class="text-xs text-gray-500">{{ $booking->user_email }}</p>
+                            <p class="text-sm font-medium text-gray-900" title="{{ $booking->title ?: $booking->user_name }}">{{ Str::limit($booking->title ?: $booking->user_name, 14) }}</p>
+                            <p class="text-xs text-gray-500" title="{{ $booking->user_email }}">{{ Str::limit($booking->user_email, 14) }}</p>
                         </td>
                         <td class="px-6 py-4">
                             <p class="text-sm font-medium text-gray-900">{{ $booking->date->format('M d, Y') }}</p>

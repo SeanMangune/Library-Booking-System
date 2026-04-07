@@ -190,7 +190,7 @@
         .mobile-bottom-nav {
             display: none;
         }
-        @media (max-width: 1023px) {
+        @media (max-width: 640px) {
             .mobile-bottom-nav {
                 display: flex;
                 position: fixed;
@@ -439,7 +439,7 @@
                        : { width: '16rem', transform: 'translateX(-100%)' })">
             <!-- Logo -->
             <div class="sidebar-header flex items-center justify-between h-20 px-4 border-b border-white/10 bg-gradient-to-r from-indigo-900/50 to-transparent">
-                <div class="flex items-center gap-3">
+                <a href="{{ route('dashboard') }}" class="flex items-center gap-3 no-underline">
                     <div class="relative h-12 w-12 flex items-center justify-center">
                         <span class="absolute inset-0 rounded-full bg-indigo-400/25 blur-md"></span>
                         <img src="/images/smartspace-logo.png" alt="SmartSpace" class="relative h-14 w-auto object-contain logo-premium logo-glow-small">
@@ -448,7 +448,7 @@
                         <span class="text-white font-bold text-lg tracking-tight">SmartSpace</span>
                         <p class="text-indigo-300 text-xs">Reservation System</p>
                     </div>
-                </div>
+                </a>
                 <button @click="sidebarOpen = false" x-show="!canHoverSidebar" x-cloak class="text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors">
                     <i class="w-5 h-5 fa-icon fa-solid fa-xmark text-xl leading-none"></i>
                 </button>
@@ -521,7 +521,7 @@
            <div class="content-shell flex-1 min-w-0"
                :style="canHoverSidebar ? { marginLeft: sidebarHoverExpand ? '16rem' : '5rem' } : {}">
             <!-- Top Header -->
-            <header class="bg-white border-b border-gray-200 sticky top-0 z-40">
+            <header class="bg-white border-b border-gray-200 sticky top-0 z-40 overflow-visible">
                 <div class="flex items-center justify-between h-20 px-4 sm:px-6">
                     <div class="flex items-center gap-4">
                         <button @click="sidebarOpen = true" x-show="!canHoverSidebar" x-cloak class="text-gray-600 hover:text-gray-900">
@@ -545,7 +545,7 @@
                              data-unread-url="{{ route('notifications.unread') }}"
                              data-approvals-url="{{ $isStaff ? route('approvals.index') : route('dashboard') }}"
                              class="relative">
-                            <button @click="notifOpen = !notifOpen" class="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
+                            <button x-ref="notifBtn" @click="notifOpen = !notifOpen" class="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
                                 <i class="w-6 h-6 fa-icon fa-solid fa-bell text-2xl leading-none"></i>
                                 <span data-role="header-notification-badge"
                                       class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs min-w-[18px] h-[18px] flex items-center justify-center rounded-full font-bold animate-pulse {{ $headerNotificationCount > 0 ? '' : 'hidden' }}">{{ $headerNotificationCount }}</span>
@@ -557,7 +557,8 @@
                                  x-transition:leave="transition ease-in duration-75"
                                  x-transition:leave-start="opacity-100 scale-100"
                                  x-transition:leave-end="opacity-0 scale-95"
-                                 class="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50">
+                                 :style="(() => { const r = $refs.notifBtn?.getBoundingClientRect(); return r ? { position: 'fixed', top: (r.bottom + 8) + 'px', right: Math.max(8, window.innerWidth - r.right) + 'px' } : {} })()"
+                                 class="w-80 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50">
                                 <div class="bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-3">
                                     <div class="flex items-center justify-between">
                                         <h3 class="text-white font-semibold">Notifications</h3>
@@ -634,7 +635,7 @@
                                     {{ $initials }}
                                 </div>
                                 <div class="hidden sm:block text-left">
-                                    <p class="font-semibold text-gray-800">{{ $currentUser?->name }}</p>
+                                    <p class="font-semibold text-gray-800" title="{{ $currentUser?->name }}">{{ Str::limit($currentUser?->name, 14) }}</p>
                                     <p class="text-xs text-gray-500">{{ $currentUser?->roleLabel() ?? 'User' }}</p>
                                 </div>
                                 <i class="w-4 h-4 text-gray-400 hidden sm:block fa-icon fa-solid fa-chevron-down text-base leading-none"></i>
@@ -649,7 +650,7 @@
                                  class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-50">
                                 <div class="px-4 py-3 border-b border-gray-100">
                                     <p class="text-sm font-semibold text-gray-800">{{ $currentUser?->name }}</p>
-                                    <p class="text-xs text-gray-500">{{ $currentUser?->email }}</p>
+                                    <p class="text-xs text-gray-500 break-all">{{ $currentUser?->email }}</p>
                                 </div>
                                 <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                                     <i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-user text-base leading-none"></i>

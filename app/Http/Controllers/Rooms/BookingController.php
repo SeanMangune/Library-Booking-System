@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\QcIdRegistration;
 use App\Models\Room;
 use App\Models\User;
+use App\Notifications\BookingApprovedNotification;
 use App\Notifications\NewBookingSubmittedForStaffNotification;
 use App\Services\QcIdOcrVerifier;
 use Illuminate\Http\Request;
@@ -492,6 +493,19 @@ class BookingController extends Controller
                 'booking_id' => $fresh->id,
                 'user_id' => $fresh->user?->id,
                 'user_email' => $fresh->user_email,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // Send in-app notification to the booking owner
+        try {
+            $bookingUser = $fresh->user ?? ($fresh->user_id ? User::find($fresh->user_id) : null);
+            if ($bookingUser) {
+                $bookingUser->notify(new BookingApprovedNotification($fresh));
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Booking approved in-app notification failed.', [
+                'booking_id' => $fresh->id,
                 'error' => $e->getMessage(),
             ]);
         }
