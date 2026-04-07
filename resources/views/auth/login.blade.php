@@ -324,7 +324,7 @@ function signupLoginApp($persist, initialSignupOpen) {
 
             // If OTP already verified, submit the form
             if (this.otpToken) {
-                this.submitSignupForm(formEl);
+                this.$nextTick(() => this.submitSignupForm(formEl));
                 return;
             }
 
@@ -352,6 +352,22 @@ function signupLoginApp($persist, initialSignupOpen) {
         submitSignupForm(formEl) {
             if (!formEl) {
                 return;
+            }
+
+            if (!this.otpToken) {
+                this.scan.error = 'Email verification is required. Please verify your email first.';
+                return;
+            }
+
+            // Ensure latest reactive values are present in hidden inputs before submit.
+            const otpTokenInput = formEl.querySelector('input[name="otp_token"]');
+            if (otpTokenInput) {
+                otpTokenInput.value = String(this.otpToken || '');
+            }
+
+            const tempUploadInput = formEl.querySelector('input[name="qcid_temp_upload"]');
+            if (tempUploadInput) {
+                tempUploadInput.value = String(this.signup.qcid_temp_upload || '');
             }
 
             // Prevent Android Chrome "ERR_UPLOAD_FILE_CHANGED" by
@@ -430,7 +446,7 @@ function signupLoginApp($persist, initialSignupOpen) {
 
                     // Submit the registration form
                     if (this._otpFormEl) {
-                        this.submitSignupForm(this._otpFormEl);
+                        this.$nextTick(() => this.submitSignupForm(this._otpFormEl));
                     }
                 } else {
                     this.otpError = data.message || 'Verification failed. Please try again.';
