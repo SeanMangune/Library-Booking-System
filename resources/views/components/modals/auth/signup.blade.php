@@ -123,13 +123,20 @@
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Username</label>
                                                 <input name="username" type="text" value="{{ old('username') }}" x-model="signup.username" required autocomplete="username"
+                                                      maxlength="15"
+                                                      @input="signup.username = sanitizeUsername(signup.username || '')"
                                                        placeholder="Unique handle (e.g. juan_dela_cruz)"
                                                        class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                  <p class="mt-1 text-xs text-slate-400" x-text="(signup.username || '').length + '/15 characters'"></p>
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Email</label>
-                                                <input name="email" type="email" value="{{ old('email') }}" required autocomplete="email"
+                                                  <input name="email" type="email" value="{{ old('email') }}" required autocomplete="email"
+                                                      pattern="^[A-Za-z0-9._%+-]+@gmail\.com$"
+                                                      title="Please use a real Gmail account."
+                                                      @input="$event.target.value = String($event.target.value || '').replace(/\s+/g, '').toLowerCase()"
                                                        class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                  <p class="mt-1 text-xs text-slate-400">Only @gmail.com accounts are allowed.</p>
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Full Name</label>
@@ -153,8 +160,13 @@
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">QC ID Number</label>
-                                                <input name="qcid_number" type="text" value="{{ old('qcid_number') }}" x-model="signup.qcid_number" required placeholder="### ### ########"
+                                                  <input name="qcid_number" type="text" value="{{ old('qcid_number') }}" x-model="signup.qcid_number" required placeholder="14-digit QC ID number"
+                                                      maxlength="14"
+                                                      inputmode="numeric"
+                                                      pattern="\d{14}"
+                                                      @input="signup.qcid_number = normalizeQcIdValue(signup.qcid_number || '')"
                                                        class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                  <p class="mt-1 text-xs text-slate-400" x-text="(signup.qcid_number || '').length + '/14 digits'"></p>
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Account Type</label>

@@ -448,10 +448,10 @@ class QcIdVerificationController extends Controller
         $value = preg_replace('/[^\p{L}0-9,\.\-#\/\s]/u', ' ', $value) ?? $value;
 
         // Remove known non-address labels that leak from OCR text blocks.
-        $value = preg_replace('/\b(?:ADDRESS|CARDHOLDER|SIGNATURE|EMERGENCY|CONTACT|RELAY|DATE\s*ISSUED|VALID\s*UNTIL|DATE\s*(?:OF)?\s*BIRTH|CIVIL\s*STATUS|LAST\s*NAME|FIRST\s*NAME|MIDDLE\s*NAME|SEX|REPUBLIC\s+OF\s+THE\s+PHILIPPINES|Q\s*CITIZEN\s*CARD|CITIZEN\s*CARD|KASAMA\s*KA\s*SA\s*PAG\s*UNLAD)\b/i', ' ', $value) ?? $value;
+        $value = preg_replace('/\b(?:ADDRESS|CARDHOLDER|SIGNATURE|EMERGENCY|CONTACT|RELAY|DATE\s*ISSUED|VALID\s*UNTIL|DATE\s*(?:OF)?\s*BIRTH|CIVIL\s*STATUS|LAST\s*NAME|FIRST\s*NAME|MIDDLE\s*NAME|SEX|REPUBLIC\s+OF\s+THE\s+PHILIPPINES|Q\s*CITIZEN\s*CARD|CITIZEN\s*CARD|CITIZENCARD|QCITIZENCARD|QC\s*ID|KASAMA\s*KA\s*SA\s*PAG\s*-?\s*UNLAD|BLOOD\s*TYPE|TYPE\s*[ABO][\+\-]?|SINGLE|MARRIED|WIDOWED|DIVORCED|SEPARATED)\b/i', ' ', $value) ?? $value;
 
         // Cut trailing text once label-like words appear after the address.
-        $value = preg_replace('/(?:,|\s)\b(?:CARDHOLDER|SIGNATURE|EMERGENCY|CONTACT)\b.*$/i', '', $value) ?? $value;
+        $value = preg_replace('/(?:,|\s)\b(?:CARDHOLDER|SIGNATURE|EMERGENCY|CONTACT|BLOOD\s*TYPE|TYPE\s*[ABO][\+\-]?)\b.*$/i', '', $value) ?? $value;
 
         // Remove obvious date fragments that should never be part of addresses.
         $value = preg_replace('/\b\d{4}[\/-]\d{1,2}[\/-]\d{1,2}\b/', ' ', $value) ?? $value;
@@ -483,7 +483,56 @@ class QcIdVerificationController extends Controller
             $value = (string) $m[1];
         }
 
+        $value = $this->trimToAddressCore($value);
+
+        $value = preg_replace('/\s*,\s*/', ', ', $value) ?? $value;
+        $value = preg_replace('/,{2,}/', ',', $value) ?? $value;
+        $value = preg_replace('/\s+/', ' ', $value) ?? $value;
+
         return trim($value, ' ,');
+    }
+
+    private function trimToAddressCore(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        $segments = array_values(array_filter(array_map('trim', explode(',', $value))));
+        if ($segments === []) {
+            return $value;
+        }
+
+        $locationPattern = '/\b(?:#?\d{1,4}|BLK|BLOCK|LOT|UNIT|BRGY|BARANGAY|SUBD|SUBDIVISION|ST(?:REET)?|ROAD|RD|AVE(?:NUE)?|EXT(?:ENSION)?|PUROK|SITIO|VILLAGE|PHASE|BAESA|BAGBAG|NOVALICHES|KINGSPOINT|FAIRVIEW|COMMONWEALTH|BATASAN|GULOD|TALIPAPA|PAYATAS|CUBAO|HOLY\s*SPIRIT|TANDANG\s*SORA|SAN\s*BARTOLOME|PASONG\s*TAMO|PASONG\s*PUTIK|PROJECT\s*[0-9]+)\b/i';
+        $noisePattern = '/\b(?:BLOOD|TYPE|SINGLE|MARRIED|WIDOWED|DIVORCED|SEPARATED|CARDHOLDER|CITIZEN|QCID|NAME|SEX|STATUS)\b/i';
+
+        $kept = [];
+        foreach ($segments as $segment) {
+            if ($segment === '') {
+                continue;
+            }
+
+            $hasLocationMarker = preg_match($locationPattern, $segment) === 1 || preg_match('/\bQUEZON\s*CITY\b/i', $segment) === 1;
+            if (preg_match($noisePattern, $segment) === 1 && ! $hasLocationMarker) {
+                continue;
+            }
+
+            if ($hasLocationMarker) {
+                $kept[] = trim($segment, ' .');
+            }
+        }
+
+        if ($kept === []) {
+            return $value;
+        }
+
+        $result = implode(', ', $kept);
+        if (preg_match('/\bQUEZON\s*CITY\b/i', $result) !== 1) {
+            $result = trim($result, ' ,') . ', QUEZON CITY';
+        }
+
+        return trim($result, ' ,');
     }
 
     private function assembleAddressFromParts(array $parts): string
@@ -621,7 +670,7 @@ class QcIdVerificationController extends Controller
 
     private function containsAddressNoise(string $address): bool
     {
-        return preg_match('/\b(?:CARDHOLDER|SIGNATURE|LAST\s*NAME|FIRST\s*NAME|MIDDLE\s*NAME|DATE\s*ISSUED|VALID\s*UNTIL|DATE\s*(?:OF)?\s*BIRTH|CIVIL\s*STATUS|SEX|REPUBLIC\s+OF\s+THE\s+PHILIPPINES)\b/i', $address) === 1;
+        return preg_match('/\b(?:CARDHOLDER|SIGNATURE|LAST\s*NAME|FIRST\s*NAME|MIDDLE\s*NAME|DATE\s*ISSUED|VALID\s*UNTIL|DATE\s*(?:OF)?\s*BIRTH|CIVIL\s*STATUS|SEX|REPUBLIC\s+OF\s+THE\s+PHILIPPINES|CITIZEN\s*CARD|CITIZENCARD|BLOOD\s*TYPE|TYPE\s*[ABO][\+\-]?)\b/i', $address) === 1;
     }
 
     private function addressQualityScore(string $address): int

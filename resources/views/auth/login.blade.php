@@ -293,6 +293,9 @@ function signupLoginApp($persist, initialSignupOpen) {
                 this.signup = { ...window.signupOldInput };
             }
 
+            this.signup.username = this.sanitizeUsername(this.signup.username || '');
+            this.signup.qcid_number = this.normalizeQcIdValue(this.signup.qcid_number || '');
+
             // Persistence: Sync to URL on change
             this.$watch('signupOpen', (val) => {
                 const url = new URL(window.location.href);
@@ -305,17 +308,61 @@ function signupLoginApp($persist, initialSignupOpen) {
             });
         },
 
+        sanitizeUsername(value) {
+            const cleaned = String(value || '').replace(/[^a-zA-Z0-9_]/g, '');
+            return cleaned.substring(0, 15);
+        },
+
+        normalizeQcIdValue(value) {
+            return String(value || '').replace(/\D/g, '').substring(0, 14);
+        },
+
+        isLikelyRealGmailAddress(value) {
+            const email = String(value || '').trim().toLowerCase();
+            const match = email.match(/^([a-z0-9](?:[a-z0-9.]{4,29}))@gmail\.com$/);
+            if (!match) {
+                return false;
+            }
+
+            const local = String(match[1] || '');
+            if (!local || local.includes('..')) {
+                return false;
+            }
+
+            const letterCount = (local.match(/[a-z]/g) || []).length;
+            if (letterCount < 3) {
+                return false;
+            }
+
+            if (/^[bcdfghjklmnpqrstvwxyz0-9.]+$/.test(local)) {
+                return false;
+            }
+
+            if (/([a-z0-9])\1{4,}/.test(local)) {
+                return false;
+            }
+
+            return true;
+        },
+
         validateAndSubmitSignup(formEl) {
             this.scan.error = '';
+            this.signup.username = this.sanitizeUsername(this.signup.username || '');
+            this.signup.qcid_number = this.normalizeQcIdValue(this.signup.qcid_number || '');
 
             if (!this.signup.ocr_text || !this.signup.qcid_temp_upload) {
                 this.scan.error = 'Please upload and verify your QC ID first before creating an account.';
                 return;
             }
 
+            if ((this.signup.qcid_number || '').length !== 14) {
+                this.scan.error = 'QC ID number must be exactly 14 digits.';
+                return;
+            }
+
             if (this.scan.qrIdNumber) {
-                const enteredId = (this.signup.qcid_number || '').replace(/\s+/g, '');
-                const qrId = this.scan.qrIdNumber.replace(/\s+/g, '');
+                const enteredId = this.normalizeQcIdValue(this.signup.qcid_number || '');
+                const qrId = this.normalizeQcIdValue(this.scan.qrIdNumber || '');
                 if (enteredId !== qrId) {
                     this.scan.error = 'QC ID number mismatch! Your ID\'s QR code shows ' + this.scan.qrIdNumber + ', but the form has ' + this.signup.qcid_number + '. The QC ID number must match the QR code on your physical ID.';
                     return;
@@ -330,11 +377,20 @@ function signupLoginApp($persist, initialSignupOpen) {
 
             // Get email from the form
             const emailInput = formEl.querySelector('input[name="email"]');
-            const email = emailInput ? emailInput.value.trim() : '';
+            const email = emailInput ? String(emailInput.value || '').trim().toLowerCase() : '';
             const name = this.signup.name || '';
+
+            if (emailInput) {
+                emailInput.value = email;
+            }
 
             if (!email) {
                 this.scan.error = 'Please enter your email address.';
+                return;
+            }
+
+            if (!this.isLikelyRealGmailAddress(email)) {
+                this.scan.error = 'Please use a real Gmail account.';
                 return;
             }
 
@@ -768,28 +824,25 @@ function signupLoginApp($persist, initialSignupOpen) {
             const idPattern = /(\d{3})\s*(\d{3})\s*(\d{8})/;
             let match = text.match(idPattern);
             if (match) {
-                return `${match[1]} ${match[2]} ${match[3]}`;
+                return `${match[1]}${match[2]}${match[3]}`;
             }
 
             // Pattern: continuous 14-digit number
             match = text.match(/(\d{14})/);
             if (match) {
-                const d = match[1];
-                return `${d.substring(0,3)} ${d.substring(3,6)} ${d.substring(6,14)}`;
+                return match[1];
             }
 
             // Pattern: 13-digit number (missing leading zero)
             match = text.match(/(\d{13})/);
             if (match) {
-                const d = '0' + match[1];
-                return `${d.substring(0,3)} ${d.substring(3,6)} ${d.substring(6,14)}`;
+                return `0${match[1]}`;
             }
 
             // Try to extract from URL (e.g. https://qcid.quezon.gov.ph/verify/00500001257479)
             match = text.match(/\d{10,14}/);
             if (match) {
-                const d = match[0].padStart(14, '0').substring(0, 14);
-                return `${d.substring(0,3)} ${d.substring(3,6)} ${d.substring(6,14)}`;
+                return match[0].padStart(14, '0').substring(0, 14);
             }
 
             return null;
@@ -833,7 +886,7 @@ function signupLoginApp($persist, initialSignupOpen) {
             }
 
             address = address
-                .replace(/\b(?:DATE ISSUED|VALID UNTIL|DATE OF BIRTH|DOB|CIVIL STATUS|SEX|SIGNATURE|CARDHOLDER|ADDRESS|LAST NAME|FIRST NAME|MIDDLE NAME|REPUBLIC OF THE PHILIPPINES|CITIZEN CARD)\b/g, ' ')
+                .replace(/\b(?:DATE ISSUED|VALID UNTIL|DATE OF BIRTH|DOB|CIVIL STATUS|SEX|SIGNATURE|CARDHOLDER|ADDRESS|LAST NAME|FIRST NAME|MIDDLE NAME|REPUBLIC OF THE PHILIPPINES|CITIZEN CARD|CITIZENCARD|QCITIZENCARD|Q CITIZEN CARD|KASAMA KA SA PAG\-UNLAD|BLOOD TYPE|TYPE [ABO][\+\-]?|SINGLE|MARRIED|WIDOWED|DIVORCED|SEPARATED)\b/g, ' ')
                 .replace(/\b\d{4}\/\d{1,2}\/\d{1,2}\b/g, ' ')
                 .replace(/\b\d{1,2}\/\d{1,2}\/\d{4}\b/g, ' ')
                 .replace(/\b(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC)\b\s+\d{1,2}\b/g, ' ')
@@ -855,7 +908,7 @@ function signupLoginApp($persist, initialSignupOpen) {
                 address = streetAnchor[1];
             }
 
-            const chunkRegex = new RegExp(`([A-Z0-9,\\-.\s]{6,}?(?:${brgyAnchors}|${cityPattern}))`, 'i');
+            const chunkRegex = new RegExp(`([A-Z0-9,\\-.\\s]{6,}?(?:${brgyAnchors}|${cityPattern}))`, 'i');
             const qcChunk = address.match(chunkRegex);
             if (qcChunk?.[1]) {
                 address = qcChunk[1];
@@ -877,8 +930,28 @@ function signupLoginApp($persist, initialSignupOpen) {
 
             address = address.replace(/\bQUEZON\s*CITY\b.*$/i, 'QUEZON CITY');
 
-            // Force city suffix if it's missing but look like a QC address
-            // Only append if "QUEZON CITY" isn't already there
+            const cityMatch = address.match(/^(.*?\bQUEZON\s*CITY\b)/i);
+            if (cityMatch?.[1]) {
+                address = cityMatch[1];
+            }
+
+            const segments = address.split(',').map((segment) => segment.trim()).filter(Boolean);
+            const locationPattern = /\b(?:#?\d{1,4}|BLK|BLOCK|LOT|UNIT|BRGY|BARANGAY|SUBD|SUBDIVISION|ST(?:REET)?|ROAD|RD|AVE(?:NUE)?|EXT(?:ENSION)?|PUROK|SITIO|VILLAGE|PHASE|BAESA|BAGBAG|NOVALICHES|KINGSPOINT|FAIRVIEW|COMMONWEALTH|BATASAN|GULOD|TALIPAPA|PAYATAS|CUBAO|HOLY SPIRIT|TANDANG SORA|SAN BARTOLOME|PASONG TAMO|PASONG PUTIK|PROJECT [0-9]+)\b/i;
+            const noisePattern = /\b(?:BLOOD|TYPE|SINGLE|MARRIED|WIDOWED|DIVORCED|SEPARATED|CARDHOLDER|CITIZEN|QCID|NAME|SEX|STATUS)\b/i;
+
+            const cleanedSegments = segments.filter((segment) => {
+                const hasLocationMarker = locationPattern.test(segment) || /QUEZON\s*CITY/i.test(segment);
+                if (noisePattern.test(segment) && !hasLocationMarker) {
+                    return false;
+                }
+                return hasLocationMarker;
+            });
+
+            if (cleanedSegments.length > 0) {
+                address = cleanedSegments.join(', ');
+            }
+
+            // Force city suffix if it's missing but look like a QC address.
             if (!address.match(/QUEZON\s*CITY/i) && (address.match(new RegExp(brgyAnchors, 'i')) || address.match(/\d{1,4}\s+[A-Z]/))) {
                 address = address.replace(/,\s*$/, '') + ', QUEZON CITY';
             }
@@ -921,7 +994,7 @@ function signupLoginApp($persist, initialSignupOpen) {
             for (const item of raw) {
                 const normalized = this.formatQcIdDigits(item);
                 if (!normalized) continue;
-                candidates.push(`${normalized.slice(0, 3)} ${normalized.slice(3, 6)} ${normalized.slice(6, 14)}`);
+                candidates.push(normalized);
             }
 
             return candidates;
@@ -1166,8 +1239,11 @@ function signupLoginApp($persist, initialSignupOpen) {
                     if (verification._cardholder_name_source === 'qr') this.signup.name = verification.cardholder_name;
                     else this.signup.name = (verification.cardholder_name || this.signup.name || '').trim();
 
-                    if (verification._id_number_source === 'qr') this.signup.qcid_number = verification.id_number;
-                    else this.signup.qcid_number = (qrIdNumber || ocrIdNumber || '').trim();
+                    if (verification._id_number_source === 'qr') {
+                        this.signup.qcid_number = this.normalizeQcIdValue(verification.id_number || '');
+                    } else {
+                        this.signup.qcid_number = this.normalizeQcIdValue(qrIdNumber || ocrIdNumber || '');
+                    }
 
                     if (verification.address) {
                         // Preserve high-detail addresses from QR or OCR fallback.
@@ -1216,8 +1292,10 @@ function signupLoginApp($persist, initialSignupOpen) {
                         this.signup.valid_until = fallbackDates.valid;
                     }
 
-                    if (this.signup.address && addressSource !== 'qr' && addressSource !== 'ocr_fallback') {
-                        this.signup.address = this.improveAddress(this.signup.address);
+                    if (this.signup.address) {
+                        if (addressSource !== 'qr' && addressSource !== 'ocr_fallback') {
+                            this.signup.address = this.improveAddress(this.signup.address);
+                        }
                     } else if (verification.normalized_text) {
                         this.signup.address = this.improveAddress(verification.normalized_text);
                     }

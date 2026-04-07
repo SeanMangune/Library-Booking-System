@@ -203,11 +203,28 @@ class AuthController extends Controller
      */
     public function sendRegistrationOtp(Request $request)
     {
+        $request->merge([
+            'email' => strtolower(trim((string) $request->input('email'))),
+        ]);
+
         $validated = $request->validate([
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                'regex:/^[A-Z0-9._%+-]+@gmail\.com$/i',
+                'unique:users,email',
+                function ($attribute, $value, $fail) {
+                    if (! $this->looksLikeRealGmailAccount((string) $value)) {
+                        $fail('Please use a real Gmail account.');
+                    }
+                },
+            ],
             'name'  => ['required', 'string', 'max:255'],
         ], [
             'email.unique' => 'This email is already registered. Please log in instead.',
+            'email.email' => 'Please use a real Gmail account.',
+            'email.regex' => 'Please use a real Gmail account.',
         ]);
 
         $email = $validated['email'];
@@ -254,9 +271,20 @@ class AuthController extends Controller
      */
     public function verifyRegistrationOtp(Request $request)
     {
+        $request->merge([
+            'email' => strtolower(trim((string) $request->input('email'))),
+        ]);
+
         $validated = $request->validate([
-            'email' => ['required', 'email'],
+            'email' => [
+                'required',
+                'email',
+                'regex:/^[A-Z0-9._%+-]+@gmail\.com$/i',
+            ],
             'otp'   => ['required', 'string', 'size:6'],
+        ], [
+            'email.email' => 'Please use a real Gmail account.',
+            'email.regex' => 'Please use a real Gmail account.',
         ]);
 
         $email = strtolower($validated['email']);
@@ -292,10 +320,29 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
+        $request->merge([
+            'email' => strtolower(trim((string) $request->input('email'))),
+            'username' => substr((string) preg_replace('/[^A-Za-z0-9_]/', '', (string) $request->input('username')), 0, 15),
+            'qcid_number' => (string) preg_replace('/\D+/', '', (string) $request->input('qcid_number')),
+            'qr_validated_id' => (($qr = (string) preg_replace('/\D+/', '', (string) $request->input('qr_validated_id'))) !== '' ? $qr : null),
+            'address' => $this->sanitizeAddressInput((string) $request->input('address')),
+        ]);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:50', 'regex:/^[\p{L}\s,.\-]+$/u'],
-            'username' => ['required', 'string', 'max:255', 'alpha_dash', 'unique:users,username'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'username' => ['required', 'string', 'max:15', 'alpha_dash', 'unique:users,username'],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                'regex:/^[A-Z0-9._%+-]+@gmail\.com$/i',
+                'unique:users,email',
+                function ($attribute, $value, $fail) {
+                    if (! $this->looksLikeRealGmailAccount((string) $value)) {
+                        $fail('Please use a real Gmail account.');
+                    }
+                },
+            ],
             'password' => [
                 'required',
                 'string',
@@ -305,7 +352,7 @@ class AuthController extends Controller
                 'regex:/^(?=.*[A-Z])(?=.*\d).{8,16}$/', // At least 1 capital, 1 number, 8-16 chars
             ],
             'phone_number' => ['nullable', 'string', 'max:20'],
-            'qcid_number' => ['required', 'string', 'max:50'],
+            'qcid_number' => ['required', 'string', 'size:14', 'regex:/^\d{14}$/'],
             'user_type' => ['nullable', 'string'],
             'employee_category' => ['nullable', 'string'],
             'course' => ['nullable', 'string'],
@@ -316,13 +363,18 @@ class AuthController extends Controller
             'valid_until' => ['nullable', 'date'],
             'address' => ['nullable', 'string', 'max:180'],
             'ocr_text' => ['required', 'string'],
-            'qr_validated_id' => ['nullable', 'string', 'max:50'],
+            'qr_validated_id' => ['nullable', 'string', 'size:14', 'regex:/^\d{14}$/'],
             'qcid_image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:25600', 'required_without:qcid_temp_upload'],
             'qcid_temp_upload' => ['nullable', 'string', 'max:255'],
             'otp_token' => ['required', 'string'],
         ], [
             'password.regex' => 'Password must be at least 8 characters, contain at least one uppercase letter and one number.',
             'name.regex' => 'Name may contain letters (including ñ), spaces, comma, period, and hyphen only.',
+            'username.max' => 'Username must not exceed 15 characters.',
+            'email.email' => 'Please use a real Gmail account.',
+            'email.regex' => 'Please use a real Gmail account.',
+            'qcid_number.size' => 'QC ID number must be exactly 14 digits.',
+            'qcid_number.regex' => 'QC ID number must contain digits only.',
             'otp_token.required' => 'Email verification is required. Please verify your email address first.',
             'qcid_image.required_without' => 'Please upload and verify your QC ID image before registration.',
         ]);
@@ -349,9 +401,9 @@ class AuthController extends Controller
         $enteredId = trim((string) ($validated['qcid_number'] ?? ''));
 
         if ($qrValidatedId !== '') {
-            // Normalize both IDs for comparison (strip spaces)
-            $qrClean = preg_replace('/\s+/', '', $qrValidatedId);
-            $enteredClean = preg_replace('/\s+/', '', $enteredId);
+            // Normalize both IDs for comparison (digits only)
+            $qrClean = preg_replace('/\D+/', '', $qrValidatedId);
+            $enteredClean = preg_replace('/\D+/', '', $enteredId);
 
             if ($qrClean !== $enteredClean) {
                 return back()->withErrors([
@@ -433,6 +485,81 @@ class AuthController extends Controller
         return redirect()->route('login')
             ->with('registration_success', 'Your account has been created successfully! Please log in with your username or email and password.')
             ->with('registered_username', $user->username);
+    }
+
+    private function looksLikeRealGmailAccount(string $email): bool
+    {
+        $email = strtolower(trim($email));
+
+        if (! preg_match('/^([a-z0-9](?:[a-z0-9\.]{4,29}))@gmail\.com$/', $email, $matches)) {
+            return false;
+        }
+
+        $local = (string) ($matches[1] ?? '');
+        if ($local === '' || str_contains($local, '..')) {
+            return false;
+        }
+
+        $letterCount = preg_match_all('/[a-z]/', $local);
+        if ($letterCount < 3) {
+            return false;
+        }
+
+        if (preg_match('/^[bcdfghjklmnpqrstvwxyz0-9\.]+$/', $local) === 1) {
+            return false;
+        }
+
+        if (preg_match('/([a-z0-9])\1{4,}/', $local) === 1) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function sanitizeAddressInput(string $address): string
+    {
+        $value = mb_strtoupper(trim($address), 'UTF-8');
+        if ($value === '') {
+            return '';
+        }
+
+        $value = str_replace(["\r\n", "\r", "\n"], ' ', $value);
+        $value = preg_replace('/\b(?:Q\s*CITIZEN\s*CARD|CITIZEN\s*CARD|CITIZENCARD|QCITIZENCARD|KASAMA\s*KA\s*SA\s*PAG\s*-?\s*UNLAD|CARDHOLDER|REPUBLIC\s+OF\s+THE\s+PHILIPPINES|BLOOD\s*TYPE|TYPE\s*[ABO][\+\-]?|SINGLE|MARRIED|WIDOWED|DIVORCED|SEPARATED|DATE\s*ISSUED|VALID\s*UNTIL|DATE\s*(?:OF)?\s*BIRTH|CIVIL\s*STATUS|SEX)\b/u', ' ', $value) ?? $value;
+        $value = preg_replace('/\s+/', ' ', $value) ?? $value;
+
+        if (preg_match('/^(.*?\bQUEZON\s*CITY\b)/u', $value, $cityMatch) === 1) {
+            $value = (string) ($cityMatch[1] ?? $value);
+        }
+
+        $segments = array_values(array_filter(array_map('trim', explode(',', $value))));
+        $locationPattern = '/\b(?:#?\d{1,4}|BLK|BLOCK|LOT|UNIT|BRGY|BARANGAY|SUBD|SUBDIVISION|ST(?:REET)?|ROAD|RD|AVE(?:NUE)?|EXT(?:ENSION)?|PUROK|SITIO|VILLAGE|PHASE|BAESA|BAGBAG|NOVALICHES|KINGSPOINT|FAIRVIEW|COMMONWEALTH|BATASAN|GULOD|TALIPAPA|PAYATAS|CUBAO|HOLY\s*SPIRIT|TANDANG\s*SORA|SAN\s*BARTOLOME|PASONG\s*TAMO|PASONG\s*PUTIK|PROJECT\s*[0-9]+)\b/u';
+
+        $kept = [];
+        foreach ($segments as $segment) {
+            if ($segment === '') {
+                continue;
+            }
+
+            $hasLocationMarker = preg_match($locationPattern, $segment) === 1;
+            $hasPersonalNoise = preg_match('/\b(?:BLOOD|TYPE|SINGLE|MARRIED|WIDOWED|DIVORCED|SEPARATED|CARDHOLDER|CITIZEN|QCID|NAME|SEX|STATUS)\b/u', $segment) === 1;
+
+            if ($hasPersonalNoise && ! $hasLocationMarker) {
+                continue;
+            }
+
+            if ($hasLocationMarker || preg_match('/\bQUEZON\s*CITY\b/u', $segment) === 1) {
+                $kept[] = trim($segment, ' .');
+            }
+        }
+
+        if ($kept !== []) {
+            $value = implode(', ', $kept);
+            if (preg_match('/\bQUEZON\s*CITY\b/u', $value) !== 1) {
+                $value = trim($value, ' ,') . ', QUEZON CITY';
+            }
+        }
+
+        return trim((string) (preg_replace('/\s+/', ' ', $value) ?? $value), ' ,');
     }
 
     public function logout(Request $request)
