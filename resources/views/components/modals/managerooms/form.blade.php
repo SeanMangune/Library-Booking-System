@@ -1,4 +1,4 @@
-﻿    <div x-show="showModal" x-cloak class="modal p-4" :class="{ 'modal-open': showModal }" @keydown.escape.window="closeModal()">
+    <div x-show="showModal" x-cloak class="modal p-4" :class="{ 'modal-open': showModal }" @keydown.escape.window="closeModal()">
             <div class="modal-box w-[95vw] max-w-4xl p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
                 <!-- Modal Header -->
                 <div class="bg-gradient-to-r from-indigo-600 to-purple-700 px-6 py-6 rounded-t-2xl relative overflow-hidden">
@@ -118,7 +118,7 @@
                                            :disabled="!canEditStatusStart()"
                                            :readonly="!canEditStatusStart()"
                                          :style="canEditStatusStart() ? '' : 'cursor: not-allowed !important;'"
-                                           x-init="flatpickr($el, { enableTime: true, dateFormat: 'Y-m-d H:i', minuteIncrement: 15 })"
+                                           x-init="flatpickr($el, { enableTime: true, dateFormat: 'Y-m-d H:i', minuteIncrement: 15, disableMobile: true })"
                                            placeholder="Select start date/time"
                                            :class="canEditStatusStart() ? 'bg-gray-50 cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-not-allowed'"
                                            class="w-full pl-[2.1rem] pr-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs sm:text-sm">
@@ -137,7 +137,7 @@
                                            :disabled="!canEditStatusEnd()"
                                            :readonly="!canEditStatusEnd()"
                                          :style="canEditStatusEnd() ? '' : 'cursor: not-allowed !important;'"
-                                           x-init="flatpickr($el, { enableTime: true, dateFormat: 'Y-m-d H:i', minuteIncrement: 15 })"
+                                           x-init="flatpickr($el, { enableTime: true, dateFormat: 'Y-m-d H:i', minuteIncrement: 15, disableMobile: true })"
                                            placeholder="Select end date/time"
                                            :class="canEditStatusEnd() ? 'bg-gray-50 cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-not-allowed'"
                                            class="w-full pl-[2.1rem] pr-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs sm:text-sm">
