@@ -364,11 +364,26 @@ class QcIdOcrVerifier
     // Text normalisation helpers
     // ────────────────────────────────────────────────────────────────────
 
+    private function normalizeEnyeCharacters(string $text): string
+    {
+        // Common mojibake / combining forms seen from OCR and QR decoders.
+        $text = str_replace(['Ã‘', 'Ã±'], ['Ñ', 'ñ'], $text);
+        $text = preg_replace('/N\x{0303}/u', 'Ñ', $text) ?? $text;
+        $text = preg_replace('/n\x{0303}/u', 'ñ', $text) ?? $text;
+        $text = preg_replace('/N\s*[~`´^¨]\s*(?=[AEIOU])/u', 'Ñ', $text) ?? $text;
+        $text = preg_replace('/n\s*[~`´^¨]\s*(?=[aeiou])/u', 'ñ', $text) ?? $text;
+        $text = preg_replace('/N\s*[~`´^¨]\s*(?=\b)/u', 'Ñ', $text) ?? $text;
+        $text = preg_replace('/n\s*[~`´^¨]\s*(?=\b)/u', 'ñ', $text) ?? $text;
+
+        return $text;
+    }
+
     private function normalizeText(string $text): string
     {
+        $text = $this->normalizeEnyeCharacters($text);
         $text = mb_strtoupper($text, 'UTF-8');
         $text = str_replace(["\r\n", "\r", "\n"], ' ', $text);
-        $text = preg_replace('/[^A-Z0-9\/,&.\-\+\s]/u', ' ', $text) ?? $text;
+        $text = preg_replace('/[^A-ZÑ0-9\/,&.\-\+\s]/u', ' ', $text) ?? $text;
         $text = preg_replace('/\s+/', ' ', $text) ?? $text;
 
         return trim($text);
@@ -382,7 +397,8 @@ class QcIdOcrVerifier
         $lines = preg_split('/\R+/', mb_strtoupper($text, 'UTF-8')) ?: [];
 
         $cleaned = array_map(function (string $line): string {
-            $line = preg_replace('/[^A-Z0-9\/,&.\-\+\s]/u', ' ', $line) ?? $line;
+            $line = $this->normalizeEnyeCharacters($line);
+            $line = preg_replace('/[^A-ZÑ0-9\/,&.\-\+\s]/u', ' ', $line) ?? $line;
             $line = preg_replace('/\s+/', ' ', $line) ?? $line;
 
             return trim($line);
@@ -1252,7 +1268,7 @@ class QcIdOcrVerifier
                         $candidate = trim($lines[$idx]);
                         if ($candidate === '' || $this->looksLikeLabel($candidate))
                             continue;
-                        if (preg_match('/[A-Z]{2,}/', $candidate) && mb_strlen($candidate) >= 5) {
+                        if (preg_match('/[A-ZÑ]{2,}/', $candidate) && mb_strlen($candidate) >= 5) {
                             if (preg_match('/^\d[\d\/\-\s]+$/', $candidate))
                                 continue;
                             if (preg_match('/^\d{2,}\s/', $candidate))
@@ -1268,14 +1284,14 @@ class QcIdOcrVerifier
         foreach ($lines as $index => $line) {
             if (preg_match('/LAST\s*NAME.*FIRST\s*NAME|FIRST\s*NAME.*LAST\s*NAME/', $line)) {
                 $nextLine = $lines[$index + 1] ?? '';
-                if ($nextLine !== '' && !$this->looksLikeLabel($nextLine) && preg_match('/[A-Z]{2,}/', $nextLine)) {
+                if ($nextLine !== '' && !$this->looksLikeLabel($nextLine) && preg_match('/[A-ZÑ]{2,}/', $nextLine)) {
                     return $this->cleanName($nextLine);
                 }
             }
         }
 
         // Strategy 3: LAST NAME, FIRST NAME, MIDDLE NAME followed by name text
-        if (preg_match('/LAST\s*NAME,?\s*FIRST\s*NAME,?\s*MIDDLE\s*NAME\s+([A-Z][A-Z\s,\.\-]{4,}?)\b/', $normalized, $matches) === 1) {
+        if (preg_match('/LAST\s*NAME,?\s*FIRST\s*NAME,?\s*MIDDLE\s*NAME\s+([A-ZÑ][A-ZÑ\s,\.\-]{4,}?)\b/', $normalized, $matches) === 1) {
             return $this->cleanName($matches[1]);
         }
 
@@ -1284,7 +1300,7 @@ class QcIdOcrVerifier
             if ($this->looksLikeLabel($line))
                 continue;
             $trimmed = trim($line);
-            if (preg_match('/^([A-Z]{2,}),\s*([A-Z][A-Z\s\.]{2,})$/', $trimmed, $m)) {
+            if (preg_match('/^([A-ZÑ]{2,}),\s*([A-ZÑ][A-ZÑ\s\.]{2,})$/', $trimmed, $m)) {
                 if (!preg_match('/\b(?:CITY|STREET|BARANGAY|QUEZON|REPUBLIC|ADDRESS|CARD)\b/', $m[0])) {
                     return $this->cleanName($m[0]);
                 }
@@ -1296,9 +1312,9 @@ class QcIdOcrVerifier
             if ($this->looksLikeLabel($line))
                 continue;
             $trimmed = trim($line);
-            if (preg_match('/^[A-Z][A-Z\s,\.\-]+$/', $trimmed) && mb_strlen($trimmed) >= 5) {
+            if (preg_match('/^[A-ZÑ][A-ZÑ\s,\.\-]+$/', $trimmed) && mb_strlen($trimmed) >= 5) {
                 $words = preg_split('/[\s,]+/', $trimmed, -1, PREG_SPLIT_NO_EMPTY) ?: [];
-                $alphaWords = array_filter($words, fn($w) => preg_match('/^[A-Z]{2,}$/', $w));
+                $alphaWords = array_filter($words, fn($w) => preg_match('/^[A-ZÑ]{2,}$/', $w));
                 if (count($alphaWords) >= 2 && count($words) <= 6) {
                     if (preg_match('/\b(?:CITY|STREET|BARANGAY|QUEZON|REPUBLIC|KASAMA|CITIZEN|CARDHOLDER|SIGNATURE|ADDRESS|EMERGENCY)\b/', $trimmed))
                         continue;
@@ -1308,7 +1324,7 @@ class QcIdOcrVerifier
         }
 
         // Strategy 6: Comma-name pattern anywhere in normalized text
-        if (preg_match('/\b([A-Z]{2,}),\s*([A-Z]{2,}(?:\s+[A-Z\.]{1,}){0,3})\b/', $normalized, $m)) {
+        if (preg_match('/\b([A-ZÑ]{2,}),\s*([A-ZÑ]{2,}(?:\s+[A-ZÑ\.]{1,}){0,3})\b/', $normalized, $m)) {
             if (!preg_match('/\b(?:CITY|QUEZON|REPUBLIC|KASAMA|CITIZEN|ADDRESS)\b/', $m[0])) {
                 return $this->cleanName($m[0]);
             }
@@ -1438,6 +1454,7 @@ class QcIdOcrVerifier
 
     private function cleanName(string $value): string
     {
+        $value = $this->normalizeEnyeCharacters($value);
         $value = preg_replace('/\s+/', ' ', trim($value)) ?? trim($value);
         $value = trim($value, ' .,');
 
@@ -1447,7 +1464,7 @@ class QcIdOcrVerifier
 
         // OCR sometimes prefixes a stray single character before
         // surname-based names (e.g. "A JIBE, MICCO JIRO FRUELDA").
-        $value = preg_replace('/^[A-Z0-9]\s+(?=[A-Z]{2,},\s*[A-Z])/', '', $value) ?? $value;
+        $value = preg_replace('/^[A-ZÑ0-9]\s+(?=[A-ZÑ]{2,},\s*[A-ZÑ])/', '', $value) ?? $value;
 
         // Remove trailing pure digit noise (e.g. "CALINAWAN 3")
         $value = preg_replace('/\s+\d+$/', '', $value) ?? $value;
@@ -1462,7 +1479,51 @@ class QcIdOcrVerifier
             }
         }
 
-        return trim($value, ' ,.-');
+        $value = trim($value, ' ,.-');
+
+        return $this->applyLikelyEnyeCorrections($value);
+    }
+
+    private function applyLikelyEnyeCorrections(string $name): string
+    {
+        $name = $this->normalizeEnyeCharacters($name);
+
+        if (mb_stripos($name, 'Ñ') !== false) {
+            return $name;
+        }
+
+        $replacements = [
+            'MASCARINAS' => 'MASCARIÑAS',
+            'CANETE' => 'CAÑETE',
+            'MUNOZ' => 'MUÑOZ',
+            'NINO' => 'NIÑO',
+            'PENA' => 'PEÑA',
+            'MANALAC' => 'MAÑALAC',
+            'PINON' => 'PIÑON',
+            'BANEZ' => 'BAÑEZ',
+            'PANO' => 'PAÑO',
+            'BANO' => 'BAÑO',
+            'ANO' => 'AÑO',
+        ];
+
+        foreach ($replacements as $plain => $enye) {
+            $pattern = '/\b' . preg_quote($plain, '/') . '\b/u';
+            $name = preg_replace_callback($pattern . 'i', function (array $matches) use ($enye): string {
+                $matched = (string) ($matches[0] ?? '');
+
+                if ($matched === mb_strtoupper($matched, 'UTF-8')) {
+                    return $enye;
+                }
+
+                if ($matched === mb_strtolower($matched, 'UTF-8')) {
+                    return mb_strtolower($enye, 'UTF-8');
+                }
+
+                return mb_convert_case(mb_strtolower($enye, 'UTF-8'), MB_CASE_TITLE, 'UTF-8');
+            }, $name) ?? $name;
+        }
+
+        return $name;
     }
 
     /**
@@ -1580,8 +1641,9 @@ class QcIdOcrVerifier
      */
     private function nameTokens(string $value): array
     {
+        $value = $this->normalizeEnyeCharacters($value);
         $value = mb_strtoupper($value, 'UTF-8');
-        $value = preg_replace('/[^A-Z\s]/u', ' ', $value) ?? $value;
+        $value = preg_replace('/[^A-ZÑ\s]/u', ' ', $value) ?? $value;
         $value = preg_replace('/\s+/', ' ', $value) ?? $value;
         $tokens = explode(' ', trim($value));
 

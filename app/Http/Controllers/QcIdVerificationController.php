@@ -36,6 +36,8 @@ class QcIdVerificationController extends Controller
             $combinedText,
             $validated['user_name'] ?? null,
         );
+        $ocrAddressCandidate = $this->normalizeAddressText((string) ($verification['address'] ?? ''));
+        $ocrNameCandidate = $this->normalizeEnyeCharacters((string) ($verification['cardholder_name'] ?? ''));
 
         // === QR Code Full Profile Extraction ===
         $qrData = trim((string) ($validated['qr_data'] ?? ''));
@@ -68,6 +70,73 @@ class QcIdVerificationController extends Controller
             $verification['id_assessment'] = 'Verified';
         }
 
+        // Preserve the richest cardholder name variant. If QR drops the
+        // tilde on Ñ but OCR captures it, keep the OCR version.
+        $qrNameCandidate = $this->normalizeEnyeCharacters((string) ($verification['cardholder_name'] ?? ''));
+        $bestCardholderName = $this->chooseBestCardholderName([
+            $qrNameCandidate,
+            $ocrNameCandidate,
+        ]);
+
+        if ($bestCardholderName !== '') {
+            $verification['cardholder_name'] = $bestCardholderName;
+
+            if (
+                $qrProfile !== null
+                && $ocrNameCandidate !== ''
+                && mb_stripos($ocrNameCandidate, 'Ñ') !== false
+                && ($qrNameCandidate === '' || mb_stripos($qrNameCandidate, 'Ñ') === false)
+                && $bestCardholderName === $ocrNameCandidate
+            ) {
+                $verification['_cardholder_name_source'] = 'ocr_enye_fallback';
+                $verification['qr_name_missing_enye'] = true;
+            }
+        }
+
+        // Keep the richest plausible address available. QR may sometimes
+        // provide only a short address while OCR has more detail.
+        $qrAddressCandidate = $this->normalizeAddressText((string) ($verification['address'] ?? ''));
+        $textAddressCandidate = $this->extractAddressFromRawText($combinedText);
+        $bestAddress = $this->chooseBestAddress([
+            $qrAddressCandidate,
+            $ocrAddressCandidate,
+            $textAddressCandidate,
+        ]);
+
+        if (
+            $qrProfile !== null
+            && $qrAddressCandidate !== ''
+            && $bestAddress !== ''
+            && $bestAddress !== $qrAddressCandidate
+            && ! $this->shouldOverrideQrAddress($qrAddressCandidate, $bestAddress)
+        ) {
+            $bestAddress = $qrAddressCandidate;
+        }
+
+        if ($bestAddress !== '') {
+            $verification['address'] = $bestAddress;
+
+            if ($qrProfile !== null && $qrAddressCandidate !== '' && $bestAddress !== $qrAddressCandidate) {
+                $verification['qr_address_incomplete'] = true;
+                $verification['_address_source'] = 'ocr_fallback';
+            } elseif ($qrProfile !== null && $qrAddressCandidate !== '') {
+                $verification['_address_source'] = 'qr';
+            } elseif ($bestAddress === $ocrAddressCandidate) {
+                $verification['_address_source'] = $verification['_address_source'] ?? 'ocr';
+            } else {
+                $verification['_address_source'] = $verification['_address_source'] ?? 'text_fallback';
+            }
+        }
+
+        $qcidTempUpload = null;
+        if ($verification['is_valid'] && $request->hasFile('qcid_image')) {
+            try {
+                $qcidTempUpload = $request->file('qcid_image')->store('qcid_scans_temp', 'public');
+            } catch (\Throwable $e) {
+                $qcidTempUpload = null;
+            }
+        }
+
         if (! $verification['is_valid']) {
             if ($verification['id_assessment'] === 'Fake QC ID') {
                 $message = 'Fake QC ID detected.';
@@ -88,6 +157,7 @@ class QcIdVerificationController extends Controller
                 'verification' => $verification,
                 'ocr_text' => $combinedText,
                 'qr_id_number' => $qrIdNumber,
+                'qcid_temp_upload' => $qcidTempUpload,
             ], 200);
         }
 
@@ -97,6 +167,7 @@ class QcIdVerificationController extends Controller
             'verification' => $verification,
             'ocr_text' => $combinedText,
             'qr_id_number' => $qrIdNumber,
+            'qcid_temp_upload' => $qcidTempUpload,
         ]);
     }
 
@@ -149,47 +220,51 @@ class QcIdVerificationController extends Controller
                     foreach ($sourceKeys as $sKey) {
                         $pVal = $findKeyRecursively($data, $sKey);
                         if (!empty($pVal)) {
-                            $profile[$targetKey] = (string) $pVal;
+                            $resolved = (string) $pVal;
+                            if ($targetKey === 'cardholder_name') {
+                                $resolved = $this->normalizeEnyeCharacters($resolved);
+                            } elseif ($targetKey === 'address') {
+                                $resolved = $this->normalizeAddressText($resolved);
+                            }
+                            $profile[$targetKey] = $resolved;
                             $profile['_' . $targetKey . '_source'] = 'qr';
                             break;
                         }
                     }
                 }
 
-                // Aggressive QR Assembler: If address is missing, combine discrete fields
-                if (empty($profile['address'])) {
-                    $parts = [];
-                    $addrKeys = [
-                        'street' => ['street', 'st', 'st_name'],
-                        'brgy' => ['barangay', 'brgy', 'brgy_name', 'bgy'],
-                        'subd' => ['subdivision', 'subd', 'village', 'vil', 'sub'],
-                        'block' => ['block', 'blk', 'blky'],
-                        'lot' => ['lot', 'lt'],
-                        'city' => ['city', 'city_name', 'munc'],
-                    ];
-                    
-                    $assembled = [];
-                    foreach ($addrKeys as $label => $keys) {
-                        foreach ($keys as $k) {
-                            $val = $findKeyRecursively($data, $k);
-                            if (!empty($val)) {
-                                $assembled[$label] = trim((string)$val);
-                                break;
-                            }
+                // Build/augment address from discrete QR fields when available.
+                $addrKeys = [
+                    'house' => ['house_no', 'house_number', 'houseno', 'unit_no', 'unit_number', 'unit', 'door_no', 'street_no', 'number'],
+                    'street' => ['street', 'st', 'st_name', 'street_name', 'road', 'road_name', 'avenue', 'ave', 'sitio', 'purok'],
+                    'brgy' => ['barangay', 'brgy', 'brgy_name', 'bgy'],
+                    'subd' => ['subdivision', 'subd', 'subdivision_name', 'village', 'vil', 'homes', 'phase'],
+                    'block' => ['block', 'blk', 'blky'],
+                    'lot' => ['lot', 'lt'],
+                    'city' => ['city', 'city_name', 'municipality', 'munc'],
+                    'province' => ['province', 'prov'],
+                ];
+
+                $assembled = [];
+                foreach ($addrKeys as $label => $keys) {
+                    foreach ($keys as $k) {
+                        $val = $findKeyRecursively($data, $k);
+                        if (!empty($val)) {
+                            $assembled[$label] = trim((string) $val);
+                            break;
                         }
                     }
+                }
 
-                    if (!empty($assembled)) {
-                        $addrLine = '';
-                        if (isset($assembled['block'])) $addrLine .= 'BLK-' . $assembled['block'] . ' ';
-                        if (isset($assembled['lot'])) $addrLine .= 'LOT-' . $assembled['lot'] . ' ';
-                        if (isset($assembled['street'])) $addrLine .= $assembled['street'] . ', ';
-                        if (isset($assembled['subd'])) $addrLine .= $assembled['subd'] . ', ';
-                        if (isset($assembled['brgy'])) $addrLine .= $assembled['brgy'] . ', ';
-                        if (isset($assembled['city'])) $addrLine .= $assembled['city'];
-                        else $addrLine .= 'QUEZON CITY';
+                $assembledAddress = $this->assembleAddressFromParts($assembled);
+                if ($assembledAddress !== '') {
+                    $bestAddress = $this->chooseBestAddress([
+                        (string) ($profile['address'] ?? ''),
+                        $assembledAddress,
+                    ]);
 
-                        $profile['address'] = trim($addrLine, ' ,');
+                    if ($bestAddress !== '') {
+                        $profile['address'] = $bestAddress;
                         $profile['_address_source'] = 'qr';
                     }
                 }
@@ -204,11 +279,11 @@ class QcIdVerificationController extends Controller
                 $first = trim($parts[0]);
                 if (preg_match('/^(\d{3})\D*(\d{3})\D*(\d{8})$/', $first) || preg_match('/^\d{13,16}$/', $first)) {
                     $profile['id_number'] = $first;
-                    $profile['cardholder_name'] = trim($parts[1]);
+                    $profile['cardholder_name'] = $this->normalizeEnyeCharacters(trim($parts[1]));
                     $profile['_id_number_source'] = 'qr';
                     $profile['_cardholder_name_source'] = 'qr';
                     if (isset($parts[2])) {
-                        $profile['address'] = trim($parts[2]);
+                        $profile['address'] = $this->normalizeAddressText(trim($parts[2]));
                         $profile['_address_source'] = 'qr';
                     }
                     if (isset($parts[3])) {
@@ -245,7 +320,13 @@ class QcIdVerificationController extends Controller
                         // Case-insensitive check for key in $parts
                         foreach ($parts as $k => $v) {
                             if (strtolower((string)$k) === strtolower($sKey) && !empty($v)) {
-                                $profile[$targetKey] = (string) $v;
+                                $resolved = (string) $v;
+                                if ($targetKey === 'cardholder_name') {
+                                    $resolved = $this->normalizeEnyeCharacters($resolved);
+                                } elseif ($targetKey === 'address') {
+                                    $resolved = $this->normalizeAddressText($resolved);
+                                }
+                                $profile[$targetKey] = $resolved;
                                 $profile['_' . $targetKey . '_source'] = 'qr';
                                 break 2;
                             }
@@ -276,5 +357,296 @@ class QcIdVerificationController extends Controller
         }
 
         return !empty($profile) ? $profile : null;
+    }
+
+    private function normalizeEnyeCharacters(string $value): string
+    {
+        $value = str_replace(['Ã‘', 'Ã±'], ['Ñ', 'ñ'], $value);
+        $value = preg_replace('/N\x{0303}/u', 'Ñ', $value) ?? $value;
+        $value = preg_replace('/n\x{0303}/u', 'ñ', $value) ?? $value;
+        $value = preg_replace('/N\s*[~`´^¨]\s*(?=[AEIOU])/u', 'Ñ', $value) ?? $value;
+        $value = preg_replace('/n\s*[~`´^¨]\s*(?=[aeiou])/u', 'ñ', $value) ?? $value;
+        $value = preg_replace('/N\s*[~`´^¨]\s*(?=\b)/u', 'Ñ', $value) ?? $value;
+        $value = preg_replace('/n\s*[~`´^¨]\s*(?=\b)/u', 'ñ', $value) ?? $value;
+
+        return trim($value);
+    }
+
+    private function chooseBestCardholderName(array $candidates): string
+    {
+        $best = '';
+        $bestScore = PHP_INT_MIN;
+
+        foreach ($candidates as $candidate) {
+            $name = trim($this->applyLikelyEnyeCorrections($this->normalizeEnyeCharacters((string) $candidate)));
+            if ($name === '') {
+                continue;
+            }
+
+            $score = 0;
+            $score += min(70, mb_strlen($name));
+            $score += substr_count($name, ',') > 0 ? 20 : 0;
+            $score += mb_stripos($name, 'Ñ') !== false ? 45 : 0;
+            $score -= preg_match('/\d/', $name) === 1 ? 30 : 0;
+
+            if ($score > $bestScore) {
+                $best = $name;
+                $bestScore = $score;
+            }
+        }
+
+        return $best;
+    }
+
+    private function applyLikelyEnyeCorrections(string $name): string
+    {
+        $name = $this->normalizeEnyeCharacters($name);
+
+        // If Ñ is already present, do not force replacements.
+        if (mb_stripos($name, 'Ñ') !== false) {
+            return $name;
+        }
+
+        $replacements = [
+            'MASCARINAS' => 'MASCARIÑAS',
+            'CANETE' => 'CAÑETE',
+            'MUNOZ' => 'MUÑOZ',
+            'NINO' => 'NIÑO',
+            'PENA' => 'PEÑA',
+            'MANALAC' => 'MAÑALAC',
+            'PINON' => 'PIÑON',
+            'BANEZ' => 'BAÑEZ',
+            'PANO' => 'PAÑO',
+            'BANO' => 'BAÑO',
+            'ANO' => 'AÑO',
+        ];
+
+        foreach ($replacements as $plain => $enye) {
+            $pattern = '/\b' . preg_quote($plain, '/') . '\b/u';
+            $name = preg_replace_callback($pattern . 'i', function (array $matches) use ($enye): string {
+                $matched = (string) ($matches[0] ?? '');
+
+                if ($matched === mb_strtoupper($matched, 'UTF-8')) {
+                    return $enye;
+                }
+
+                if ($matched === mb_strtolower($matched, 'UTF-8')) {
+                    return mb_strtolower($enye, 'UTF-8');
+                }
+
+                return mb_convert_case(mb_strtolower($enye, 'UTF-8'), MB_CASE_TITLE, 'UTF-8');
+            }, $name) ?? $name;
+        }
+
+        return $name;
+    }
+
+    private function normalizeAddressText(string $value): string
+    {
+        $value = $this->normalizeEnyeCharacters($value);
+        $value = str_replace(["\r\n", "\r", "\n"], ' ', $value);
+        $value = preg_replace('/[^\p{L}0-9,\.\-#\/\s]/u', ' ', $value) ?? $value;
+
+        // Remove known non-address labels that leak from OCR text blocks.
+        $value = preg_replace('/\b(?:ADDRESS|CARDHOLDER|SIGNATURE|EMERGENCY|CONTACT|RELAY|DATE\s*ISSUED|VALID\s*UNTIL|DATE\s*(?:OF)?\s*BIRTH|CIVIL\s*STATUS|LAST\s*NAME|FIRST\s*NAME|MIDDLE\s*NAME|SEX|REPUBLIC\s+OF\s+THE\s+PHILIPPINES|Q\s*CITIZEN\s*CARD|CITIZEN\s*CARD|KASAMA\s*KA\s*SA\s*PAG\s*UNLAD)\b/i', ' ', $value) ?? $value;
+
+        // Cut trailing text once label-like words appear after the address.
+        $value = preg_replace('/(?:,|\s)\b(?:CARDHOLDER|SIGNATURE|EMERGENCY|CONTACT)\b.*$/i', '', $value) ?? $value;
+
+        // Remove obvious date fragments that should never be part of addresses.
+        $value = preg_replace('/\b\d{4}[\/-]\d{1,2}[\/-]\d{1,2}\b/', ' ', $value) ?? $value;
+        $value = preg_replace('/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{4}\b/', ' ', $value) ?? $value;
+
+        // Fix common OCR city variants.
+        $value = preg_replace('/\s+/', ' ', $value) ?? $value;
+        $value = preg_replace('/\s*,\s*/', ', ', $value) ?? $value;
+        $value = preg_replace('/,{2,}/', ',', $value) ?? $value;
+        $value = preg_replace('/\bQUEZON\s*(?:C1TY|CTY|1TY|ITY|LITY)\b/i', 'QUEZON CITY', $value) ?? $value;
+
+        // Remove likely stray name token before barangay anchors (e.g. "EXT JEAN KINGSPOINT").
+        $value = preg_replace_callback(
+            '/\b(EXT|EXTENSION|ST|STREET|ROAD|RD|AVE|AVENUE|DR|DRIVE)\s+([A-Z]{3,12})\s+(KINGSPOINT|BAGBAG|NOVALICHES|FAIRVIEW|COMMONWEALTH|BATASAN|GULOD|SAN\s*BARTOLOME|TALIPAPA|PAYATAS|CUBAO|PROJECT\s*[4678]|MATANDANG\s*BALARA|PASONG\s*TAMO|PASONG\s*PUTIK|HOLY\s*SPIRIT|TANDANG\s*SORA|BAESA)\b/i',
+            static function (array $m): string {
+                $middle = strtoupper((string) ($m[2] ?? ''));
+                $allowed = ['NORTH', 'SOUTH', 'EAST', 'WEST', 'NEW', 'OLD'];
+                if (in_array($middle, $allowed, true)) {
+                    return (string) $m[0];
+                }
+
+                return trim((string) ($m[1] ?? '')) . ' ' . trim((string) ($m[3] ?? ''));
+            },
+            $value
+        ) ?? $value;
+
+        // Keep content only up to the first valid city suffix to avoid tail noise.
+        if (preg_match('/^(.*?\bQUEZON\s*CITY\b).*/i', $value, $m) === 1) {
+            $value = (string) $m[1];
+        }
+
+        return trim($value, ' ,');
+    }
+
+    private function assembleAddressFromParts(array $parts): string
+    {
+        $block = trim((string) ($parts['block'] ?? ''));
+        $lot = trim((string) ($parts['lot'] ?? ''));
+        $house = trim((string) ($parts['house'] ?? ''));
+        $street = trim((string) ($parts['street'] ?? ''));
+        $subd = trim((string) ($parts['subd'] ?? ''));
+        $brgy = trim((string) ($parts['brgy'] ?? ''));
+        $city = trim((string) ($parts['city'] ?? ''));
+        $province = trim((string) ($parts['province'] ?? ''));
+
+        if ($block !== '' && preg_match('/\bBLK\b/i', $block) !== 1) {
+            $block = 'BLK ' . $block;
+        }
+        if ($lot !== '' && preg_match('/\bLOT\b/i', $lot) !== 1) {
+            $lot = 'LOT ' . $lot;
+        }
+        if ($house !== '' && preg_match('/^[0-9A-Z\-]+$/i', $house) === 1 && !str_starts_with($house, '#')) {
+            $house = '#' . $house;
+        }
+
+        $line1 = trim(implode(' ', array_filter([$block, $lot, $house, $street])));
+        $line2 = trim(implode(', ', array_filter([$subd, $brgy])));
+        $location = trim(implode(', ', array_filter([$city, $province])));
+
+        return $this->normalizeAddressText(trim(implode(', ', array_filter([$line1, $line2, $location]))));
+    }
+
+    private function extractAddressFromRawText(string $rawText): string
+    {
+        $normalized = $this->normalizeAddressText($rawText);
+        if ($normalized === '') {
+            return '';
+        }
+
+        if (preg_match('/((?:BLK|BLOCK|LOT|UNIT|#|\d{1,5})[A-Z0-9#,\.\-\s]{8,}?QUEZON\s*(?:CITY|C1TY|CTY|1TY|ITY))/i', $normalized, $m) === 1) {
+            $candidate = $this->normalizeAddressText($m[1]);
+            if ($this->looksPlausibleAddressCandidate($candidate)) {
+                return $candidate;
+            }
+        }
+
+        if (preg_match('/([A-Z0-9#,\.\-\s]{14,}?QUEZON\s*(?:CITY|C1TY|CTY|1TY|ITY))/i', $normalized, $m) === 1) {
+            $candidate = $this->normalizeAddressText($m[1]);
+            if ($this->looksPlausibleAddressCandidate($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return '';
+    }
+
+    private function chooseBestAddress(array $candidates): string
+    {
+        $normalized = [];
+        $plausible = [];
+        foreach ($candidates as $candidate) {
+            $value = $this->normalizeAddressText((string) $candidate);
+            if ($value === '' || in_array($value, $normalized, true)) {
+                continue;
+            }
+            $normalized[] = $value;
+
+            if ($this->looksPlausibleAddressCandidate($value)) {
+                $plausible[] = $value;
+            }
+        }
+
+        if ($normalized === []) {
+            return '';
+        }
+
+        $pool = $plausible !== [] ? $plausible : $normalized;
+
+        $best = $pool[0];
+        $bestScore = $this->addressQualityScore($best);
+
+        foreach (array_slice($pool, 1) as $candidate) {
+            $score = $this->addressQualityScore($candidate);
+            if ($score > $bestScore) {
+                $best = $candidate;
+                $bestScore = $score;
+            }
+        }
+
+        return $best;
+    }
+
+    private function shouldOverrideQrAddress(string $qrAddress, string $candidate): bool
+    {
+        $qr = $this->normalizeAddressText($qrAddress);
+        $fallback = $this->normalizeAddressText($candidate);
+
+        if ($qr === '' || $fallback === '' || $fallback === $qr) {
+            return false;
+        }
+
+        if (! $this->looksPlausibleAddressCandidate($fallback) || $this->containsAddressNoise($fallback)) {
+            return false;
+        }
+
+        // Avoid replacing QR with tiny/noisy differences.
+        if (mb_strlen($fallback) < mb_strlen($qr) + 12) {
+            return false;
+        }
+
+        $markers = ['BARANGAY', 'BRGY', 'SUBD', 'SUBDIVISION', 'VILLAGE', 'PHASE', 'BLK', 'BLOCK', 'LOT', 'UNIT', 'PUROK', 'SITIO'];
+        foreach ($markers as $marker) {
+            if (stripos($fallback, $marker) !== false && stripos($qr, $marker) === false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function looksPlausibleAddressCandidate(string $address): bool
+    {
+        if ($address === '') {
+            return false;
+        }
+
+        if (preg_match('/\bQUEZON\s*CITY\b/i', $address) !== 1) {
+            return false;
+        }
+
+        if ($this->containsAddressNoise($address)) {
+            return false;
+        }
+
+        return mb_strlen($address) >= 14;
+    }
+
+    private function containsAddressNoise(string $address): bool
+    {
+        return preg_match('/\b(?:CARDHOLDER|SIGNATURE|LAST\s*NAME|FIRST\s*NAME|MIDDLE\s*NAME|DATE\s*ISSUED|VALID\s*UNTIL|DATE\s*(?:OF)?\s*BIRTH|CIVIL\s*STATUS|SEX|REPUBLIC\s+OF\s+THE\s+PHILIPPINES)\b/i', $address) === 1;
+    }
+
+    private function addressQualityScore(string $address): int
+    {
+        $score = min(80, mb_strlen($address));
+        $score += substr_count($address, ',') * 8;
+
+        $patterns = [
+            '/\bQUEZON\s*CITY\b/i' => 20,
+            '/\b(?:BARANGAY|BRGY)\b/i' => 12,
+            '/\b(?:SUBD|SUBDIVISION|VILLAGE|HOMES|PHASE)\b/i' => 12,
+            '/\b(?:ST\.?|STREET|AVE\.?|AVENUE|ROAD|RD\.?|DRIVE|DR\.?)\b/i' => 10,
+            '/\b(?:BLK|BLOCK|LOT|UNIT|#\d)\b/i' => 10,
+        ];
+
+        foreach ($patterns as $pattern => $points) {
+            if (preg_match($pattern, $address) === 1) {
+                $score += $points;
+            }
+        }
+
+        if ($this->containsAddressNoise($address)) {
+            $score -= 140;
+        }
+
+        return $score;
     }
 }

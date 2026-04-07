@@ -273,6 +273,8 @@
     @stack('styles')
 </head>
 <body class="min-h-screen bg-white text-gray-900 antialiased">
+    @include('components.ui.page-loader')
+
     @php
         $currentUser = auth()->user();
         $isStaff = $currentUser?->isStaff() ?? false;
@@ -471,7 +473,7 @@
                :style="canHoverSidebar ? { marginLeft: sidebarHoverExpand ? '16rem' : '5rem' } : {}">
             <!-- Top Header -->
             <header class="bg-white border-b border-gray-200 sticky top-0 z-40 overflow-visible">
-                <div class="flex items-center justify-between h-20 px-4 sm:px-6">
+                <div class="flex items-center justify-between h-16 sm:h-20 px-4 sm:px-6">
                     <div class="flex items-center gap-4">
                         <button @click="sidebarOpen = true" x-show="!canHoverSidebar" x-cloak class="text-gray-600 hover:text-gray-900">
                             <i class="w-6 h-6 fa-icon fa-solid fa-bars text-2xl leading-none"></i>
@@ -630,10 +632,54 @@
             </header>
 
             <!-- Page Content -->
-            <main class="p-4 sm:p-6 min-w-0">
+            <main class="p-4 sm:p-6 pb-24 lg:pb-6 min-w-0">
                 @yield('content')
             </main>
         </div>
+
+        <!-- Mobile Bottom Navigation -->
+        <nav class="mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-indigo-100 bg-white/90 shadow-[0_-12px_28px_-20px_rgba(30,41,59,0.65)] lg:hidden">
+            <div class="grid grid-cols-5 gap-1 px-2 pt-2">
+                <a href="{{ route('dashboard') }}"
+                   class="flex flex-col items-center justify-center rounded-xl px-1.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] transition-all {{ request()->routeIs('dashboard') ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-700' }}">
+                    <i class="fa-solid fa-house text-sm"></i>
+                    <span class="mt-1 leading-none">Home</span>
+                </a>
+
+                <a href="{{ route('reservations.index') }}"
+                   class="flex flex-col items-center justify-center rounded-xl px-1.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] transition-all {{ request()->routeIs('reservations.*') ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-700' }}">
+                    <i class="fa-solid fa-file-lines text-sm"></i>
+                    <span class="mt-1 leading-none">Reserve</span>
+                </a>
+
+                <a href="{{ route('calendar.index') }}"
+                   class="flex flex-col items-center justify-center rounded-xl px-1.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] transition-all {{ request()->routeIs('calendar.*') ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-700' }}">
+                    <i class="fa-solid fa-calendar-days text-sm"></i>
+                    <span class="mt-1 leading-none">Calendar</span>
+                </a>
+
+                @if($isStaff)
+                    <a href="{{ route('approvals.index') }}"
+                       class="flex flex-col items-center justify-center rounded-xl px-1.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] transition-all {{ request()->routeIs('approvals.*') ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-700' }}">
+                        <i class="fa-solid fa-circle-check text-sm"></i>
+                        <span class="mt-1 leading-none">Approve</span>
+                    </a>
+                @else
+                    <a href="{{ route('profile.edit') }}"
+                       class="flex flex-col items-center justify-center rounded-xl px-1.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] transition-all {{ request()->routeIs('profile.*') ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-700' }}">
+                        <i class="fa-solid fa-user text-sm"></i>
+                        <span class="mt-1 leading-none">Profile</span>
+                    </a>
+                @endif
+
+                <button type="button"
+                        @click="sidebarOpen = true"
+                        class="flex flex-col items-center justify-center rounded-xl px-1.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-600 transition-all hover:bg-indigo-50 hover:text-indigo-700">
+                    <i class="fa-solid fa-bars text-sm"></i>
+                    <span class="mt-1 leading-none">Menu</span>
+                </button>
+            </div>
+        </nav>
 
         <!-- Overlay for mobile sidebar -->
          <div x-show="sidebarOpen && !canHoverSidebar" @click="sidebarOpen = false" x-cloak

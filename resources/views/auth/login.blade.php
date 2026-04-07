@@ -103,6 +103,7 @@
                 'address',
                 'ocr_text',
                 'qcid_image',
+                'qcid_temp_upload',
                 'password',
                 'password_confirmation',
             ];
@@ -150,7 +151,9 @@
                                     <input type="checkbox" name="remember" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
                                     Remember me
                                 </label>
-                                <a href="{{ route('password.request') }}" class="text-sm font-semibold text-indigo-600 hover:text-indigo-500 transition-colors">Forgot password?</a>
+                                @if (Route::has('password.request'))
+                                    <a href="{{ route('password.request') }}" class="text-sm font-semibold text-indigo-600 hover:text-indigo-500 transition-colors">Forgot password?</a>
+                                @endif
                             </div>
                             <button type="submit" class="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors">
                                 Login
@@ -223,6 +226,7 @@ window.signupOldInput = {
     valid_until: @json(old('valid_until', '')),
     address: @json(old('address', '')),
     ocr_text: @json(old('ocr_text', '')),
+    qcid_temp_upload: @json(old('qcid_temp_upload', '')),
 };
 window.signupQcidVerifyUrl = @json(route('signup.qcid.verify'));
 window.signupSendOtpUrl = @json(route('register.send-otp'));
@@ -259,6 +263,7 @@ function signupLoginApp($persist, initialSignupOpen) {
             idAssessment: '',
             confidenceLabel: '',
             isVerified: false,
+            isQrVerified: null,
             qrData: '',
             qrIdNumber: '',
         },
@@ -303,6 +308,11 @@ function signupLoginApp($persist, initialSignupOpen) {
         validateAndSubmitSignup(formEl) {
             this.scan.error = '';
 
+            if (!this.signup.ocr_text || !this.signup.qcid_temp_upload) {
+                this.scan.error = 'Please upload and verify your QC ID first before creating an account.';
+                return;
+            }
+
             if (this.scan.qrIdNumber) {
                 const enteredId = (this.signup.qcid_number || '').replace(/\s+/g, '');
                 const qrId = this.scan.qrIdNumber.replace(/\s+/g, '');
@@ -314,7 +324,7 @@ function signupLoginApp($persist, initialSignupOpen) {
 
             // If OTP already verified, submit the form
             if (this.otpToken) {
-                formEl.submit();
+                this.submitSignupForm(formEl);
                 return;
             }
 
@@ -337,6 +347,22 @@ function signupLoginApp($persist, initialSignupOpen) {
             this._otpFormEl = formEl;
             this.otpEmail = email;
             this.sendRegOtp(email, name);
+        },
+
+        submitSignupForm(formEl) {
+            if (!formEl) {
+                return;
+            }
+
+            // Prevent Android Chrome "ERR_UPLOAD_FILE_CHANGED" by
+            // avoiding a second native file upload when we already have
+            // a server-stored verified image token.
+            const fileInput = formEl.querySelector('input[name="qcid_image"]');
+            if (fileInput) {
+                fileInput.disabled = !!this.signup.qcid_temp_upload;
+            }
+
+            formEl.submit();
         },
 
         async sendRegOtp(email, name) {
@@ -404,7 +430,7 @@ function signupLoginApp($persist, initialSignupOpen) {
 
                     // Submit the registration form
                     if (this._otpFormEl) {
-                        this._otpFormEl.submit();
+                        this.submitSignupForm(this._otpFormEl);
                     }
                 } else {
                     this.otpError = data.message || 'Verification failed. Please try again.';
@@ -468,6 +494,7 @@ function signupLoginApp($persist, initialSignupOpen) {
             this.scan.idAssessment = '';
             this.scan.confidenceLabel = '';
             this.scan.isVerified = false;
+            this.scan.isQrVerified = null;
             this.scan.qrData = '';
             this.scan.qrIdNumber = '';
 
@@ -481,6 +508,7 @@ function signupLoginApp($persist, initialSignupOpen) {
             this.signup.valid_until = '';
             this.signup.address = '';
             this.signup.ocr_text = '';
+            this.signup.qcid_temp_upload = '';
 
             if (!file) {
                 this.scan.previewUrl = '';
@@ -578,43 +606,135 @@ function signupLoginApp($persist, initialSignupOpen) {
                     return;
                 }
 
-                const img = new Image();
-                img.onload = () => {
-                    // Create a canvas to get pixel data
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-
-                    // Try multiple resolutions for better QR detection
-                    const attempts = [
-                        { w: img.width, h: img.height },           // Original size
-                        { w: Math.min(img.width * 2, 4000), h: Math.min(img.height * 2, 4000) }, // Upscaled
-                        { w: Math.round(img.width * 0.5), h: Math.round(img.height * 0.5) },     // Downscaled
-                    ];
-
-                    for (const size of attempts) {
-                        canvas.width = size.w;
-                        canvas.height = size.h;
-                        ctx.drawImage(img, 0, 0, size.w, size.h);
-
-                        const imageData = ctx.getImageData(0, 0, size.w, size.h);
-                        const qrCode = jsQR(imageData.data, imageData.width, imageData.height, {
-                            inversionAttempts: 'attemptBoth',
-                        });
-
-                        if (qrCode && qrCode.data) {
-                            resolve(qrCode.data);
-                            return;
-                        }
-                    }
-
-                    resolve(null);
+                let settled = false;
+                const resolveOnce = (value) => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(watchdog);
+                    resolve(value);
                 };
-                img.onerror = () => resolve(null);
 
-                // Load image from file
+                // Hard guard so scanner never hangs indefinitely.
+                const watchdog = setTimeout(() => resolveOnce(null), 9000);
+
+                const img = new Image();
+                img.onload = async () => {
+                    try {
+                        const startedAt = performance.now();
+                        const maxDecodeMs = 6500;
+
+                        const shouldStop = () => (performance.now() - startedAt) > maxDecodeMs;
+
+                        const tryDecodeImageData = (imageData) => {
+                            const options = [
+                                { inversionAttempts: 'attemptBoth' },
+                                { inversionAttempts: 'dontInvert' },
+                            ];
+
+                            for (const option of options) {
+                                const qrCode = jsQR(imageData.data, imageData.width, imageData.height, option);
+                                if (qrCode?.data) {
+                                    return qrCode.data;
+                                }
+                            }
+
+                            return null;
+                        };
+
+                        const rotateCanvas = (sourceCanvas, degrees) => {
+                            const radians = (degrees * Math.PI) / 180;
+                            const rotated = document.createElement('canvas');
+                            const quarterTurn = Math.abs(degrees) % 180 === 90;
+                            rotated.width = quarterTurn ? sourceCanvas.height : sourceCanvas.width;
+                            rotated.height = quarterTurn ? sourceCanvas.width : sourceCanvas.height;
+                            const rctx = rotated.getContext('2d');
+                            if (!rctx) return null;
+                            rctx.translate(rotated.width / 2, rotated.height / 2);
+                            rctx.rotate(radians);
+                            rctx.drawImage(sourceCanvas, -sourceCanvas.width / 2, -sourceCanvas.height / 2);
+                            return rotated;
+                        };
+
+                        const decodeCanvas = (canvas) => {
+                            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                            if (!ctx) return null;
+                            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                            return tryDecodeImageData(imageData);
+                        };
+
+                        const cropAttempts = [
+                            { sx: 0, sy: 0, sw: img.width, sh: img.height, maxEdge: 1400 },
+                            { sx: img.width * 0.45, sy: 0, sw: img.width * 0.55, sh: img.height, maxEdge: 1600 },
+                            { sx: img.width * 0.5, sy: img.height * 0.25, sw: img.width * 0.5, sh: img.height * 0.75, maxEdge: 1700 },
+                        ];
+
+                        for (const attempt of cropAttempts) {
+                            if (shouldStop()) break;
+
+                            const sourceWidth = Math.max(1, Math.round(attempt.sw));
+                            const sourceHeight = Math.max(1, Math.round(attempt.sh));
+                            const downscale = Math.min(1, attempt.maxEdge / Math.max(sourceWidth, sourceHeight));
+                            const targetWidth = Math.max(220, Math.round(sourceWidth * downscale));
+                            const targetHeight = Math.max(220, Math.round(sourceHeight * downscale));
+
+                            const canvas = document.createElement('canvas');
+                            canvas.width = targetWidth;
+                            canvas.height = targetHeight;
+
+                            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                            if (!ctx) {
+                                continue;
+                            }
+
+                            ctx.drawImage(
+                                img,
+                                Math.max(0, Math.round(attempt.sx)),
+                                Math.max(0, Math.round(attempt.sy)),
+                                sourceWidth,
+                                sourceHeight,
+                                0,
+                                0,
+                                targetWidth,
+                                targetHeight,
+                            );
+
+                            const baseDecoded = decodeCanvas(canvas);
+                            if (baseDecoded) {
+                                resolveOnce(baseDecoded);
+                                return;
+                            }
+
+                            const rotated180 = rotateCanvas(canvas, 180);
+                            if (rotated180) {
+                                const rotatedDecoded = decodeCanvas(rotated180);
+                                if (rotatedDecoded) {
+                                    resolveOnce(rotatedDecoded);
+                                    return;
+                                }
+                            }
+
+                            // Yield briefly so UI remains responsive on mobile.
+                            await new Promise((r) => setTimeout(r, 0));
+                        }
+
+                        resolveOnce(null);
+                    } catch (_) {
+                        resolveOnce(null);
+                    }
+                };
+
+                img.onerror = () => resolveOnce(null);
+
                 const reader = new FileReader();
-                reader.onload = (e) => { img.src = e.target.result; };
-                reader.onerror = () => resolve(null);
+                reader.onload = (e) => {
+                    const src = e?.target?.result;
+                    if (typeof src !== 'string') {
+                        resolveOnce(null);
+                        return;
+                    }
+                    img.src = src;
+                };
+                reader.onerror = () => resolveOnce(null);
                 reader.readAsDataURL(file);
             });
         },
@@ -697,7 +817,7 @@ function signupLoginApp($persist, initialSignupOpen) {
             }
 
             address = address
-                .replace(/\b(?:DATE ISSUED|VALID UNTIL|DATE OF BIRTH|DOB|CIVIL STATUS|SEX|SIGNATURE)\b/g, ' ')
+                .replace(/\b(?:DATE ISSUED|VALID UNTIL|DATE OF BIRTH|DOB|CIVIL STATUS|SEX|SIGNATURE|CARDHOLDER|ADDRESS|LAST NAME|FIRST NAME|MIDDLE NAME|REPUBLIC OF THE PHILIPPINES|CITIZEN CARD)\b/g, ' ')
                 .replace(/\b\d{4}\/\d{1,2}\/\d{1,2}\b/g, ' ')
                 .replace(/\b\d{1,2}\/\d{1,2}\/\d{4}\b/g, ' ')
                 .replace(/\b(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC)\b\s+\d{1,2}\b/g, ' ')
@@ -725,12 +845,21 @@ function signupLoginApp($persist, initialSignupOpen) {
                 address = qcChunk[1];
             }
 
+            address = address.replace(/\b(EXT|EXTENSION|ST|STREET|ROAD|RD|AVE|AVENUE|DR|DRIVE)\s+([A-Z]{3,12})\s+(KINGSPOINT|BAGBAG|NOVALICHES|FAIRVIEW|COMMONWEALTH|BATASAN|GULOD|SAN BARTOLOME|TALIPAPA|PAYATAS|CUBAO|PROJECT [4678]|MATANDANG BALARA|PASONG TAMO|PASONG PUTIK|HOLY SPIRIT|TANDANG SORA|BAESA)\b/g, (_, prefix, middle, anchor) => {
+                const allowed = ['NORTH', 'SOUTH', 'EAST', 'WEST', 'NEW', 'OLD'];
+                return allowed.includes(String(middle || '').toUpperCase())
+                    ? `${prefix} ${middle} ${anchor}`
+                    : `${prefix} ${anchor}`;
+            });
+
             // Noise-Canceling: Fix common misreads and PREVENT DOUBLING
             // This replaces any garbled QUEZON CITY at the end with a single clean one
             address = address.replace(/\b(?:QUEZON\s*)?(?:QUEZON\s*)?(?:CITY|C\s*ITY|C1TY|1TY|ITY|LITY|CTY)\b$/i, ' QUEZON CITY')
                              .replace(/\b(QUEZON)\s+\1\b/gi, '$1')
                              .replace(/\b(?:K\s*)?INGS?POINT\b/gi, 'KINGSPOINT')
                              .replace(/\b(?:B\s*)?AGBAG\b/gi, 'BAGBAG');
+
+            address = address.replace(/\bQUEZON\s*CITY\b.*$/i, 'QUEZON CITY');
 
             // Force city suffix if it's missing but look like a QC address
             // Only append if "QUEZON CITY" isn't already there
@@ -887,6 +1016,7 @@ function signupLoginApp($persist, initialSignupOpen) {
             this.scan.isQrVerified = null;
             this.scan.qrData = '';
             this.scan.qrIdNumber = '';
+            this.signup.qcid_temp_upload = '';
 
             // Reset form fields to ensure a clean capture
             this.signup.ocr_text = '';
@@ -905,22 +1035,38 @@ function signupLoginApp($persist, initialSignupOpen) {
                     this.scan.status = 'No QR code found. Reading text via OCR...';
                 }
 
-                const base64Image = await this.getBase64(this.scan.file);
-
                 const formData = new FormData();
                 formData.append('ocr_text', this.signup.ocr_text || '');
                 formData.append('user_name', this.signup.name || '');
                 formData.append('qcid_image', this.scan.file);
                 formData.append('qr_data', this.scan.qrData);
 
-                const response = await fetch(window.signupQcidVerifyUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                    },
-                    body: formData,
-                });
+                const controller = new AbortController();
+                const verifyTimeoutId = setTimeout(() => controller.abort(), 70000);
+
+                let response;
+                try {
+                    response = await fetch(window.signupQcidVerifyUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                        },
+                        signal: controller.signal,
+                        body: formData,
+                    });
+                } finally {
+                    clearTimeout(verifyTimeoutId);
+                }
+
+                if (!response.ok) {
+                    throw new Error('Verification service is temporarily unavailable. Please try again.');
+                }
+
+                const contentType = (response.headers.get('content-type') || '').toLowerCase();
+                if (!contentType.includes('application/json')) {
+                    throw new Error('Verification service returned an unexpected response. Please try again.');
+                }
 
                 const payload = await response.json();
                 const verification = payload?.verification || {};
@@ -942,6 +1088,7 @@ function signupLoginApp($persist, initialSignupOpen) {
                     this.signup.date_issued = '';
                     this.signup.valid_until = '';
                     this.signup.address = '';
+                    this.signup.qcid_temp_upload = '';
 
                     // Use the server's specific message or fake reason
                     const fakeReason = verification?.fake_reason || '';
@@ -953,7 +1100,9 @@ function signupLoginApp($persist, initialSignupOpen) {
                     this.scan.status = this.scan.idAssessment === 'Fake QC ID' ? 'Fake QC ID detected.' : 'Invalid ID detected.';
                 } else {
                     this.signup.ocr_text = payload?.ocr_text || '';
+                    this.signup.qcid_temp_upload = payload?.qcid_temp_upload || '';
                     this.scan.status = 'QC ID verified and fields auto-filled. Please review before creating account.';
+                    const addressSource = String(verification._address_source || '').toLowerCase();
 
                     if (verification.cardholder_name) {
                         this.signup.name = verification.cardholder_name;
@@ -963,7 +1112,10 @@ function signupLoginApp($persist, initialSignupOpen) {
                         verification.normalized_text || '',
                         this.signup.ocr_text || '',
                     );
-                    let ocrIdNumber = correctedId || verification.id_number || '';
+                    let ocrIdNumber = (verification.id_number || '').trim();
+                    if (!ocrIdNumber) {
+                        ocrIdNumber = (correctedId || '').trim();
+                    }
 
                     // === QR Code Cross-Validation ===
                     // If QR data was decoded, extract the QC ID number from it
@@ -974,8 +1126,14 @@ function signupLoginApp($persist, initialSignupOpen) {
                         this.scan.isQrVerified = true;
 
                         // QR is authoritative — providing high-accuracy status message
-                        if (verification.qr_profile_extracted) {
+                        if (verification.qr_profile_extracted && verification.qr_address_incomplete && verification.qr_name_missing_enye) {
+                            this.scan.status = 'QR code verified. Address detail and Ñ spelling were completed using OCR for higher accuracy.';
+                        } else if (verification.qr_profile_extracted && verification.qr_name_missing_enye) {
+                            this.scan.status = 'QR code verified. Name accent (Ñ) was recovered from OCR for higher accuracy.';
+                        } else if (verification.qr_profile_extracted && !verification.qr_address_incomplete) {
                             this.scan.status = 'QR code verified. All ID details auto-filled with 100% accuracy from QR data.';
+                        } else if (verification.qr_profile_extracted && verification.qr_address_incomplete) {
+                            this.scan.status = 'QR code verified. Address was completed using OCR for higher detail accuracy.';
                         } else if (ocrIdNumber && ocrIdNumber !== qrIdNumber) {
                             this.scan.status = `QR code verified. QC ID auto-corrected from "${ocrIdNumber}" to "${qrIdNumber}".`;
                         } else {
@@ -983,6 +1141,9 @@ function signupLoginApp($persist, initialSignupOpen) {
                         }
                     } else {
                         this.scan.isQrVerified = false;
+                        if (this.scan.qrData) {
+                            this.scan.status = 'QR code was detected, but its data could not be decoded. OCR fields were used instead.';
+                        }
                     }
 
                     // Always prioritize QR results for any field provided
@@ -993,9 +1154,9 @@ function signupLoginApp($persist, initialSignupOpen) {
                     else this.signup.qcid_number = (qrIdNumber || ocrIdNumber || '').trim();
 
                     if (verification.address) {
-                        // QR-sourced address is already accurate, skip cleanup
-                        if (verification._address_source === 'qr') {
-                            this.signup.address = verification.address;
+                        // Preserve high-detail addresses from QR or OCR fallback.
+                        if (addressSource === 'qr' || addressSource === 'ocr_fallback') {
+                            this.signup.address = String(verification.address).trim();
                         } else {
                             this.signup.address = this.improveAddress(verification.address);
                         }
@@ -1028,10 +1189,6 @@ function signupLoginApp($persist, initialSignupOpen) {
                             this.signup.valid_until = normalized;
                         }
                     }
-                    if (verification.address) {
-                        this.signup.address = this.improveAddress(verification.address);
-                    }
-
                     const fallbackDates = this.applyDateFallbacks(verification, this.signup.ocr_text);
                     if (!this.signup.date_of_birth && fallbackDates.dob) {
                         this.signup.date_of_birth = fallbackDates.dob;
@@ -1043,14 +1200,19 @@ function signupLoginApp($persist, initialSignupOpen) {
                         this.signup.valid_until = fallbackDates.valid;
                     }
 
-                    if (this.signup.address) {
+                    if (this.signup.address && addressSource !== 'qr' && addressSource !== 'ocr_fallback') {
                         this.signup.address = this.improveAddress(this.signup.address);
                     } else if (verification.normalized_text) {
                         this.signup.address = this.improveAddress(verification.normalized_text);
                     }
                 }
             } catch (error) {
-                this.scan.error = error?.message || 'Unable to scan the QC ID image right now.';
+                if (error?.name === 'AbortError') {
+                    this.scan.error = 'Verification timed out. Please retry with a clearer image and stable internet connection.';
+                } else {
+                    this.scan.error = error?.message || 'Unable to scan the QC ID image right now.';
+                }
+                this.scan.status = '';
             } finally {
                 this.scan.isProcessing = false;
             }

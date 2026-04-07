@@ -570,17 +570,51 @@ class BookingController extends Controller
     {
         // Use the QR payload (token) as plain text
         $decrypted = $token;
+        $format = strtolower((string) $request->query('format', 'svg'));
+        $usePng = $format === 'png';
+
+        $renderQr = function (string $payload) use ($usePng): array {
+            $builder = new \Endroid\QrCode\Builder\Builder();
+
+            if ($usePng) {
+                try {
+                    $png = $builder->build(
+                        writer: new \Endroid\QrCode\Writer\PngWriter(),
+                        data: $payload,
+                        size: 480,
+                        margin: 10
+                    );
+
+                    return [
+                        'content' => $png->getString(),
+                        'content_type' => 'image/png',
+                    ];
+                } catch (\Throwable $e) {
+                    // Fall back to SVG if PNG generation is unavailable.
+                }
+            }
+
+            $svg = $builder->build(
+                writer: new \Endroid\QrCode\Writer\SvgWriter(),
+                data: $payload,
+                size: 480,
+                margin: 10
+            );
+
+            return [
+                'content' => $svg->getString(),
+                'content_type' => 'image/svg+xml',
+            ];
+        };
 
         if ($decrypted === 'smartspace-master-token') {
             try {
-                $builder = new \Endroid\QrCode\Builder\Builder();
-                $result = $builder->build(
-                    writer: new \Endroid\QrCode\Writer\SvgWriter(),
-                    data: url('/verify?token=smartspace-master-token'),
-                    size: 480,
-                    margin: 10
-                );
-                return response($result->getString(), 200, ['Content-Type' => 'image/svg+xml']);
+                $result = $renderQr(url('/verify?token=smartspace-master-token'));
+
+                return response($result['content'], 200, [
+                    'Content-Type' => $result['content_type'],
+                    'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+                ]);
             } catch (\Throwable $e) {
                 return response('QR generation unavailable', 500);
             }
@@ -603,17 +637,13 @@ class BookingController extends Controller
             $payload = $booking->qr_token
                 ? url('/verify?token=' . $booking->qr_token)
                 : ($booking->booking_code ?? $decrypted);
-            
-            $builder = new \Endroid\QrCode\Builder\Builder();
-            $result = $builder->build(
-                writer: new \Endroid\QrCode\Writer\SvgWriter(),
-                data: $payload,
-                size: 480,
-                margin: 10
-            );
-            
-            $svg = $result->getString();
-            return response($svg, 200, ['Content-Type' => 'image/svg+xml']);
+
+            $result = $renderQr($payload);
+
+            return response($result['content'], 200, [
+                'Content-Type' => $result['content_type'],
+                'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            ]);
         } catch (\Throwable $e) {
             return response('QR generation unavailable', 500);
         }

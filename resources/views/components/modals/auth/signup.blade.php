@@ -39,6 +39,7 @@
                             <input type="hidden" name="ocr_text" x-model="signup.ocr_text">
                             <input type="hidden" name="qr_validated_id" x-model="scan.qrIdNumber">
                             <input type="hidden" name="otp_token" x-model="otpToken">
+                            <input type="hidden" name="qcid_temp_upload" x-model="signup.qcid_temp_upload">
 
 
                                 <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -94,8 +95,7 @@
                                                                 </span>
                                                             </template>
                                                             <template x-if="scan.isQrVerified === false">
-                                                                <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 animate-in fade-in slide-in-from-right-2 duration-300">
-                                                                    No QR Found
+                                                                <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 animate-in fade-in slide-in-from-right-2 duration-300" x-text="scan.qrData ? 'QR Detected (unreadable data)' : 'No QR Found'">
                                                                 </span>
                                                             </template>
                                                             <template x-if="scan.isQrVerified === null && scan.status">
@@ -245,9 +245,9 @@
                                             </div>
                                             <div class="md:col-span-2">
                                                 <label class="block text-sm font-semibold text-slate-700">Address</label>
-                                                <textarea name="address" rows="2" x-model="signup.address" maxlength="100"
+                                                <textarea name="address" rows="2" x-model="signup.address" maxlength="180"
                                                           class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">{{ old('address') }}</textarea>
-                                                <p class="mt-1 text-xs text-slate-400" x-text="(signup.address || '').length + '/100 characters'"></p>
+                                                <p class="mt-1 text-xs text-slate-400" x-text="(signup.address || '').length + '/180 characters'"></p>
                                             </div>
                                             <div class="md:col-span-2" x-data="{
                                                 get hasMin() { return signupPassword.length >= 8 },

@@ -25,6 +25,8 @@
     @stack('styles')
 </head>
 <body class="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100 text-gray-900 antialiased">
+    @include('components.ui.page-loader')
+
     @yield('content')
     <div id="swUpdateToast" class="hidden fixed left-1/2 bottom-6 z-50 w-[92%] max-w-md -translate-x-1/2 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm shadow-xl">
         <div class="flex items-center justify-between gap-3">

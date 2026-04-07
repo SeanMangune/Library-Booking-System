@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use App\Mail\RegistrationOtpMail;
 use Laravel\Socialite\Facades\Socialite;
@@ -292,7 +293,7 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z\s,.\-]+$/'],
+            'name' => ['required', 'string', 'max:50', 'regex:/^[\p{L}\s,.\-]+$/u'],
             'username' => ['required', 'string', 'max:255', 'alpha_dash', 'unique:users,username'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => [
@@ -313,14 +314,17 @@ class AuthController extends Controller
             'date_of_birth' => ['nullable', 'date'],
             'date_issued' => ['nullable', 'date'],
             'valid_until' => ['nullable', 'date'],
-            'address' => ['nullable', 'string', 'max:100'],
+            'address' => ['nullable', 'string', 'max:180'],
             'ocr_text' => ['required', 'string'],
             'qr_validated_id' => ['nullable', 'string', 'max:50'],
-            'qcid_image' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:25600'],
+            'qcid_image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:25600', 'required_without:qcid_temp_upload'],
+            'qcid_temp_upload' => ['nullable', 'string', 'max:255'],
             'otp_token' => ['required', 'string'],
         ], [
             'password.regex' => 'Password must be at least 8 characters, contain at least one uppercase letter and one number.',
+            'name.regex' => 'Name may contain letters (including ñ), spaces, comma, period, and hyphen only.',
             'otp_token.required' => 'Email verification is required. Please verify your email address first.',
+            'qcid_image.required_without' => 'Please upload and verify your QC ID image before registration.',
         ]);
 
         // Verify OTP token from cache
@@ -333,9 +337,6 @@ class AuthController extends Controller
 
         // Consume the one-time token
         Cache::forget($otpTokenKey);
-
-        // Save the uploaded QC ID image
-        $imagePath = $request->file('qcid_image')->store('qcid_images', 'public');
 
         $ocrText = $validated['ocr_text'];
         $ocrVerifier = app(\App\Services\QcIdOcrVerifier::class);
@@ -357,6 +358,49 @@ class AuthController extends Controller
                     'qcid_number' => "QC ID number mismatch! Your ID's QR code shows {$qrValidatedId}, but you entered {$enteredId}. The QC ID number must match what's on your physical card."
                 ])->withInput();
             }
+        }
+
+        // Resolve QC ID image source: direct upload (desktop flow) or
+        // previously verified temporary upload (mobile-safe flow).
+        $imagePath = null;
+
+        if ($request->hasFile('qcid_image')) {
+            $imagePath = $request->file('qcid_image')->store('qcid_images', 'public');
+        } else {
+            $tempPath = trim((string) ($validated['qcid_temp_upload'] ?? ''));
+
+            if ($tempPath !== '') {
+                $tempPath = ltrim(str_replace('\\', '/', $tempPath), '/');
+
+                if (! str_starts_with($tempPath, 'qcid_scans_temp/')) {
+                    return back()->withErrors([
+                        'qcid_image' => 'The verified QC ID image token is invalid. Please re-upload and verify your QC ID.',
+                    ])->withInput();
+                }
+
+                if (! Storage::disk('public')->exists($tempPath)) {
+                    return back()->withErrors([
+                        'qcid_image' => 'The verified QC ID image has expired. Please re-upload and verify your QC ID.',
+                    ])->withInput();
+                }
+
+                $extension = pathinfo($tempPath, PATHINFO_EXTENSION) ?: 'jpg';
+                $targetPath = 'qcid_images/' . (string) Str::uuid() . '.' . $extension;
+
+                if (! Storage::disk('public')->move($tempPath, $targetPath)) {
+                    return back()->withErrors([
+                        'qcid_image' => 'Unable to finalize your verified QC ID image. Please upload and verify again.',
+                    ])->withInput();
+                }
+
+                $imagePath = $targetPath;
+            }
+        }
+
+        if ($imagePath === null) {
+            return back()->withErrors([
+                'qcid_image' => 'Please upload and verify your QC ID image before registration.',
+            ])->withInput();
         }
 
         $user = User::create([
