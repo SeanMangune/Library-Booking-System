@@ -1,5 +1,9 @@
 <div x-show="showStatsModal" x-cloak class="modal p-4 z-50" :class="{ 'modal-open': showStatsModal }" @keydown.escape.window="showStatsModal = false">
-    <div class="modal-box w-11/12 max-w-md p-0 bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col transform transition-all relative" 
+    <!-- Backdrop (rendered FIRST so it sits behind the modal box) -->
+    <button type="button" class="fixed inset-0 bg-black/40 transition-opacity" style="z-index: 40;" tabindex="-1" @click="showStatsModal = false"></button>
+
+    <!-- Modal Box -->
+    <div class="modal-box relative z-50 w-11/12 max-w-md p-0 bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col transform transition-all" 
          @click.stop
          x-show="showStatsModal"
          x-transition:enter="ease-out duration-300"
@@ -59,5 +63,4 @@
             </a>
         </div>
     </div>
-    <button type="button" class="modal-backdrop fixed inset-0 bg-black/40 transition-opacity" style="z-index: 40;" @click="showStatsModal = false"></button>
 </div>
