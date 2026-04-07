@@ -22,15 +22,15 @@ class DatabaseSeeder extends Seeder
         $accounts = [
             [
                 'name' => 'Test User 1',
-                'username' => 'testuser1',
-                'email' => 'test@example.com',
+                'username' => 'testuser',
+                'email' => 'testuser@smartspace.local',
                 'password' => 'password',
                 'role' => User::ROLE_USER,
             ],
             [
                 'name' => 'Test User 2',
                 'username' => 'testuser2',
-                'email' => 'test2@example.com',
+                'email' => 'testuser2@smartspace.local',
                 'password' => 'password',
                 'role' => User::ROLE_USER,
             ],

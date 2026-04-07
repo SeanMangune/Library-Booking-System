@@ -130,6 +130,59 @@
 
     <!-- Delete Confirmation Modal -->
     <x-modals.managerooms.delete-confirmation />
+
+    <!-- Affected Bookings Modal -->
+    <div x-show="showAffectedBookingsModal" x-cloak class="modal modal-open p-4" @keydown.escape.window="closeAffectedBookingsModal(true)">
+        <div class="modal-box w-[95vw] max-w-3xl p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
+            <div class="bg-linear-to-r from-amber-500 to-orange-600 px-6 py-5 relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-8 opacity-15 pointer-events-none">
+                    <i class="fa-solid fa-triangle-exclamation text-7xl text-white"></i>
+                </div>
+                <div class="relative z-10 flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-white text-xl font-black tracking-tight">Affected Bookings</h3>
+                        <p class="text-amber-100 mt-1 text-sm">These bookings overlap the maintenance window and must be manually rescheduled.</p>
+                    </div>
+                    <button @click="closeAffectedBookingsModal(true)" class="text-white/80 hover:text-white bg-white/10 p-2 rounded-xl hover:bg-white/20 transition-all">
+                        <i class="w-5 h-5 fa-icon fa-solid fa-xmark text-xl leading-none"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-6 space-y-4 overflow-y-auto">
+                <template x-if="affectedMaintenanceWindow">
+                    <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                        <p class="font-semibold">Maintenance window</p>
+                        <p class="mt-1" x-text="formatDateTimeLabel(affectedMaintenanceWindow.start_at) + ' to ' + formatDateTimeLabel(affectedMaintenanceWindow.end_at)"></p>
+                    </div>
+                </template>
+
+                <div class="rounded-xl border border-gray-200 overflow-hidden">
+                    <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 text-sm font-semibold text-gray-700">
+                        Booking list (<span x-text="affectedBookings.length"></span>)
+                    </div>
+                    <div class="max-h-80 overflow-y-auto divide-y divide-gray-100">
+                        <template x-for="booking in affectedBookings" :key="booking.id">
+                            <div class="px-4 py-3">
+                                <p class="text-sm font-semibold text-gray-900" x-text="'#' + booking.id + ' - ' + (booking.user_name || booking.user_email || 'User')"></p>
+                                <p class="text-xs text-gray-600 mt-1" x-text="(booking.formatted_date || '') + ' ' + (booking.formatted_time || '')"></p>
+                                <p class="text-xs text-gray-500 mt-1" x-show="booking.title" x-text="booking.title"></p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-white shrink-0">
+                <button type="button"
+                        @click="closeAffectedBookingsModal(true)"
+                        class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">
+                    Done
+                </button>
+            </div>
+        </div>
+        <button type="button" class="modal-backdrop fixed inset-0 bg-black/40" @click="closeAffectedBookingsModal(true)">close</button>
+    </div>
 </div>
 
 @push('scripts')
@@ -138,12 +191,19 @@ function roomManagement() {
     return {
         showModal: false,
         showDeleteModal: false,
+        showAffectedBookingsModal: false,
         isEditing: false,
         isSubmitting: false,
         isDeleting: false,
         searchQuery: '',
         editingRoomId: null,
         deleteRoom: null,
+        affectedBookings: [],
+        affectedMaintenanceWindow: null,
+        previewAffectedBookings: [],
+        previewWindowLoading: false,
+        previewWindowError: '',
+        previewRequestTimer: null,
         
         filters: {
             status: 'all',
@@ -164,6 +224,7 @@ function roomManagement() {
         openAddModal() {
             this.isEditing = false;
             this.editingRoomId = null;
+            this.resetAffectedBookingsPreview();
             this.roomForm = {
                 name: '',
                 capacity: 10,
@@ -187,6 +248,7 @@ function roomManagement() {
                 status_start_at: this.normalizeDateForInput(room.status_start_at),
             };
             this.showModal = true;
+            this.onMaintenanceWindowInput();
         },
 
         normalizeDateForInput(value) {
@@ -205,12 +267,30 @@ function roomManagement() {
             return `${match[1]}-${match[2]}-${match[3]}`;
         },
 
+        isMaintenanceStatusSelected() {
+            return this.roomForm.status === 'maintenance';
+        },
+
+        buildMaintenanceWindow(dateValue) {
+            const selectedDate = String(dateValue || '').trim();
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) {
+                return null;
+            }
+
+            return {
+                startAt: `${selectedDate} 08:00:00`,
+                endAt: `${selectedDate} 17:00:00`,
+            };
+        },
+
         onStatusChange() {
-            if (this.roomForm.status === 'maintenance') {
+            if (this.isMaintenanceStatusSelected()) {
+                this.onMaintenanceWindowInput();
                 return;
             }
 
             this.roomForm.status_start_at = '';
+            this.resetAffectedBookingsPreview();
         },
 
         buildRoomPayload() {
@@ -219,10 +299,10 @@ function roomManagement() {
                 capacity: Number(this.roomForm.capacity || 0),
             };
 
-            const selectedDate = String(this.roomForm.status_start_at || '').trim();
-            if (payload.status === 'maintenance' && selectedDate) {
-                payload.status_start_at = `${selectedDate} 08:00:00`;
-                payload.status_end_at = `${selectedDate} 17:00:00`;
+            const maintenanceWindow = this.buildMaintenanceWindow(this.roomForm.status_start_at);
+            if (payload.status === 'maintenance' && maintenanceWindow) {
+                payload.status_start_at = maintenanceWindow.startAt;
+                payload.status_end_at = maintenanceWindow.endAt;
             } else {
                 payload.status_start_at = '';
                 payload.status_end_at = '';
@@ -233,6 +313,125 @@ function roomManagement() {
 
         closeModal() {
             this.showModal = false;
+            this.resetAffectedBookingsPreview();
+        },
+
+        resetAffectedBookingsPreview() {
+            if (this.previewRequestTimer) {
+                clearTimeout(this.previewRequestTimer);
+                this.previewRequestTimer = null;
+            }
+
+            this.previewAffectedBookings = [];
+            this.previewWindowLoading = false;
+            this.previewWindowError = '';
+        },
+
+        onMaintenanceWindowInput() {
+            if (this.previewRequestTimer) {
+                clearTimeout(this.previewRequestTimer);
+                this.previewRequestTimer = null;
+            }
+
+            if (!this.isEditing || !this.isMaintenanceStatusSelected()) {
+                this.resetAffectedBookingsPreview();
+                return;
+            }
+
+            const selectedDate = String(this.roomForm.status_start_at || '').trim();
+            const maintenanceWindow = this.buildMaintenanceWindow(selectedDate);
+
+            if (!selectedDate) {
+                this.resetAffectedBookingsPreview();
+                return;
+            }
+
+            if (!maintenanceWindow) {
+                this.previewAffectedBookings = [];
+                this.previewWindowError = 'Please choose a valid maintenance date.';
+                return;
+            }
+
+            this.previewWindowError = '';
+            this.previewRequestTimer = window.setTimeout(() => {
+                this.fetchAffectedBookingsPreview(maintenanceWindow.startAt, maintenanceWindow.endAt);
+            }, 250);
+        },
+
+        async fetchAffectedBookingsPreview(startValue, endValue) {
+            if (!this.editingRoomId) {
+                return;
+            }
+
+            this.previewWindowLoading = true;
+            this.previewWindowError = '';
+
+            try {
+                const params = new URLSearchParams({
+                    status_start_at: startValue,
+                    status_end_at: endValue,
+                });
+
+                const response = await fetch(`/rooms/manage/${this.editingRoomId}/affected-bookings?${params.toString()}`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || data.success === false) {
+                    throw new Error(data.message || 'Unable to load affected bookings.');
+                }
+
+                this.previewAffectedBookings = Array.isArray(data.affected_bookings)
+                    ? data.affected_bookings
+                    : [];
+            } catch (error) {
+                console.error('Affected booking preview error:', error);
+                this.previewAffectedBookings = [];
+                this.previewWindowError = 'Unable to load affected bookings preview.';
+            } finally {
+                this.previewWindowLoading = false;
+            }
+        },
+
+        openAffectedBookingsModal(payload) {
+            this.affectedBookings = Array.isArray(payload?.affected_bookings)
+                ? payload.affected_bookings
+                : [];
+            this.affectedMaintenanceWindow = payload?.maintenance_window || null;
+            this.showAffectedBookingsModal = this.affectedBookings.length > 0;
+        },
+
+        closeAffectedBookingsModal(shouldReload = true) {
+            this.showAffectedBookingsModal = false;
+            this.affectedBookings = [];
+            this.affectedMaintenanceWindow = null;
+
+            if (shouldReload) {
+                window.location.reload();
+            }
+        },
+
+        formatDateTimeLabel(value) {
+            if (!value) {
+                return '';
+            }
+
+            const parsed = new Date(String(value).replace(' ', 'T'));
+            if (Number.isNaN(parsed.getTime())) {
+                return String(value);
+            }
+
+            return parsed.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+            });
         },
 
         openDeleteModal(room) {
@@ -260,8 +459,8 @@ function roomManagement() {
                     return;
                 }
 
-                const url = this.isEditing 
-                    ? `/rooms/manage/${this.editingRoomId}` 
+                const url = this.isEditing
+                    ? `/rooms/manage/${this.editingRoomId}`
                     : '/rooms/manage';
                 const method = this.isEditing ? 'PUT' : 'POST';
 
@@ -275,10 +474,17 @@ function roomManagement() {
                 });
 
                 const data = await response.json();
-                
+                const affectedBookings = Array.isArray(data?.affected_bookings) ? data.affected_bookings : [];
+
                 if (response.ok && data.success !== false) {
                     window.notifyApp?.('success', data.message || 'Room saved successfully.');
                     this.closeModal();
+
+                    if (affectedBookings.length > 0) {
+                        this.openAffectedBookingsModal(data);
+                        return;
+                    }
+
                     window.setTimeout(() => {
                         window.location.reload();
                     }, 850);
@@ -299,7 +505,7 @@ function roomManagement() {
 
         async confirmDelete() {
             if (!this.deleteRoom) return;
-            
+
             this.isDeleting = true;
             try {
                 const response = await fetch(`/rooms/manage/${this.deleteRoom.id}`, {
@@ -311,7 +517,7 @@ function roomManagement() {
                 });
 
                 const data = await response.json();
-                
+
                 if (data.success) {
                     window.notifyApp?.('success', data.message || 'Room deleted successfully.');
                     this.closeDeleteModal();
@@ -341,7 +547,7 @@ function roomManagement() {
             const params = new URLSearchParams();
             if (this.filters.status !== 'all') params.append('status', this.filters.status);
             if (this.filters.capacity !== 'all') params.append('capacity', this.filters.capacity);
-            
+
             window.location.href = '{{ route("rooms.index") }}' + (params.toString() ? '?' + params.toString() : '');
         }
     }
