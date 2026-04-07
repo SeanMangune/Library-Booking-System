@@ -508,7 +508,7 @@
                                  x-transition:leave="transition ease-in duration-75"
                                  x-transition:leave-start="opacity-100 scale-100"
                                  x-transition:leave-end="opacity-0 scale-95"
-                                 :style="(() => { const r = $refs.notifBtn?.getBoundingClientRect(); return r ? { position: 'fixed', top: (r.bottom + 8) + 'px', right: Math.max(8, window.innerWidth - r.right) + 'px' } : {} })()"
+                                 :style="(() => { const r = $refs.notifBtn?.getBoundingClientRect(); if (!r) return {}; const isMobile = window.innerWidth <= 640; if (isMobile) { return { position: 'fixed', top: (r.bottom + 8) + 'px', left: '50%', transform: 'translateX(-50%)' }; } return { position: 'fixed', top: (r.bottom + 8) + 'px', right: Math.max(8, window.innerWidth - r.right) + 'px' }; })()"
                                  class="w-80 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50">
                                 <div class="bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-3">
                                     <div class="flex items-center justify-between">
