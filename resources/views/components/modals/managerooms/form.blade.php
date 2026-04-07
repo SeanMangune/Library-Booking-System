@@ -115,6 +115,8 @@
                                         <i class="w-4 h-4 fa-icon fa-solid fa-calendar-days text-base leading-none"></i>
                                     </span>
                                     <input type="text" x-model="roomForm.status_start_at"
+                                         @input="onMaintenanceWindowInput()"
+                                         @change="onMaintenanceWindowInput()"
                                            :disabled="!canEditStatusStart()"
                                            :readonly="!canEditStatusStart()"
                                          :style="canEditStatusStart() ? '' : 'cursor: not-allowed !important;'"
@@ -134,6 +136,8 @@
                                         <i class="w-4 h-4 fa-icon fa-solid fa-calendar-days text-base leading-none"></i>
                                     </span>
                                     <input type="text" x-model="roomForm.status_end_at"
+                                         @input="onMaintenanceWindowInput()"
+                                         @change="onMaintenanceWindowInput()"
                                            :disabled="!canEditStatusEnd()"
                                            :readonly="!canEditStatusEnd()"
                                          :style="canEditStatusEnd() ? '' : 'cursor: not-allowed !important;'"
@@ -141,6 +145,39 @@
                                            placeholder="Select end date/time"
                                            :class="canEditStatusEnd() ? 'bg-gray-50 cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-not-allowed'"
                                            class="w-full pl-[2.1rem] pr-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs sm:text-sm">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50/70 p-4"
+                             x-show="isEditing && isMaintenanceStatusSelected()"
+                             x-cloak>
+                            <div class="flex items-center justify-between gap-2">
+                                <p class="text-sm font-semibold text-amber-900">Affected bookings preview</p>
+                                <span x-show="previewWindowLoading" class="text-xs font-medium text-amber-700">Loading...</span>
+                            </div>
+
+                            <p class="mt-1 text-xs text-amber-700" x-show="!roomForm.status_start_at || !roomForm.status_end_at">
+                                Fill both maintenance start and end date/time to preview affected bookings.
+                            </p>
+
+                            <p class="mt-1 text-xs text-red-600" x-show="previewWindowError" x-text="previewWindowError"></p>
+
+                            <div class="mt-3 rounded-lg border border-amber-100 bg-white overflow-hidden"
+                                 x-show="roomForm.status_start_at && roomForm.status_end_at && !previewWindowLoading && !previewWindowError">
+                                <div class="px-3 py-2 text-xs font-semibold text-gray-700 border-b border-amber-100 bg-amber-50/40">
+                                    Bookings (<span x-text="previewAffectedBookings.length"></span>)
+                                </div>
+                                <div class="max-h-40 overflow-y-auto divide-y divide-amber-50">
+                                    <template x-if="previewAffectedBookings.length === 0">
+                                        <p class="px-3 py-2 text-xs text-gray-500">No affected bookings for this maintenance window.</p>
+                                    </template>
+                                    <template x-for="booking in previewAffectedBookings" :key="booking.id">
+                                        <div class="px-3 py-2">
+                                            <p class="text-xs font-semibold text-gray-900" x-text="'#' + booking.id + ' - ' + (booking.user_name || booking.user_email || 'User')"></p>
+                                            <p class="text-xs text-gray-600 mt-0.5" x-text="(booking.formatted_date || '') + ' ' + (booking.formatted_time || '')"></p>
+                                        </div>
+                                    </template>
                                 </div>
                             </div>
                         </div>

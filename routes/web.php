@@ -108,6 +108,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         Route::get('/manage', [RoomController::class, 'index'])->name('rooms.index');
         Route::post('/manage', [RoomController::class, 'store'])->name('rooms.store');
         Route::get('/manage/{room}', [RoomController::class, 'show'])->name('rooms.show');
+        Route::get('/manage/{room}/affected-bookings', [RoomController::class, 'affectedBookingsPreview'])->name('rooms.affected-bookings');
         Route::put('/manage/{room}', [RoomController::class, 'update'])->name('rooms.update');
         Route::delete('/manage/{room}', [RoomController::class, 'destroy'])->name('rooms.destroy');
 

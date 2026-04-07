@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Rooms;
 
 use App\Http\Controllers\Controller;
+use App\Models\Booking;
 use App\Models\Room;
 use App\Models\User;
 use App\Mail\RoomAddedMail;
 use App\Mail\RoomStatusChangedMail;
+use App\Services\MaintenanceBookingImpactService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
@@ -80,7 +84,7 @@ class RoomController extends Controller
         return response()->json($room);
     }
 
-    public function update(Request $request, Room $room)
+    public function update(Request $request, Room $room, MaintenanceBookingImpactService $maintenanceBookingImpactService)
     {
         $validated = $this->validateRoomPayload($request);
 
@@ -90,6 +94,25 @@ class RoomController extends Controller
         $validated['location'] = '2F Library';
         $validated['requires_approval'] = $request->boolean('requires_approval');
         $validated = $this->normalizeStatusSchedulePayload($validated, $room);
+
+        $maintenanceStartAt = null;
+        $maintenanceEndAt = null;
+        $affectedBookings = collect();
+
+        if (($validated['status'] ?? null) === 'maintenance'
+            && ! empty($validated['status_start_at'])
+            && ! empty($validated['status_end_at'])) {
+            $maintenanceStartAt = Carbon::parse((string) $validated['status_start_at']);
+            $maintenanceEndAt = Carbon::parse((string) $validated['status_end_at']);
+
+            if ($maintenanceEndAt->greaterThan($maintenanceStartAt)) {
+                $affectedBookings = $maintenanceBookingImpactService->getAffectedBookings(
+                    $room,
+                    $maintenanceStartAt,
+                    $maintenanceEndAt,
+                );
+            }
+        }
 
         $oldStatus = $room->effective_status;
         $room->update($validated);
@@ -109,7 +132,70 @@ class RoomController extends Controller
             }
         }
 
-        return response()->json(['success' => true, 'message' => 'Room updated successfully']);
+        $affectedBookingsPayload = $this->mapAffectedBookings($affectedBookings);
+
+        $message = 'Room updated successfully';
+        if ($affectedBookingsPayload->isNotEmpty()) {
+            $message = sprintf(
+                'Room updated. %d affected booking(s) were found. Please reschedule conflicting bookings manually.',
+                $affectedBookingsPayload->count()
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'affected_bookings' => $affectedBookingsPayload,
+            'maintenance_window' => ($maintenanceStartAt && $maintenanceEndAt)
+                ? [
+                    'start_at' => $maintenanceStartAt->format('Y-m-d H:i:s'),
+                    'end_at' => $maintenanceEndAt->format('Y-m-d H:i:s'),
+                ]
+                : null,
+        ]);
+    }
+
+    public function affectedBookingsPreview(Request $request, Room $room, MaintenanceBookingImpactService $maintenanceBookingImpactService)
+    {
+        $validated = $request->validate([
+            'status_start_at' => ['required', 'date'],
+            'status_end_at' => ['required', 'date', 'after:status_start_at'],
+        ]);
+
+        $maintenanceStartAt = Carbon::parse((string) $validated['status_start_at']);
+        $maintenanceEndAt = Carbon::parse((string) $validated['status_end_at']);
+
+        $affectedBookings = $maintenanceBookingImpactService->getAffectedBookings(
+            $room,
+            $maintenanceStartAt,
+            $maintenanceEndAt,
+        );
+
+        return response()->json([
+            'success' => true,
+            'affected_bookings' => $this->mapAffectedBookings($affectedBookings),
+            'maintenance_window' => [
+                'start_at' => $maintenanceStartAt->format('Y-m-d H:i:s'),
+                'end_at' => $maintenanceEndAt->format('Y-m-d H:i:s'),
+            ],
+        ]);
+    }
+
+    private function mapAffectedBookings(Collection $affectedBookings): Collection
+    {
+        return $affectedBookings
+            ->map(function (Booking $booking): array {
+                return [
+                    'id' => $booking->id,
+                    'title' => $booking->title,
+                    'status' => (string) $booking->status,
+                    'user_name' => $booking->user_name,
+                    'user_email' => $booking->user_email,
+                    'formatted_date' => $booking->formatted_date,
+                    'formatted_time' => $booking->formatted_time,
+                ];
+            })
+            ->values();
     }
 
     private function validateRoomPayload(Request $request): array

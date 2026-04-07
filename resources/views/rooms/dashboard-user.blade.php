@@ -225,13 +225,13 @@
                         <!-- Right: Controls -->
                         <div class="flex items-center justify-start sm:justify-end gap-2 relative z-10">
                             <div class="flex items-center gap-1 bg-black/20 backdrop-blur-md rounded-xl p-1 border border-white/10">
-                                <button @click="prevMonth()" class="p-1.5 rounded-lg text-white hover:bg-white/20 transition-all"><i class="fa-solid fa-chevron-left text-xs"></i></button>
-                                <button @click="goToToday()" class="px-2 py-1 text-[10px] font-black uppercase text-purple-100 hover:text-white tracking-widest">TODAY</button>
-                                <button @click="nextMonth()" class="p-1.5 rounded-lg text-white hover:bg-white/20 transition-all"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+                                <button @click="prevMonth()" class="p-1.5 rounded-lg text-white hover:bg-white/20 transition-all cursor-pointer"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                                <button @click="goToToday()" class="px-2 py-1 text-[10px] font-black uppercase text-purple-100 hover:text-white tracking-widest cursor-pointer">TODAY</button>
+                                <button @click="nextMonth()" class="p-1.5 rounded-lg text-white hover:bg-white/20 transition-all cursor-pointer"><i class="fa-solid fa-chevron-right text-xs"></i></button>
                             </div>
                             <div class="flex items-center gap-1 bg-black/20 backdrop-blur-md rounded-xl p-1 border border-white/10">
-                                <button @click="changeDashboardView('dayGridMonth')" :class="calendarView === 'dayGridMonth' ? 'bg-white/20 shadow-sm text-white' : 'text-purple-100 hover:text-white'" class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all">Month</button>
-                                <button @click="changeDashboardView('listWeek')" :class="calendarView === 'listWeek' ? 'bg-white/20 shadow-sm text-white' : 'text-purple-100 hover:text-white'" class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all">List</button>
+                                <button @click="changeDashboardView('dayGridMonth')" :class="calendarView === 'dayGridMonth' ? 'bg-white/20 shadow-sm text-white' : 'text-purple-100 hover:text-white'" class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer">Month</button>
+                                <button @click="changeDashboardView('listWeek')" :class="calendarView === 'listWeek' ? 'bg-white/20 shadow-sm text-white' : 'text-purple-100 hover:text-white'" class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer">List</button>
                             </div>
                         </div>
                     </div>
@@ -253,7 +253,8 @@
                                                  'bg-gray-50/50': !day.isCurrentMonth,
                                                  'bg-teal-50/30': day.isToday,
                                                  'cursor-pointer hover:bg-teal-50/80 hover:z-10 hover:shadow-lg': day.isCurrentMonth && !day.isPast,
-                                                 'opacity-40 cursor-not-allowed grayscale': day.isPast && day.isCurrentMonth,
+                                                 'cursor-not-allowed': !day.isCurrentMonth || day.isPast,
+                                                 'opacity-40 grayscale': day.isPast && day.isCurrentMonth,
                                              }">
                                             <div class="flex items-center justify-between mb-2">
                                                 <span class="text-xs font-black"
@@ -263,8 +264,9 @@
                                             <div class="space-y-1 overflow-hidden">
                                                 <template x-for="event in day.events.slice(0, 3)" :key="event.id">
                                                     <div class="relative group/event">
-                                                           <div class="text-[10px] px-2 py-1 bg-white border border-gray-100 text-gray-700 rounded-lg shadow-sm truncate hover:border-teal-400 hover:text-teal-700 transition-all font-medium flex items-center gap-1.5"
-                                                             @click.stop="openViewBookingModal(event)">
+                                                                                                                     <div class="text-[10px] px-2 py-1 bg-white border border-gray-100 text-gray-700 rounded-lg shadow-sm truncate transition-all font-medium flex items-center gap-1.5"
+                                                                                                                         @click.stop="day.isCurrentMonth && !day.isPast && openViewBookingModal(event)"
+                                                                                                                         :class="day.isCurrentMonth && !day.isPast ? 'cursor-pointer hover:border-teal-400 hover:text-teal-700' : 'cursor-not-allowed'">
                                                                 <span class="w-1.5 h-1.5 rounded-full" :class="event.status === 'approved' ? 'bg-emerald-500' : 'bg-amber-500'"></span>
                                                                 <span x-text="event.formatted_time?.split(':')[0] + event.formatted_time?.slice(-2)"></span>
                                                                 <span class="opacity-60">|</span>
@@ -273,8 +275,9 @@
                                                     </div>
                                                 </template>
                                                 <template x-if="day.events.length > 3">
-                                                    <button @click.stop="openDayEventsModal(day)"
-                                                        class="text-[9px] w-full text-left font-bold text-teal-600 hover:text-teal-800 hover:underline px-1 py-0.5 rounded transition-colors"
+                                                    <button @click.stop="day.isCurrentMonth && !day.isPast && openDayEventsModal(day)"
+                                                        class="text-[9px] w-full text-left font-bold text-teal-600 px-1 py-0.5 rounded transition-colors"
+                                                        :class="day.isCurrentMonth && !day.isPast ? 'cursor-pointer hover:text-teal-800 hover:underline' : 'cursor-not-allowed'"
                                                         x-text="'+ ' + (day.events.length - 3) + ' more'"></button>
                                                 </template>
                                             </div>

@@ -342,10 +342,12 @@ class BookingController extends Controller
             'title' => $request->input('purpose', $request->input('title')),
         ]);
 
+        $actingUser = $request->user();
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'room_id' => 'required|exists:rooms,id',
-            'date' => 'required|date',
+            'date' => 'required|date|after_or_equal:today',
             'start_time' => 'required',
             'end_time' => 'required|after:start_time',
             'attendees' => 'required|integer|min:1',
@@ -354,12 +356,86 @@ class BookingController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        $booking->update($validated);
+        $room = Room::findOrFail((int) $validated['room_id']);
+
+        if ($room->isExcludedRoom()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This room is no longer available for booking.',
+            ], 422);
+        }
+
+        if (! $room->isOperational()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This room is currently unavailable due to status changes.',
+            ], 422);
+        }
+
+        $requestedAttendees = (int) $validated['attendees'];
+        if ($room->exceedsBookingLimitFor($requestedAttendees, $actingUser)) {
+            $limit = $actingUser?->isStaff()
+                ? ($room->isCollaborative() ? $room->absoluteBookingCapacityLimit() : (int) $room->capacity)
+                : $room->maxStudentBookingCapacity();
+
+            $message = $room->isCollaborative()
+                ? 'Collaborative rooms are fixed at 10 attendees, and can only be extended up to 12 with librarian permission.'
+                : 'The requested attendee count exceeds this room\'s capacity.';
+
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+                'limit' => $limit,
+            ], 422);
+        }
+
+        $validated['time'] = Carbon::parse($validated['start_time'])->format('g:i A');
+
+        $startTime = Carbon::parse($validated['start_time']);
+        $endTime = Carbon::parse($validated['end_time']);
+        $durationMinutes = $startTime->diffInMinutes($endTime);
+        $hours = floor($durationMinutes / 60);
+        $minutes = $durationMinutes % 60;
+        $validated['duration'] = $minutes > 0 ? "{$hours}h {$minutes}m" : "{$hours}h";
+
+        $activeConflictStatuses = ['pending', 'approved'];
+
+        $updatedBooking = DB::transaction(function () use ($room, $validated, $activeConflictStatuses, $booking) {
+            Room::query()->whereKey($room->id)->lockForUpdate()->first();
+
+            $hasConflict = Booking::query()
+                ->where('id', '!=', $booking->id)
+                ->where('room_id', $validated['room_id'])
+                ->where('date', $validated['date'])
+                ->whereIn('status', $activeConflictStatuses)
+                ->where(function ($query) use ($validated) {
+                    $query->where('start_time', '<', $validated['end_time'])
+                        ->where('end_time', '>', $validated['start_time']);
+                })
+                ->lockForUpdate()
+                ->exists();
+
+            if ($hasConflict) {
+                return null;
+            }
+
+            $booking->fill($validated);
+            $booking->save();
+
+            return $booking->fresh()->load('room');
+        }, 3);
+
+        if (! $updatedBooking) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This time slot conflicts with an existing booking',
+            ], 422);
+        }
 
         return response()->json([
             'success' => true,
             'message' => 'Booking updated successfully',
-            'booking' => $booking->load('room')
+            'booking' => $updatedBooking,
         ]);
     }
 

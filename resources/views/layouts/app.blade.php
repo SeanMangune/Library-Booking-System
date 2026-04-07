@@ -78,6 +78,7 @@
             border: none !important;
             font-weight: 500 !important;
             border-radius: 8px !important;
+            cursor: pointer !important;
         }
         .fc-button-primary:hover {
             background: linear-gradient(135deg, #4338CA 0%, #3730A3 100%) !important;
