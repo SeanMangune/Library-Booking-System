@@ -37,7 +37,8 @@
 
                 <!-- Quick Stats Grid -->
                 <div class="grid grid-cols-2 gap-3 animate-slide-in-up stagger-2">
-                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all duration-300 group/stat hover:-translate-y-0.5">
+                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all duration-300 group/stat hover:-translate-y-0.5 cursor-pointer"
+                         @click="openStatsModal('Pending Bookings', {{ json_encode($pendingBookingsList) }})">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center group-hover/stat:scale-110 transition-transform">
                                 <i class="fa-solid fa-clock text-amber-600"></i>
@@ -48,7 +49,8 @@
                             </div>
                         </div>
                     </div>
-                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all duration-300 group/stat hover:-translate-y-0.5">
+                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all duration-300 group/stat hover:-translate-y-0.5 cursor-pointer"
+                         @click="openStatsModal('Approved Bookings', {{ json_encode($approvedBookingsList) }})">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-100 to-green-100 flex items-center justify-center group-hover/stat:scale-110 transition-transform">
                                 <i class="fa-solid fa-circle-check text-emerald-600"></i>
@@ -59,7 +61,8 @@
                             </div>
                         </div>
                     </div>
-                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all duration-300 group/stat hover:-translate-y-0.5">
+                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all duration-300 group/stat hover:-translate-y-0.5 cursor-pointer"
+                         @click="openStatsModal('Rejected Bookings', {{ json_encode($rejectedBookingsList) }})">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-red-100 to-rose-100 flex items-center justify-center group-hover/stat:scale-110 transition-transform">
                                 <i class="fa-solid fa-circle-xmark text-red-500"></i>
@@ -70,7 +73,8 @@
                             </div>
                         </div>
                     </div>
-                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all duration-300 group/stat hover:-translate-y-0.5">
+                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all duration-300 group/stat hover:-translate-y-0.5 cursor-pointer"
+                         @click="openStatsModal('Today\'s Bookings', {{ json_encode($todayBookingsList) }})">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center group-hover/stat:scale-110 transition-transform">
                                 <i class="fa-solid fa-calendar-day text-blue-600"></i>
@@ -150,11 +154,12 @@
                         @php
                             $roomBookings = $collabRoomBookings->where('room_id', $room->id)->values();
                             $todayBookingsForRoom = $roomBookings->filter(fn($b) => $b->date->isToday())->values();
+                            $upcomingBookingsForRoom = $roomBookings->filter(fn($b) => !$b->date->isToday() && $b->date->isAfter(today()))->values();
                             $roomBookingCount = $roomBookings->count();
                             $utilPercent = min(100, $roomBookingCount * 10);
                         @endphp
                         <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-indigo-50 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-300 cursor-pointer border border-transparent hover:border-indigo-100 group/room"
-                             @click="openRoomModal({{ json_encode($room) }}, {{ $roomBookingCount }}, {{ json_encode($todayBookingsForRoom) }})">
+                             @click="openRoomModal({{ json_encode($room) }}, {{ $roomBookingCount }}, {{ json_encode($todayBookingsForRoom) }}, {{ json_encode($upcomingBookingsForRoom) }})">
                             <div class="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0 border border-gray-100 group-hover/room:border-indigo-200 group-hover/room:bg-indigo-600 transition-colors">
                                 <i class="fa-solid fa-door-open text-gray-400 group-hover/room:text-white transition-colors"></i>
                             </div>
@@ -346,6 +351,9 @@
 
     <!-- Create Booking Modal -->
     <x-modals.dashboard.create-booking :rooms="$rooms" />
+
+    <!-- Stats Modal -->
+    <x-modals.dashboard.stats-modal />
 </div>
 
 @push('styles')

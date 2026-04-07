@@ -59,7 +59,7 @@
                         </div>
                     </div>
                     
-                    <div x-show="selectedRoomBookings?.length > 0" x-cloak class="mt-2 space-y-2 max-h-48 overflow-y-auto pr-1">
+                    <div x-show="selectedRoomBookings?.length > 0" x-cloak class="mt-2 space-y-2 max-h-40 overflow-y-auto pr-1">
                         <template x-for="booking in selectedRoomBookings" :key="booking.id">
                             <div class="bg-white border text-left border-indigo-100 rounded-lg p-2.5 flex items-center gap-3 cursor-pointer hover:border-indigo-300 transition-colors" @click="viewBooking(booking)">
                                 <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-500 flex items-center justify-center shrink-0">
@@ -77,9 +77,38 @@
                         <i class="fa-solid fa-bed text-indigo-200 text-2xl mb-1"></i>
                         <p class="text-xs font-medium text-gray-500">No bookings scheduled today.</p>
                     </div>
+
+                    <div class="flex items-center justify-between pt-2 border-t border-indigo-100 mt-2">
+                        <div>
+                            <h4 class="text-sm font-bold text-gray-900">Upcoming Bookings</h4>
+                            <p class="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">Later dates</p>
+                        </div>
+                        <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shadow-sm border border-indigo-200">
+                            <span x-text="selectedRoomUpcomingBookings?.length || 0"></span>
+                        </div>
+                    </div>
+                    
+                    <div x-show="selectedRoomUpcomingBookings?.length > 0" x-cloak class="mt-2 space-y-2 max-h-40 overflow-y-auto pr-1 pb-2">
+                        <template x-for="booking in selectedRoomUpcomingBookings" :key="booking.id">
+                            <div class="bg-white border text-left border-indigo-100 rounded-lg p-2.5 flex items-center gap-3 cursor-pointer hover:border-indigo-300 transition-colors" @click="viewBooking(booking)">
+                                <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-500 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-calendar-day text-xs"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs font-bold text-gray-900 truncate" x-text="booking.user_name"></p>
+                                    <p class="text-[10px] text-gray-500 truncate" x-text="(new Date(booking.date).toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'})) + ' | ' + (booking.formatted_time || '')"></p>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-[10px] text-gray-300"></i>
+                            </div>
+                        </template>
+                    </div>
+                    <div x-show="!selectedRoomUpcomingBookings?.length" x-cloak class="mt-2 text-center py-4 bg-white/50 rounded-lg border border-dashed border-indigo-200 mb-2">
+                        <i class="fa-solid fa-calendar-xmark text-indigo-200 text-2xl mb-1"></i>
+                        <p class="text-xs font-medium text-gray-500">No upcoming bookings scheduled.</p>
+                    </div>
                 </div>
             </div>
         </div>
-        <button type="button" class="modal-backdrop fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" @click="showRoomModal = false">close</button>
+        <button type="button" class="modal-backdrop fixed inset-0 bg-black/40 transition-opacity" @click="showRoomModal = false">close</button>
 </div>
 

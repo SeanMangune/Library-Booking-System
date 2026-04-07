@@ -20,12 +20,10 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (TokenMismatchException $e, Request $request) {
-            if ($request->is('login') || $request->is('admin/login')) {
-                return redirect()->route('login')->withErrors([
-                    'email' => 'Your login session expired. Please try signing in again.',
-                ]);
-            }
-
-            return null;
+            // Any CSRF mismatch (expired session, logout after timeout, etc.)
+            // should redirect to login instead of showing a 419 error page.
+            return redirect()->route('login')->withErrors([
+                'login' => 'Your session has expired. Please sign in again.',
+            ]);
         });
     })->create();

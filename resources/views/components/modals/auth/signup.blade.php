@@ -1,5 +1,5 @@
-﻿<div x-show="signupOpen" x-cloak class="modal p-4 sm:p-6" :class="{ 'modal-open': signupOpen }" @keydown.escape.window="signupOpen = false">
-    <div class="modal-box w-11/12 max-w-6xl p-0 bg-slate-50 overflow-hidden rounded-3xl border border-indigo-100 shadow-[0_30px_100px_-30px_rgba(30,41,59,0.75)]" @click.stop>
+<div x-show="signupOpen" x-cloak class="modal p-4 sm:p-6" :class="{ 'modal-open': signupOpen }" @keydown.escape.window="signupOpen = false">
+    <div class="modal-box w-11/12 max-w-6xl p-0 bg-slate-50 overflow-y-auto max-h-[95vh] rounded-3xl border border-indigo-100 shadow-[0_30px_100px_-30px_rgba(30,41,59,0.75)]" @click.stop>
                     <div class="signup-hero px-6 py-6 sm:px-8 border-b border-white/10 shadow-2xl">
                         <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                             <div class="relative z-10">
@@ -32,12 +32,13 @@
                         </div>
                     </div>
 
-                    <div class="max-h-[calc(92vh-120px)] overflow-y-auto signup-scroll-area p-5 sm:p-6">
+                    <div class="signup-scroll-area p-5 sm:p-6">
                         <form method="POST" action="{{ route('register.post') }}" enctype="multipart/form-data" class="space-y-5"
                               @submit.prevent="validateAndSubmitSignup($el)">
                             @csrf
                             <input type="hidden" name="ocr_text" x-model="signup.ocr_text">
                             <input type="hidden" name="qr_validated_id" x-model="scan.qrIdNumber">
+                            <input type="hidden" name="otp_token" x-model="otpToken">
 
 
                                 <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -120,6 +121,17 @@
                                         <h4 class="text-xl font-bold text-slate-900">Registration details</h4>
                                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                                             <div>
+                                                <label class="block text-sm font-semibold text-slate-700">Username</label>
+                                                <input name="username" type="text" value="{{ old('username') }}" x-model="signup.username" required autocomplete="username"
+                                                       placeholder="Unique handle (e.g. juan_dela_cruz)"
+                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-semibold text-slate-700">Email</label>
+                                                <input name="email" type="email" value="{{ old('email') }}" required autocomplete="email"
+                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            </div>
+                                            <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Full Name</label>
                                                 <input name="name" type="text" value="{{ old('name') }}" x-model="signup.name" required autocomplete="name"
                                                        maxlength="50"
@@ -128,20 +140,16 @@
                                                 <p class="mt-1 text-xs text-slate-400" x-text="(signup.name || '').length + '/50 characters'"></p>
                                             </div>
                                             <div>
-                                                <label class="block text-sm font-semibold text-slate-700">Email</label>
-                                                <input name="email" type="email" value="{{ old('email') }}" required autocomplete="email"
-                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                            </div>
-                                            <div>
-                                                <label class="block text-sm font-semibold text-slate-700">Username</label>
-                                                <input name="username" type="text" value="{{ old('username') }}" x-model="signup.username" required autocomplete="username"
-                                                       placeholder="Unique handle (e.g. juan_dela_cruz)"
-                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                            </div>
-                                            <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Mobile Number</label>
-                                                <input name="phone_number" type="text" value="{{ old('phone_number') }}" required autocomplete="tel" placeholder="09xxxxxxxxx"
-                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                <div class="relative mt-1 flex rounded-xl shadow-sm">
+                                                    <span class="inline-flex items-center rounded-l-xl border border-r-0 border-slate-200 bg-slate-100 px-3 text-slate-500 sm:text-sm font-semibold">
+                                                        +63
+                                                    </span>
+                                                    <input name="phone_number" type="text" value="{{ old('phone_number') }}" required autocomplete="tel" placeholder="09xxxxxxxxx"
+                                                           maxlength="11"
+                                                           @input="$event.target.value = $event.target.value.replace(/[^0-9]/g, '').substring(0, 11)"
+                                                           class="block w-full min-w-0 flex-1 rounded-none rounded-r-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                </div>
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">QC ID Number</label>
@@ -180,6 +188,7 @@
                                                     <option value="">Select course or department</option>
                                                     <optgroup label="College of Business Administration & Accountancy">
                                                         <option value="BSA" @selected(old('course') === 'BSA')>BSA - Bachelor of Science in Accountancy</option>
+                                                        <option value="BSMA" @selected(old('course') === 'BSMA')>BSMA - Bachelor of Science in Management Accounting</option>
                                                         <option value="BS Entrep" @selected(old('course') === 'BS Entrep')>BS Entrep - Bachelor of Science in Entrepreneurship</option>
                                                     </optgroup>
                                                     <optgroup label="College of Education">
@@ -188,8 +197,11 @@
                                                     <optgroup label="College of Engineering">
                                                         <option value="BSIE" @selected(old('course') === 'BSIE')>BSIE - Bachelor of Science in Industrial Engineering</option>
                                                         <option value="BSECE" @selected(old('course') === 'BSECE')>BSECE - Bachelor of Science in Electronics Engineering</option>
+                                                        <option value="BSCpE" @selected(old('course') === 'BSCpE')>BSCpE - Bachelor of Science in Computer Engineering</option>
                                                     </optgroup>
                                                     <optgroup label="College of Computer Studies">
+                                                        <option value="BSCS" @selected(old('course') === 'BSCS')>BSCS - Bachelor of Science in Computer Science</option>
+                                                        <option value="BSIS" @selected(old('course') === 'BSIS')>BSIS - Bachelor of Science in Information System</option>
                                                         <option value="BSIT" @selected(old('course') === 'BSIT')>BSIT - Bachelor of Science in Information Technology</option>
                                                     </optgroup>
                                                 </select>
@@ -218,6 +230,7 @@
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Date of Birth</label>
                                                 <input name="date_of_birth" type="date" value="{{ old('date_of_birth') }}" x-model="signup.date_of_birth"
+                                                       max="{{ now()->subYears(15)->format('Y-m-d') }}"
                                                        class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                             </div>
                                             <div>

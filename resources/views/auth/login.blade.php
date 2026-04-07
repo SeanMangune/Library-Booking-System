@@ -194,6 +194,7 @@
             </div>
 
             <x-modals.auth.signup />
+            <x-modals.auth.signup-otp />
             <x-modals.auth.signup-error />
 
         </div>
@@ -224,6 +225,8 @@ window.signupOldInput = {
     ocr_text: @json(old('ocr_text', '')),
 };
 window.signupQcidVerifyUrl = @json(route('signup.qcid.verify'));
+window.signupSendOtpUrl = @json(route('register.send-otp'));
+window.signupVerifyOtpUrl = @json(route('register.verify-otp'));
 </script>
 <script>
 function signupLoginApp($persist, initialSignupOpen) {
@@ -235,6 +238,18 @@ function signupLoginApp($persist, initialSignupOpen) {
         signupPassword: '',
         signupConfirmPassword: '',
         signup: { ...window.signupOldInput },
+        // OTP verification state
+        otpModalOpen: false,
+        otpCode: '',
+        otpEmail: '',
+        otpError: '',
+        otpStatus: '',
+        otpSending: false,
+        otpVerifying: false,
+        otpResending: false,
+        otpResendCooldown: 0,
+        otpToken: '',
+        _otpFormEl: null,
         scan: {
             file: null,
             previewUrl: '',
@@ -297,7 +312,152 @@ function signupLoginApp($persist, initialSignupOpen) {
                 }
             }
 
-            formEl.submit();
+            // If OTP already verified, submit the form
+            if (this.otpToken) {
+                formEl.submit();
+                return;
+            }
+
+            // Get email from the form
+            const emailInput = formEl.querySelector('input[name="email"]');
+            const email = emailInput ? emailInput.value.trim() : '';
+            const name = this.signup.name || '';
+
+            if (!email) {
+                this.scan.error = 'Please enter your email address.';
+                return;
+            }
+
+            if (!name) {
+                this.scan.error = 'Please enter your full name.';
+                return;
+            }
+
+            // Store form reference and send OTP
+            this._otpFormEl = formEl;
+            this.otpEmail = email;
+            this.sendRegOtp(email, name);
+        },
+
+        async sendRegOtp(email, name) {
+            this.otpSending = true;
+            this.otpError = '';
+            this.otpStatus = '';
+            this.otpCode = '';
+
+            try {
+                const response = await fetch(window.signupSendOtpUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    },
+                    body: JSON.stringify({ email, name }),
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.otpModalOpen = true;
+                    this.otpStatus = data.message || 'Verification code sent!';
+                    this.startResendCooldown();
+                } else {
+                    // Show error on the signup form if email already exists etc
+                    const msg = data.message || 'Failed to send verification code.';
+                    if (data.errors?.email) {
+                        this.scan.error = data.errors.email[0] || msg;
+                    } else {
+                        this.scan.error = msg;
+                    }
+                }
+            } catch (error) {
+                const errData = error?.response ? await error.response.json().catch(() => null) : null;
+                this.scan.error = errData?.message || 'Unable to send verification code. Please try again.';
+            } finally {
+                this.otpSending = false;
+            }
+        },
+
+        async verifyRegOtp() {
+            if (this.otpCode.length !== 6) return;
+
+            this.otpVerifying = true;
+            this.otpError = '';
+
+            try {
+                const response = await fetch(window.signupVerifyOtpUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    },
+                    body: JSON.stringify({ email: this.otpEmail, otp: this.otpCode }),
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.otp_token) {
+                    this.otpToken = data.otp_token;
+                    this.otpModalOpen = false;
+
+                    // Submit the registration form
+                    if (this._otpFormEl) {
+                        this._otpFormEl.submit();
+                    }
+                } else {
+                    this.otpError = data.message || 'Verification failed. Please try again.';
+                }
+            } catch (error) {
+                this.otpError = 'Unable to verify code. Please try again.';
+            } finally {
+                this.otpVerifying = false;
+            }
+        },
+
+        async resendRegOtp() {
+            if (this.otpResendCooldown > 0 || this.otpResending) return;
+
+            this.otpResending = true;
+            this.otpError = '';
+            this.otpStatus = '';
+
+            try {
+                const response = await fetch(window.signupSendOtpUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    },
+                    body: JSON.stringify({ email: this.otpEmail, name: this.signup.name || '' }),
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.otpStatus = 'A new verification code has been sent to your email.';
+                    this.otpCode = '';
+                    this.startResendCooldown();
+                } else {
+                    this.otpError = data.message || 'Failed to resend code.';
+                }
+            } catch (error) {
+                this.otpError = 'Unable to resend code. Please try again.';
+            } finally {
+                this.otpResending = false;
+            }
+        },
+
+        startResendCooldown() {
+            this.otpResendCooldown = 60;
+            const timer = setInterval(() => {
+                this.otpResendCooldown--;
+                if (this.otpResendCooldown <= 0) {
+                    clearInterval(timer);
+                }
+            }, 1000);
         },
 
         onSignupQcImageChange(event) {

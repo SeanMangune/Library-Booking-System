@@ -50,12 +50,12 @@
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                 </div>
 
-                                <div class="rounded-xl border border-gray-200 bg-gray-50/80 p-4">
+                                <div x-show="!isStaffUser" class="rounded-xl border border-gray-200 bg-gray-50/80 p-4">
                                     <label class="block text-sm font-semibold text-gray-700 mb-1">
                                         QC ID Verification <span class="text-red-500">*</span>
                                     </label>
                                     <p class="text-xs text-gray-600 mb-2">Upload a clear photo of a Quezon City Citizen ID. The system will read the card using OCR and reject non-QC IDs.</p>
-                                    <input type="file" name="qcid_image" accept="image/*" required
+                                    <input type="file" name="qcid_image" accept="image/*" :required="!isStaffUser"
                                         class="block w-full text-sm text-gray-700 border border-gray-300 rounded-lg cursor-pointer focus:ring-2 focus:ring-teal-500 focus:border-teal-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
                                         @change="handleQcIdUpload($event)">
 
@@ -228,14 +228,14 @@
 
                     <!-- Footer -->
                     <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-white shrink-0">
-                        <p x-show="!hasVerifiedRegistration && !qcIdVerification?.is_valid" x-cloak class="mr-auto text-sm text-amber-600">
+                        <p x-show="!isStaffUser && !hasVerifiedRegistration && !qcIdVerification?.is_valid" x-cloak class="mr-auto text-sm text-amber-600">
                             Upload and verify a QC ID before creating the booking.
                         </p>
                         <button type="button" @click="closeBookingModal()"
                                 class="px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
                             Cancel
                         </button>
-                        <button type="submit" :disabled="isSubmitting || (!hasVerifiedRegistration && !qcIdVerification?.is_valid)"
+                        <button type="submit" :disabled="isSubmitting || (!isStaffUser && !hasVerifiedRegistration && !qcIdVerification?.is_valid)"
                                 class="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             <span class="flex items-center gap-2">
                                 <i x-show="isSubmitting" class="animate-spin w-4 h-4 fa-icon fa-solid fa-spinner text-base leading-none"></i>

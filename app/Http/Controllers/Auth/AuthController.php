@@ -8,9 +8,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use App\Mail\RegistrationOtpMail;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\AbstractProvider;
 use Laravel\Socialite\Two\User as SocialiteUser;
@@ -195,6 +197,98 @@ class AuthController extends Controller
         return view('auth.login', ['openSignupOnLoad' => true]);
     }
 
+    /**
+     * Send a 6-digit OTP to the user's email for registration verification.
+     */
+    public function sendRegistrationOtp(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'name'  => ['required', 'string', 'max:255'],
+        ], [
+            'email.unique' => 'This email is already registered. Please log in instead.',
+        ]);
+
+        $email = $validated['email'];
+        $name  = $validated['name'];
+
+        // Rate limit: max 3 OTP sends per email per 15 minutes
+        $rateLimitKey = 'reg_otp_rate:' . strtolower($email);
+        $attempts = (int) Cache::get($rateLimitKey, 0);
+        if ($attempts >= 3) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Too many verification code requests. Please wait a few minutes before trying again.',
+            ], 429);
+        }
+
+        $otp = sprintf('%06d', random_int(100000, 999999));
+
+        // Store OTP in cache keyed by email, expires in 15 minutes
+        Cache::put('reg_otp:' . strtolower($email), Hash::make($otp), now()->addMinutes(15));
+        Cache::put($rateLimitKey, $attempts + 1, now()->addMinutes(15));
+
+        try {
+            Mail::to($email)->queue(new RegistrationOtpMail($email, $name, $otp));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to send registration OTP email.', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send verification email. Please try again.',
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'A 6-digit verification code has been sent to your email.',
+        ]);
+    }
+
+    /**
+     * Verify the registration OTP and return a one-time token.
+     */
+    public function verifyRegistrationOtp(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+            'otp'   => ['required', 'string', 'size:6'],
+        ]);
+
+        $email = strtolower($validated['email']);
+        $cacheKey = 'reg_otp:' . $email;
+        $hashedOtp = Cache::get($cacheKey);
+
+        if (! $hashedOtp) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Verification code has expired. Please request a new one.',
+            ], 422);
+        }
+
+        if (! Hash::check($validated['otp'], $hashedOtp)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The verification code is incorrect. Please try again.',
+            ], 422);
+        }
+
+        // OTP verified — generate a one-time token for registration
+        $otpToken = Str::random(64);
+        Cache::put('reg_otp_verified:' . $email, $otpToken, now()->addMinutes(30));
+        Cache::forget($cacheKey);
+        Cache::forget('reg_otp_rate:' . $email);
+
+        return response()->json([
+            'success'   => true,
+            'message'   => 'Email verified successfully!',
+            'otp_token' => $otpToken,
+        ]);
+    }
+
     public function register(Request $request)
     {
         $validated = $request->validate([
@@ -223,9 +317,22 @@ class AuthController extends Controller
             'ocr_text' => ['required', 'string'],
             'qr_validated_id' => ['nullable', 'string', 'max:50'],
             'qcid_image' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:25600'],
+            'otp_token' => ['required', 'string'],
         ], [
-            'password.regex' => 'Password must be at least 8 characters, contain at least one uppercase letter and one number.'
+            'password.regex' => 'Password must be at least 8 characters, contain at least one uppercase letter and one number.',
+            'otp_token.required' => 'Email verification is required. Please verify your email address first.',
         ]);
+
+        // Verify OTP token from cache
+        $otpTokenKey = 'reg_otp_verified:' . strtolower($validated['email']);
+        $cachedToken = Cache::get($otpTokenKey);
+
+        if (! $cachedToken || $cachedToken !== $validated['otp_token']) {
+            return back()->withErrors(['email' => 'Email verification has expired or is invalid. Please verify your email again.'])->withInput();
+        }
+
+        // Consume the one-time token
+        Cache::forget($otpTokenKey);
 
         // Save the uploaded QC ID image
         $imagePath = $request->file('qcid_image')->store('qcid_images', 'public');

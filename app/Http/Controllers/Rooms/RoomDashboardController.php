@@ -50,14 +50,38 @@ class RoomDashboardController extends Controller
             'today' => Booking::whereHas('room', fn ($roomQuery) => $roomQuery->visible())->whereDate('date', $today)->where('status', 'approved')->count(),
         ];
 
-        $pendingBookings = Booking::with('room')
+        $pendingBookingsList = Booking::with('room', 'user')
             ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
             ->where('status', 'pending')
             ->orderBy('created_at', 'desc')
             ->take(10)
             ->get();
 
+        $approvedBookingsList = Booking::with('room', 'user')
+            ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
+            ->where('status', 'approved')
+            ->orderBy('date', 'desc')
+            ->take(10)
+            ->get();
+
+        $rejectedBookingsList = Booking::with('room', 'user')
+            ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
+            ->where('status', 'rejected')
+            ->orderBy('created_at', 'desc')
+            ->take(10)
+            ->get();
+
+        $todayBookingsList = Booking::with('room', 'user')
+            ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
+            ->whereDate('date', $today)
+            ->where('status', 'approved')
+            ->orderBy('start_time')
+            ->take(10)
+            ->get();
+
         $isStaff = true;
+
+        $pendingBookings = $pendingBookingsList;
 
         return view('rooms.dashboard', compact(
             'collabRoomBookings',
@@ -66,6 +90,10 @@ class RoomDashboardController extends Controller
             'calendarData',
             'isStaff',
             'pendingBookings',
+            'pendingBookingsList',
+            'approvedBookingsList',
+            'rejectedBookingsList',
+            'todayBookingsList',
         ));
     }
 

@@ -505,6 +505,15 @@
                     <i class="w-5 h-5 fa-icon fa-solid fa-calendar-days text-xl leading-none"></i>
                     <span class="sidebar-text">Calendar</span>
                 </a>
+
+                @if($isStaff)
+                    <button @click="$dispatch('open-master-qr')"
+                           title="Master QR"
+                           class="sidebar-link w-full flex items-center justify-start gap-3 px-4 py-3 rounded-lg text-indigo-200 hover:text-white transition-all duration-200 mb-1">
+                        <i class="w-5 h-5 fa-icon fa-solid fa-qrcode text-xl leading-none w-5 text-center"></i>
+                        <span class="sidebar-text">Master QR</span>
+                    </button>
+                @endif
             </nav>
         </aside>
 
@@ -512,7 +521,7 @@
            <div class="content-shell flex-1 min-w-0"
                :style="canHoverSidebar ? { marginLeft: sidebarHoverExpand ? '16rem' : '5rem' } : {}">
             <!-- Top Header -->
-            <header class="bg-white border-b border-gray-200 sticky top-0 z-30">
+            <header class="bg-white border-b border-gray-200 sticky top-0 z-40">
                 <div class="flex items-center justify-between h-20 px-4 sm:px-6">
                     <div class="flex items-center gap-4">
                         <button @click="sidebarOpen = true" x-show="!canHoverSidebar" x-cloak class="text-gray-600 hover:text-gray-900">
@@ -780,6 +789,11 @@
         });
     }
     </script>
+
+    @if($isStaff)
+        <!-- Master QR Modal Component -->
+        <x-modals.admin.master-qr />
+    @endif
 
     @stack('scripts')
 </body>

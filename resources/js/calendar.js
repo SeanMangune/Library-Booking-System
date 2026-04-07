@@ -1002,7 +1002,7 @@ export function createRoomCalendarApp(config = {}) {
         },
 
         async submitBooking() {
-            if (!this.hasVerifiedRegistration && (!this.qcIdVerification?.is_valid || !this.bookingForm.qc_id_ocr_text)) {
+            if (!this.isStaffUser && !this.hasVerifiedRegistration && (!this.qcIdVerification?.is_valid || !this.bookingForm.qc_id_ocr_text)) {
                 this.qcIdError = 'Upload and verify a valid QC ID before creating the booking.';
                 return;
             }
@@ -1149,11 +1149,13 @@ export function createDashboardApp(config = {}) {
         selectedRoom: null,
         selectedRoomCount: 0,
         selectedRoomBookings: [],
+        selectedRoomUpcomingBookings: [],
         
-        openRoomModal(room, count, bookings = []) {
+        openRoomModal(room, count, bookings = [], upcomingBookings = []) {
             this.selectedRoom = room;
             this.selectedRoomCount = count || 0;
             this.selectedRoomBookings = bookings;
+            this.selectedRoomUpcomingBookings = upcomingBookings;
             this.showRoomModal = true;
         },
 
@@ -2223,7 +2225,7 @@ export function createDashboardApp(config = {}) {
         },
 
         async submitBooking() {
-            if (!this.hasVerifiedRegistration && (!this.qcIdVerification?.is_valid || !this.bookingForm.qc_id_ocr_text)) {
+            if (!this.isStaffUser && !this.hasVerifiedRegistration && (!this.qcIdVerification?.is_valid || !this.bookingForm.qc_id_ocr_text)) {
                 this.qcIdError = 'Upload and verify a valid QC ID before creating the booking.';
                 return;
             }

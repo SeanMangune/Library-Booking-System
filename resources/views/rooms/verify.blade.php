@@ -4,7 +4,24 @@
 
 @section('content')
 <div class="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-    @if($booking)
+    @if($booking === 'master_unlock')
+    <div class="max-w-xl mx-auto text-center py-16 bg-white shadow-2xl rounded-3xl overflow-hidden border border-indigo-100 relative">
+        <div class="absolute inset-x-0 top-0 h-32 bg-gradient-to-br from-indigo-600 to-indigo-900 rounded-b-[40px] shadow-inner"></div>
+        <div class="relative z-10">
+            <div class="inline-flex items-center justify-center w-24 h-24 rounded-full bg-white shadow-xl mb-6 relative border-4 border-indigo-50">
+                <i class="w-10 h-10 text-indigo-600 fa-icon fa-solid fa-unlock-keyhole text-4xl leading-none"></i>
+            </div>
+            <h2 class="text-3xl font-black text-gray-900 tracking-tight">Master Access Granted</h2>
+            <p class="text-indigo-600 font-bold tracking-widest uppercase text-xs mt-2">Emergency Override</p>
+            <div class="mt-8 px-8">
+                <p class="text-gray-600">The master token has successfully authorized this scan. You may proceed to unlock or access the requested resource.</p>
+            </div>
+            <div class="mt-8">
+                <a href="{{ route('dashboard') }}" class="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 transition shadow-lg shadow-indigo-600/30 text-white rounded-xl font-semibold">Back to Dashboard</a>
+            </div>
+        </div>
+    </div>
+    @elseif($booking)
     @php
         $lifecycleStatus = $booking->booking_status ?? 'upcoming';
         $approvalStatus = $booking->status ?? 'unknown';
