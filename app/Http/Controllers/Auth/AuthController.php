@@ -212,19 +212,17 @@ class AuthController extends Controller
                 'required',
                 'email',
                 'max:255',
-                'regex:/^[A-Z0-9._%+-]+@gmail\.com$/i',
                 'unique:users,email',
                 function ($attribute, $value, $fail) {
-                    if (! $this->looksLikeRealGmailAccount((string) $value)) {
-                        $fail('Please use a real Gmail account.');
+                    if (! $this->looksLikeRealEmailAccount((string) $value)) {
+                        $fail('Use a real email.');
                     }
                 },
             ],
             'name'  => ['required', 'string', 'max:255'],
         ], [
             'email.unique' => 'This email is already registered. Please log in instead.',
-            'email.email' => 'Please use a real Gmail account.',
-            'email.regex' => 'Please use a real Gmail account.',
+            'email.email' => 'Use a real email.',
         ]);
 
         $email = $validated['email'];
@@ -279,12 +277,15 @@ class AuthController extends Controller
             'email' => [
                 'required',
                 'email',
-                'regex:/^[A-Z0-9._%+-]+@gmail\.com$/i',
+                function ($attribute, $value, $fail) {
+                    if (! $this->looksLikeRealEmailAccount((string) $value)) {
+                        $fail('Use a real email.');
+                    }
+                },
             ],
             'otp'   => ['required', 'string', 'size:6'],
         ], [
-            'email.email' => 'Please use a real Gmail account.',
-            'email.regex' => 'Please use a real Gmail account.',
+            'email.email' => 'Use a real email.',
         ]);
 
         $email = strtolower($validated['email']);
@@ -335,11 +336,10 @@ class AuthController extends Controller
                 'required',
                 'email',
                 'max:255',
-                'regex:/^[A-Z0-9._%+-]+@gmail\.com$/i',
                 'unique:users,email',
                 function ($attribute, $value, $fail) {
-                    if (! $this->looksLikeRealGmailAccount((string) $value)) {
-                        $fail('Please use a real Gmail account.');
+                    if (! $this->looksLikeRealEmailAccount((string) $value)) {
+                        $fail('Use a real email.');
                     }
                 },
             ],
@@ -371,8 +371,7 @@ class AuthController extends Controller
             'password.regex' => 'Password must be at least 8 characters, contain at least one uppercase letter and one number.',
             'name.regex' => 'Name may contain letters (including ñ), spaces, comma, period, and hyphen only.',
             'username.max' => 'Username must not exceed 15 characters.',
-            'email.email' => 'Please use a real Gmail account.',
-            'email.regex' => 'Please use a real Gmail account.',
+            'email.email' => 'Use a real email.',
             'qcid_number.size' => 'QC ID number must be exactly 14 digits.',
             'qcid_number.regex' => 'QC ID number must contain digits only.',
             'otp_token.required' => 'Email verification is required. Please verify your email address first.',
@@ -387,8 +386,30 @@ class AuthController extends Controller
             return back()->withErrors(['email' => 'Email verification has expired or is invalid. Please verify your email again.'])->withInput();
         }
 
-        // Consume the one-time token
-        Cache::forget($otpTokenKey);
+        $normalizedTempPath = $this->normalizeTempPath((string) ($validated['qcid_temp_upload'] ?? ''));
+        $scanSnapshot = null;
+        if ($normalizedTempPath !== '') {
+            $scanSnapshot = $this->getVerifiedScanSnapshot($request, $normalizedTempPath);
+
+            if ($scanSnapshot === null) {
+                return back()->withErrors([
+                    'qcid_image' => 'Your QC ID verification session has expired. Please re-upload and verify your QC ID.',
+                ])->withInput();
+            }
+
+            // Scanner-captured dates are final and cannot be manually overridden.
+            $validated['date_of_birth'] = $scanSnapshot['date_of_birth'] ?? null;
+            $validated['date_issued'] = $scanSnapshot['date_issued'] ?? null;
+            $validated['valid_until'] = $scanSnapshot['valid_until'] ?? null;
+
+            if (! empty($scanSnapshot['qcid_number'])) {
+                $validated['qcid_number'] = (string) $scanSnapshot['qcid_number'];
+            }
+
+            if (! empty($scanSnapshot['address'])) {
+                $validated['address'] = $this->sanitizeAddressInput((string) $scanSnapshot['address']);
+            }
+        }
 
         $ocrText = $validated['ocr_text'];
         $ocrVerifier = app(\App\Services\QcIdOcrVerifier::class);
@@ -415,15 +436,15 @@ class AuthController extends Controller
         // Resolve QC ID image source: direct upload (desktop flow) or
         // previously verified temporary upload (mobile-safe flow).
         $imagePath = null;
+        $copiedFromTemp = false;
+        $tempPathForCleanup = null;
 
         if ($request->hasFile('qcid_image')) {
             $imagePath = $request->file('qcid_image')->store('qcid_images', 'public');
         } else {
-            $tempPath = trim((string) ($validated['qcid_temp_upload'] ?? ''));
+            $tempPath = $normalizedTempPath;
 
             if ($tempPath !== '') {
-                $tempPath = ltrim(str_replace('\\', '/', $tempPath), '/');
-
                 if (! str_starts_with($tempPath, 'qcid_scans_temp/')) {
                     return back()->withErrors([
                         'qcid_image' => 'The verified QC ID image token is invalid. Please re-upload and verify your QC ID.',
@@ -439,13 +460,15 @@ class AuthController extends Controller
                 $extension = pathinfo($tempPath, PATHINFO_EXTENSION) ?: 'jpg';
                 $targetPath = 'qcid_images/' . (string) Str::uuid() . '.' . $extension;
 
-                if (! Storage::disk('public')->move($tempPath, $targetPath)) {
+                if (! Storage::disk('public')->copy($tempPath, $targetPath)) {
                     return back()->withErrors([
                         'qcid_image' => 'Unable to finalize your verified QC ID image. Please upload and verify again.',
                     ])->withInput();
                 }
 
                 $imagePath = $targetPath;
+                $copiedFromTemp = true;
+                $tempPathForCleanup = $tempPath;
             }
         }
 
@@ -455,61 +478,106 @@ class AuthController extends Controller
             ])->withInput();
         }
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'username' => $validated['username'] ?? Str::slug($validated['name']) . '_' . Str::random(4),
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'role' => 'user',
-        ]);
+        try {
+            $user = User::create([
+                'name' => $validated['name'],
+                'username' => $validated['username'] ?? Str::slug($validated['name']) . '_' . Str::random(4),
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'role' => 'user',
+            ]);
 
-        // Create the initial verified registration record
-        $user->qcidRegistration()->create([
-            'full_name' => $validated['name'],
-            'email' => $validated['email'],
-            'contact_number' => $validated['phone_number'],
-            'qcid_number' => $validated['qcid_number'],
-            'sex' => $validated['sex'],
-            'civil_status' => $validated['civil_status'],
-            'date_of_birth' => $validated['date_of_birth'],
-            'date_issued' => $validated['date_issued'],
-            'valid_until' => $validated['valid_until'],
-            'address' => $validated['address'],
-            'ocr_text' => $validated['ocr_text'],
-            'qcid_image_path' => $imagePath,
-            'verification_status' => 'verified', // Auto-verified since it came through the portal
-            'submitted_at' => now(),
-            'reviewed_at' => now(),
-        ]);
+            // Create the initial verified registration record
+            $user->qcidRegistration()->create([
+                'full_name' => $validated['name'],
+                'email' => $validated['email'],
+                'contact_number' => $validated['phone_number'],
+                'qcid_number' => $validated['qcid_number'],
+                'sex' => $validated['sex'],
+                'civil_status' => $validated['civil_status'],
+                'date_of_birth' => $validated['date_of_birth'],
+                'date_issued' => $validated['date_issued'],
+                'valid_until' => $validated['valid_until'],
+                'address' => $validated['address'],
+                'ocr_text' => $validated['ocr_text'],
+                'qcid_image_path' => $imagePath,
+                'verification_status' => 'verified', // Auto-verified since it came through the portal
+                'submitted_at' => now(),
+                'reviewed_at' => now(),
+            ]);
+        } catch (\Throwable $e) {
+            if ($copiedFromTemp && $imagePath && Storage::disk('public')->exists($imagePath)) {
+                Storage::disk('public')->delete($imagePath);
+            }
+
+            return back()->withErrors([
+                'email' => 'Unable to complete registration right now. Please try again.',
+            ])->withInput();
+        }
+
+        if ($tempPathForCleanup !== null) {
+            Storage::disk('public')->delete($tempPathForCleanup);
+            $this->forgetVerifiedScanSnapshot($request, $tempPathForCleanup);
+        }
+
+        // Consume OTP token only after successful account creation.
+        Cache::forget($otpTokenKey);
 
         return redirect()->route('login')
             ->with('registration_success', 'Your account has been created successfully! Please log in with your username or email and password.')
             ->with('registered_username', $user->username);
     }
 
-    private function looksLikeRealGmailAccount(string $email): bool
+    private function looksLikeRealEmailAccount(string $email): bool
     {
         $email = strtolower(trim($email));
 
-        if (! preg_match('/^([a-z0-9](?:[a-z0-9\.]{4,29}))@gmail\.com$/', $email, $matches)) {
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return false;
         }
 
-        $local = (string) ($matches[1] ?? '');
-        if ($local === '' || str_contains($local, '..')) {
+        $parts = explode('@', $email);
+        if (count($parts) !== 2) {
             return false;
         }
 
-        $letterCount = preg_match_all('/[a-z]/', $local);
-        if ($letterCount < 3) {
+        [$local, $domain] = $parts;
+
+        if ($local === '' || $domain === '') {
             return false;
         }
 
-        if (preg_match('/^[bcdfghjklmnpqrstvwxyz0-9\.]+$/', $local) === 1) {
+        if (strlen($local) > 64 || strlen($domain) > 255) {
             return false;
         }
 
-        if (preg_match('/([a-z0-9])\1{4,}/', $local) === 1) {
+        if (
+            str_starts_with($local, '.')
+            || str_ends_with($local, '.')
+            || str_contains($local, '..')
+            || str_starts_with($domain, '-')
+            || str_ends_with($domain, '-')
+            || str_starts_with($domain, '.')
+            || str_ends_with($domain, '.')
+            || str_contains($domain, '..')
+        ) {
+            return false;
+        }
+
+        if (preg_match('/^[a-z0-9._%+\-]+$/i', $local) !== 1) {
+            return false;
+        }
+
+        if (preg_match('/^[a-z0-9.-]+\.[a-z]{2,24}$/i', $domain) !== 1) {
+            return false;
+        }
+
+        $letterCount = preg_match_all('/[a-z]/i', $local);
+        if ($letterCount < 1) {
+            return false;
+        }
+
+        if (preg_match('/([a-z0-9])\1{5,}/i', $local) === 1) {
             return false;
         }
 
@@ -560,6 +628,55 @@ class AuthController extends Controller
         }
 
         return trim((string) (preg_replace('/\s+/', ' ', $value) ?? $value), ' ,');
+    }
+
+    private function normalizeTempPath(string $path): string
+    {
+        return ltrim(str_replace('\\', '/', trim($path)), '/');
+    }
+
+    private function getVerifiedScanSnapshot(Request $request, string $tempPath): ?array
+    {
+        $normalizedPath = $this->normalizeTempPath($tempPath);
+        if ($normalizedPath === '') {
+            return null;
+        }
+
+        $sessionKey = 'signup_verified_scans';
+        $items = (array) $request->session()->get($sessionKey, []);
+        $payload = $items[$normalizedPath] ?? null;
+
+        if (! is_array($payload)) {
+            return null;
+        }
+
+        $storedAt = (int) ($payload['stored_at'] ?? 0);
+        if ($storedAt > 0 && (time() - $storedAt) > 7200) {
+            unset($items[$normalizedPath]);
+            $request->session()->put($sessionKey, $items);
+
+            return null;
+        }
+
+        return $payload;
+    }
+
+    private function forgetVerifiedScanSnapshot(Request $request, string $tempPath): void
+    {
+        $normalizedPath = $this->normalizeTempPath($tempPath);
+        if ($normalizedPath === '') {
+            return;
+        }
+
+        $sessionKey = 'signup_verified_scans';
+        $items = (array) $request->session()->get($sessionKey, []);
+
+        if (! array_key_exists($normalizedPath, $items)) {
+            return;
+        }
+
+        unset($items[$normalizedPath]);
+        $request->session()->put($sessionKey, $items);
     }
 
     public function logout(Request $request)

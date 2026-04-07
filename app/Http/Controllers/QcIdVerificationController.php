@@ -137,6 +137,10 @@ class QcIdVerificationController extends Controller
             }
         }
 
+        if ($verification['is_valid'] && $qcidTempUpload !== null) {
+            $this->storeVerifiedSignupSnapshot($request, $qcidTempUpload, $verification, $qrIdNumber);
+        }
+
         if (! $verification['is_valid']) {
             if ($verification['id_assessment'] === 'Fake QC ID') {
                 $message = 'Fake QC ID detected.';
@@ -697,5 +701,87 @@ class QcIdVerificationController extends Controller
         }
 
         return $score;
+    }
+
+    private function storeVerifiedSignupSnapshot(Request $request, string $tempPath, array $verification, ?string $qrIdNumber): void
+    {
+        $sessionKey = 'signup_verified_scans';
+        $items = (array) $request->session()->get($sessionKey, []);
+        $now = time();
+
+        foreach ($items as $path => $payload) {
+            if (! is_array($payload)) {
+                unset($items[$path]);
+                continue;
+            }
+
+            $storedAt = (int) ($payload['stored_at'] ?? 0);
+            if ($storedAt > 0 && ($now - $storedAt) > 7200) {
+                unset($items[$path]);
+            }
+        }
+
+        $normalizedPath = ltrim(str_replace('\\', '/', $tempPath), '/');
+        $capturedId = $this->normalizeQcIdDigits((string) ($verification['id_number'] ?? $qrIdNumber ?? ''));
+
+        $items[$normalizedPath] = [
+            'qcid_number' => $capturedId !== '' ? $capturedId : null,
+            'date_of_birth' => $this->normalizeDateYmd((string) ($verification['date_of_birth'] ?? '')),
+            'date_issued' => $this->normalizeDateYmd((string) ($verification['date_issued'] ?? '')),
+            'valid_until' => $this->normalizeDateYmd((string) ($verification['valid_until'] ?? '')),
+            'address' => $this->normalizeAddressText((string) ($verification['address'] ?? '')),
+            'cardholder_name' => trim((string) ($verification['cardholder_name'] ?? '')),
+            'sex' => trim((string) ($verification['sex'] ?? '')),
+            'civil_status' => trim((string) ($verification['civil_status'] ?? '')),
+            'stored_at' => $now,
+        ];
+
+        if (count($items) > 12) {
+            uasort($items, static function ($a, $b): int {
+                return (int) ($a['stored_at'] ?? 0) <=> (int) ($b['stored_at'] ?? 0);
+            });
+            $items = array_slice($items, -12, null, true);
+        }
+
+        $request->session()->put($sessionKey, $items);
+    }
+
+    private function normalizeQcIdDigits(string $value): string
+    {
+        $digits = preg_replace('/\D+/', '', $value) ?? '';
+
+        if (strlen($digits) === 13) {
+            return '0' . $digits;
+        }
+
+        return strlen($digits) === 14 ? $digits : '';
+    }
+
+    private function normalizeDateYmd(string $value): ?string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m) === 1) {
+            return checkdate((int) $m[2], (int) $m[3], (int) $m[1]) ? sprintf('%04d-%02d-%02d', (int) $m[1], (int) $m[2], (int) $m[3]) : null;
+        }
+
+        if (preg_match('/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/', $value, $m) === 1) {
+            return checkdate((int) $m[2], (int) $m[3], (int) $m[1]) ? sprintf('%04d-%02d-%02d', (int) $m[1], (int) $m[2], (int) $m[3]) : null;
+        }
+
+        if (preg_match('/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/', $value, $m) === 1) {
+            $a = (int) $m[1];
+            $b = (int) $m[2];
+            $year = (int) $m[3];
+            $month = $a > 12 ? $b : $a;
+            $day = $a > 12 ? $a : $b;
+
+            return checkdate($month, $day, $year) ? sprintf('%04d-%02d-%02d', $year, $month, $day) : null;
+        }
+
+        return null;
     }
 }

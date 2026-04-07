@@ -104,6 +104,7 @@
                 'ocr_text',
                 'qcid_image',
                 'qcid_temp_upload',
+                'otp_token',
                 'password',
                 'password_confirmation',
             ];
@@ -214,6 +215,7 @@
 // Blade: Hide signupOldInput and signupQcidVerifyUrl from page output
 window.signupOldInput = {
     name: @json(old('name', '')),
+    email: @json(old('email', '')),
     username: @json(old('username', '')),
     user_type: @json(old('user_type', '')),
     employee_category: @json(old('employee_category', '')),
@@ -227,6 +229,7 @@ window.signupOldInput = {
     address: @json(old('address', '')),
     ocr_text: @json(old('ocr_text', '')),
     qcid_temp_upload: @json(old('qcid_temp_upload', '')),
+    otp_token: @json(old('otp_token', '')),
 };
 window.signupQcidVerifyUrl = @json(route('signup.qcid.verify'));
 window.signupSendOtpUrl = @json(route('register.send-otp'));
@@ -242,6 +245,7 @@ function signupLoginApp($persist, initialSignupOpen) {
         signupPassword: '',
         signupConfirmPassword: '',
         signup: { ...window.signupOldInput },
+        signupEmailError: '',
         // OTP verification state
         otpModalOpen: false,
         otpCode: '',
@@ -294,7 +298,22 @@ function signupLoginApp($persist, initialSignupOpen) {
             }
 
             this.signup.username = this.sanitizeUsername(this.signup.username || '');
+            this.signup.email = String(this.signup.email || '').trim().toLowerCase();
             this.signup.qcid_number = this.normalizeQcIdValue(this.signup.qcid_number || '');
+            this.signupEmailError = this.validateSignupEmail(this.signup.email);
+
+            const restoredOtpToken = String(window.signupOldInput?.otp_token || '').trim();
+            if (restoredOtpToken) {
+                this.otpToken = restoredOtpToken;
+                this.otpEmail = this.signup.email || '';
+            }
+
+            if (this.signup.qcid_temp_upload && this.signup.ocr_text) {
+                this.scan.isVerified = true;
+                this.scan.idAssessment = 'Verified';
+                this.scan.confidenceLabel = 'Verified';
+                this.scan.status = 'QC ID already verified from your previous attempt. You can continue registration.';
+            }
 
             // Persistence: Sync to URL on change
             this.$watch('signupOpen', (val) => {
@@ -317,32 +336,73 @@ function signupLoginApp($persist, initialSignupOpen) {
             return String(value || '').replace(/\D/g, '').substring(0, 14);
         },
 
-        isLikelyRealGmailAddress(value) {
+        isLikelyRealEmailAddress(value) {
             const email = String(value || '').trim().toLowerCase();
-            const match = email.match(/^([a-z0-9](?:[a-z0-9.]{4,29}))@gmail\.com$/);
+            const match = email.match(/^([^@\s]+)@([^@\s]+)$/);
             if (!match) {
                 return false;
             }
 
             const local = String(match[1] || '');
-            if (!local || local.includes('..')) {
+            const domain = String(match[2] || '');
+
+            if (!local || !domain) {
                 return false;
             }
 
-            const letterCount = (local.match(/[a-z]/g) || []).length;
-            if (letterCount < 3) {
+            if (local.length > 64 || domain.length > 255) {
                 return false;
             }
 
-            if (/^[bcdfghjklmnpqrstvwxyz0-9.]+$/.test(local)) {
+            if (
+                local.startsWith('.')
+                || local.endsWith('.')
+                || local.includes('..')
+                || domain.startsWith('-')
+                || domain.endsWith('-')
+                || domain.startsWith('.')
+                || domain.endsWith('.')
+                || domain.includes('..')
+            ) {
                 return false;
             }
 
-            if (/([a-z0-9])\1{4,}/.test(local)) {
+            if (!/^[a-z0-9._%+-]+$/i.test(local)) {
+                return false;
+            }
+
+            if (!/^[a-z0-9.-]+\.[a-z]{2,24}$/i.test(domain)) {
+                return false;
+            }
+
+            const letterCount = (local.match(/[a-z]/gi) || []).length;
+            if (letterCount < 1) {
+                return false;
+            }
+
+            if (/([a-z0-9])\1{5,}/i.test(local)) {
                 return false;
             }
 
             return true;
+        },
+
+        validateSignupEmail(value) {
+            const email = String(value || '').trim().toLowerCase();
+
+            if (!email) {
+                return '';
+            }
+
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email)) {
+                return 'Use a real email.';
+            }
+
+            if (!this.isLikelyRealEmailAddress(email)) {
+                return 'Use a real email.';
+            }
+
+            return '';
         },
 
         validateAndSubmitSignup(formEl) {
@@ -379,18 +439,21 @@ function signupLoginApp($persist, initialSignupOpen) {
             const emailInput = formEl.querySelector('input[name="email"]');
             const email = emailInput ? String(emailInput.value || '').trim().toLowerCase() : '';
             const name = this.signup.name || '';
+            this.signup.email = email;
 
             if (emailInput) {
                 emailInput.value = email;
             }
 
+            this.signupEmailError = this.validateSignupEmail(email);
+
             if (!email) {
-                this.scan.error = 'Please enter your email address.';
+                this.scan.error = 'Use a real email.';
                 return;
             }
 
-            if (!this.isLikelyRealGmailAddress(email)) {
-                this.scan.error = 'Please use a real Gmail account.';
+            if (this.signupEmailError) {
+                this.scan.error = this.signupEmailError;
                 return;
             }
 

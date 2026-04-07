@@ -40,6 +40,9 @@
                             <input type="hidden" name="qr_validated_id" x-model="scan.qrIdNumber">
                             <input type="hidden" name="otp_token" x-model="otpToken">
                             <input type="hidden" name="qcid_temp_upload" x-model="signup.qcid_temp_upload">
+                            <input type="hidden" name="date_of_birth" x-model="signup.date_of_birth">
+                            <input type="hidden" name="date_issued" x-model="signup.date_issued">
+                            <input type="hidden" name="valid_until" x-model="signup.valid_until">
 
 
                                 <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -64,9 +67,10 @@
                                                        accept="image/png,image/jpeg,image/jpg,image/webp"
                                                        @click="$event.target.value=''"
                                                        @change="onSignupQcImageChange($event)"
-                                                       required
+                                                          :required="!signup.qcid_temp_upload"
                                                        class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-teal-700">
                                                 <p class="mt-3 text-xs text-slate-500">Accepted: JPG, PNG, WEBP up to 25 MB</p>
+                                                      <p x-show="signup.qcid_temp_upload" x-cloak class="mt-1 text-xs text-emerald-600">Previously verified QC ID is already attached for this session.</p>
 
                                                 <div x-show="scan.previewUrl" x-cloak class="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
                                                     <img :src="scan.previewUrl" alt="QC ID preview" class="h-40 w-full object-cover">
@@ -131,12 +135,14 @@
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Email</label>
-                                                  <input name="email" type="email" value="{{ old('email') }}" required autocomplete="email"
-                                                      pattern="^[A-Za-z0-9._%+-]+@gmail\.com$"
-                                                      title="Please use a real Gmail account."
-                                                      @input="$event.target.value = String($event.target.value || '').replace(/\s+/g, '').toLowerCase()"
+                                                  <input name="email" type="email" value="{{ old('email') }}" x-model="signup.email" required autocomplete="email"
+                                                      pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$"
+                                                      title="Use a real email."
+                                                      @input="signup.email = String(signup.email || '').replace(/\s+/g, '').toLowerCase(); signupEmailError = validateSignupEmail(signup.email)"
+                                                      @blur="signupEmailError = validateSignupEmail(signup.email)"
                                                        class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                                  <p class="mt-1 text-xs text-slate-400">Only @gmail.com accounts are allowed.</p>
+                                                  <p x-show="signupEmailError" x-cloak class="mt-1 text-xs text-red-600" x-text="signupEmailError"></p>
+                                                  <p x-show="!signupEmailError" class="mt-1 text-xs text-slate-400">Use a valid email address.</p>
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Full Name</label>
@@ -241,19 +247,22 @@
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Date of Birth</label>
-                                                <input name="date_of_birth" type="date" value="{{ old('date_of_birth') }}" x-model="signup.date_of_birth"
+                                                  <input type="date" value="{{ old('date_of_birth') }}" x-model="signup.date_of_birth" disabled
                                                        max="{{ now()->subYears(15)->format('Y-m-d') }}"
-                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                      class="mt-1 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-500">
+                                                  <p class="mt-1 text-xs text-slate-400">Auto-filled from your QC ID scan and locked.</p>
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Date Issued</label>
-                                                <input name="date_issued" type="date" value="{{ old('date_issued') }}" x-model="signup.date_issued"
-                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                  <input type="date" value="{{ old('date_issued') }}" x-model="signup.date_issued" disabled
+                                                      class="mt-1 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-500">
+                                                  <p class="mt-1 text-xs text-slate-400">Auto-filled from your QC ID scan and locked.</p>
                                             </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Valid Until</label>
-                                                <input name="valid_until" type="date" value="{{ old('valid_until') }}" x-model="signup.valid_until"
-                                                       class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                  <input type="date" value="{{ old('valid_until') }}" x-model="signup.valid_until" disabled
+                                                      class="mt-1 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-500">
+                                                  <p class="mt-1 text-xs text-slate-400">Auto-filled from your QC ID scan and locked.</p>
                                             </div>
                                             <div class="md:col-span-2">
                                                 <label class="block text-sm font-semibold text-slate-700">Address</label>
