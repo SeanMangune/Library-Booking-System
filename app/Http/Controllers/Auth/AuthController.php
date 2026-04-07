@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\QcIdRegistration;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -433,6 +434,12 @@ class AuthController extends Controller
             }
         }
 
+        if ($this->isQcIdAlreadyInUse((string) ($validated['qcid_number'] ?? ''))) {
+            return back()->withErrors([
+                'qcid_number' => 'This QC ID is already in use with another account.',
+            ])->withInput();
+        }
+
         // Resolve QC ID image source: direct upload (desktop flow) or
         // previously verified temporary upload (mobile-safe flow).
         $imagePath = null;
@@ -677,6 +684,23 @@ class AuthController extends Controller
 
         unset($items[$normalizedPath]);
         $request->session()->put($sessionKey, $items);
+    }
+
+    private function isQcIdAlreadyInUse(string $qcidNumber): bool
+    {
+        $digits = preg_replace('/\D+/', '', $qcidNumber) ?? '';
+        if (strlen($digits) === 13) {
+            $digits = '0' . $digits;
+        }
+
+        if (strlen($digits) !== 14) {
+            return false;
+        }
+
+        return QcIdRegistration::query()
+            ->whereNotNull('qcid_number')
+            ->whereRaw("REPLACE(REPLACE(REPLACE(REPLACE(qcid_number, ' ', ''), '-', ''), '.', ''), '/', '') = ?", [$digits])
+            ->exists();
     }
 
     public function logout(Request $request)
