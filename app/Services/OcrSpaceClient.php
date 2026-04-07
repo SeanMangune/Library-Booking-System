@@ -23,21 +23,48 @@ class OcrSpaceClient
         $fileContents = file_get_contents($image->getRealPath()) ?: '';
         $fileName = $image->getClientOriginalName();
 
-        // === ALWAYS run BOTH engines for maximum accuracy ===
-        // Engine 2: Best for photos/camera captures, handles rotated text
+        // Engine 2: Best for photos/camera captures, handles rotated text.
         $engine2Text = $this->callOcrEngine($endpoint, $apiKey, $language, $fileContents, $fileName, '2', true);
 
-        // Engine 1: Best for clean/scanned images, better structured text
-        $engine1Text = $this->callOcrEngine($endpoint, $apiKey, $language, $fileContents, $fileName, '1', true);
+        // Run engine 1 only when engine 2 result is weak/incomplete.
+        // This keeps verification responsive on slow networks.
+        $engine1Text = '';
+        if ($this->shouldRunSecondaryEngine($engine2Text)) {
+            $engine1Text = $this->callOcrEngine($endpoint, $apiKey, $language, $fileContents, $fileName, '1', true);
+        }
 
-        // === Intelligent merge: keep the most complete result ===
-        $text = $this->mergeOcrResults($engine1Text, $engine2Text);
+        $text = $engine1Text === ''
+            ? $engine2Text
+            : $this->mergeOcrResults($engine1Text, $engine2Text);
 
         return [
             'success' => trim($text) !== '',
             'text' => trim($text),
             'raw' => [],
         ];
+    }
+
+    private function shouldRunSecondaryEngine(string $engine2Text): bool
+    {
+        $normalized = mb_strtoupper(trim($engine2Text));
+        if ($normalized === '') {
+            return true;
+        }
+
+        $labels = [
+            'SEX', 'DATE OF BIRTH', 'CIVIL STATUS', 'DATE ISSUED',
+            'VALID UNTIL', 'ADDRESS', 'CARDHOLDER', 'QUEZON',
+            'CITIZEN', 'KASAMA',
+        ];
+
+        $hits = 0;
+        foreach ($labels as $label) {
+            if (str_contains($normalized, $label)) {
+                $hits++;
+            }
+        }
+
+        return $hits < 3 && mb_strlen($normalized) < 350;
     }
 
     /**
@@ -101,7 +128,8 @@ class OcrSpaceClient
     ): string {
         try {
             $response = Http::asMultipart()
-                ->timeout(40)
+                ->connectTimeout(8)
+                ->timeout(20)
                 ->withHeaders([
                     'apikey' => $apiKey,
                 ])

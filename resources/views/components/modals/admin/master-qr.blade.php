@@ -1,4 +1,82 @@
-<div x-data="{ open: false }" 
+<div x-data="{
+        open: false,
+        saving: false,
+        async saveAsPng() {
+            if (this.saving) {
+                return;
+            }
+
+            this.saving = true;
+            try {
+                const source = '{{ url('/bookings/qr/smartspace-master-token?format=png') }}';
+                const response = await fetch(source, { headers: { 'Accept': 'image/png,image/svg+xml' } });
+                if (!response.ok) {
+                    throw new Error('Download failed');
+                }
+
+                const contentType = (response.headers.get('content-type') || '').toLowerCase();
+                let pngBlob;
+
+                if (contentType.includes('image/png')) {
+                    pngBlob = await response.blob();
+                } else {
+                    const svgText = await response.text();
+                    const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+                    const svgUrl = URL.createObjectURL(svgBlob);
+
+                    try {
+                        const image = await new Promise((resolve, reject) => {
+                            const img = new Image();
+                            img.onload = () => resolve(img);
+                            img.onerror = reject;
+                            img.src = svgUrl;
+                        });
+
+                        const width = image.naturalWidth || 960;
+                        const height = image.naturalHeight || 960;
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+
+                        const ctx = canvas.getContext('2d');
+                        if (!ctx) {
+                            throw new Error('Canvas unavailable');
+                        }
+
+                        // Keep a white background for better scanner compatibility.
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, width, height);
+                        ctx.drawImage(image, 0, 0, width, height);
+
+                        pngBlob = await new Promise((resolve, reject) => {
+                            canvas.toBlob((blob) => {
+                                if (blob) {
+                                    resolve(blob);
+                                } else {
+                                    reject(new Error('PNG conversion failed'));
+                                }
+                            }, 'image/png', 1);
+                        });
+                    } finally {
+                        URL.revokeObjectURL(svgUrl);
+                    }
+                }
+
+                const objectUrl = URL.createObjectURL(pngBlob);
+                const anchor = document.createElement('a');
+                anchor.href = objectUrl;
+                anchor.download = 'SmartSpace_Master_QR.png';
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+                URL.revokeObjectURL(objectUrl);
+            } catch (_) {
+                window.open('{{ url('/bookings/qr/smartspace-master-token') }}', '_blank');
+            } finally {
+                this.saving = false;
+            }
+        },
+    }" 
      @open-master-qr.window="open = true"
      x-show="open" 
      x-cloak
@@ -74,13 +152,13 @@
             </div>
 
             <!-- Download button -->
-            <a href="{{ url('/bookings/qr/smartspace-master-token') }}" 
-               download="SmartSpace_Master_QR.svg" 
-               target="_blank"
-               class="mt-5 inline-flex items-center justify-center w-full max-w-[300px] px-6 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold transition-all duration-200 shadow-lg shadow-indigo-600/25 active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-2 text-sm">
+            <button type="button"
+               @click="saveAsPng()"
+               :disabled="saving"
+               class="mt-5 inline-flex items-center justify-center w-full max-w-[300px] px-6 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold transition-all duration-200 shadow-lg shadow-indigo-600/25 active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-2 text-sm disabled:opacity-70 disabled:cursor-not-allowed">
                 <i class="fa-solid fa-download mr-2.5"></i>
-                Save to Device
-            </a>
+                <span x-text="saving ? 'Saving PNG...' : 'Save to Device (PNG)'">Save to Device (PNG)</span>
+            </button>
 
             <!-- Print button -->
             <button onclick="window.open('{{ url('/bookings/qr/smartspace-master-token') }}', '_blank')"
