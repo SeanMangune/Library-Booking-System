@@ -3,8 +3,8 @@
 <head>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#ffffff">
-    <link rel="icon" type="image/png" href="/images/smartspace-logo.png">
-    <link rel="apple-touch-icon" href="/images/smartspace-logo.png">
+    <link rel="icon" type="image/png" href="{{ asset('images/smartspace-logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/smartspace-logo.png') }}">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
@@ -394,7 +394,7 @@
                 <a href="{{ route('dashboard') }}" class="flex items-center gap-3 no-underline">
                     <div class="relative h-12 w-12 flex items-center justify-center">
                         <span class="absolute inset-0 rounded-full bg-indigo-400/25 blur-md"></span>
-                        <img src="/images/smartspace-logo.png" alt="SmartSpace" class="relative h-14 w-auto object-contain logo-premium logo-glow-small">
+                        <img src="{{ asset('images/smartspace-logo.png') }}" alt="SmartSpace" class="relative h-14 w-auto object-contain logo-premium logo-glow-small">
                     </div>
                     <div class="sidebar-brand">
                         <span class="text-white font-bold text-lg tracking-tight">SmartSpace</span>

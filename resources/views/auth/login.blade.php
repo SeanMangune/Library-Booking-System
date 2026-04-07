@@ -13,7 +13,7 @@
     <div class="w-full max-w-5xl relative z-10">
         <div class="flex items-center justify-center mb-8">
             <div class="premium-logo-container">
-                <img src="/images/smartspace-logo.png" alt="SmartSpace" class="h-44 sm:h-48 md:h-56 lg:h-64 w-auto max-w-none logo-premium logo-glow-purple">
+                <img src="{{ asset('images/smartspace-logo.png') }}" alt="SmartSpace" class="h-44 sm:h-48 md:h-56 lg:h-64 w-auto max-w-none logo-premium logo-glow-purple">
             </div>
         </div>
 
