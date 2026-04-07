@@ -123,7 +123,7 @@ class BookingController extends Controller
                 },
             ],
             'end_time' => 'required|after:start_time',
-            'attendees' => 'required|integer|min:1',
+            'attendees' => 'required|integer|min:5',
             'user_id' => 'nullable|exists:bookings,id',
             'user_name' => 'nullable|string|max:255',
             'user_email' => 'nullable|email|max:255',
@@ -156,7 +156,7 @@ class BookingController extends Controller
                 : $room->maxStudentBookingCapacity();
 
             $message = $room->isCollaborative()
-                ? 'Collaborative rooms are fixed at 10 attendees, and can only be extended up to 12 with librarian permission.'
+                ? 'Collaborative rooms allow up to 10 attendees by default, and can only be extended up to 12 with librarian permission.'
                 : 'The requested attendee count exceeds this room\'s capacity.';
 
             return response()->json([
@@ -348,7 +348,7 @@ class BookingController extends Controller
             'date' => 'required|date',
             'start_time' => 'required',
             'end_time' => 'required|after:start_time',
-            'attendees' => 'required|integer|min:1',
+            'attendees' => 'required|integer|min:5',
             'user_name' => 'required|string|max:255',
             'user_email' => 'required|email|max:255',
             'description' => 'nullable|string',

@@ -52,9 +52,11 @@
                                     <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
                                         <i class="w-4 h-4 fa-icon fa-solid fa-users text-base leading-none"></i>
                                     </span>
-                                    <input type="number" x-model="roomForm.capacity" min="1" required
+                                     <input type="number" x-model="roomForm.capacity" min="5" required
+                                           max="10"
                                            class="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm max-w-full">
                                 </div>
+                                <p class="mt-1 text-xs text-gray-500">Room capacity must be between 5 and 10.</p>
                             </div>
                             <div class="col-span-1">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -90,58 +92,67 @@
                             Initial Status
                         </h3>
 
-                        <div class="grid grid-cols-3 gap-4">
+                        <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
                                     Status <span class="text-red-500">*</span>
                                 </label>
                                 <div class="relative">
-                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                        <i class="w-4 h-4 fa-icon fa-solid fa-circle-check text-base leading-none"></i>
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center"
+                                          :class="{
+                                              'text-emerald-600': roomForm.status === 'operational',
+                                              'text-amber-600': roomForm.status === 'maintenance',
+                                              'text-red-600': roomForm.status === 'closed'
+                                          }">
+                                        <i class="w-4 h-4 fa-icon fa-solid"
+                                           :class="{
+                                               'fa-circle-check': roomForm.status === 'operational',
+                                               'fa-screwdriver-wrench': roomForm.status === 'maintenance',
+                                               'fa-circle-xmark': roomForm.status === 'closed'
+                                           }"></i>
                                     </span>
                                     <select x-model="roomForm.status" @change="onStatusChange()" required
-                                            class="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm appearance-none bg-white">
+                                            :class="{
+                                                'border-emerald-300 bg-emerald-50 text-emerald-800 focus:ring-emerald-500 focus:border-emerald-500': roomForm.status === 'operational',
+                                                'border-amber-300 bg-amber-50 text-amber-800 focus:ring-amber-500 focus:border-amber-500': roomForm.status === 'maintenance',
+                                                'border-red-300 bg-red-50 text-red-800 focus:ring-red-500 focus:border-red-500': roomForm.status === 'closed'
+                                            }"
+                                            class="w-full pl-9 pr-3 py-2.5 border rounded-lg text-sm appearance-none transition-colors bg-white">
                                         <option value="">Choose status</option>
                                         <option value="operational">Operational</option>
                                         <option value="maintenance">Maintenance</option>
                                         <option value="closed">Closed</option>
                                     </select>
                                 </div>
+                                <div class="mt-2">
+                                    <span class="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold ring-1"
+                                          :class="{
+                                              'bg-emerald-100 text-emerald-700 ring-emerald-200': roomForm.status === 'operational',
+                                              'bg-amber-100 text-amber-700 ring-amber-200': roomForm.status === 'maintenance',
+                                              'bg-red-100 text-red-700 ring-red-200': roomForm.status === 'closed'
+                                          }">
+                                        <span class="h-1.5 w-1.5 rounded-full"
+                                              :class="{
+                                                  'bg-emerald-500': roomForm.status === 'operational',
+                                                  'bg-amber-500': roomForm.status === 'maintenance',
+                                                  'bg-red-500': roomForm.status === 'closed'
+                                              }"></span>
+                                        <span x-text="roomForm.status ? (roomForm.status.charAt(0).toUpperCase() + roomForm.status.slice(1)) : 'Choose a status'"></span>
+                                    </span>
+                                </div>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Start Date/Time</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
                                 <div class="relative">
                                     <span class="absolute text-gray-400" style="left: 0.75rem; top: 0.65rem;">
                                         <i class="w-4 h-4 fa-icon fa-solid fa-calendar-days text-base leading-none"></i>
                                     </span>
-                                    <input type="text" x-model="roomForm.status_start_at"
-                                           :disabled="!canEditStatusStart()"
-                                           :readonly="!canEditStatusStart()"
-                                         :style="canEditStatusStart() ? '' : 'cursor: not-allowed !important;'"
-                                           x-init="flatpickr($el, { enableTime: true, dateFormat: 'Y-m-d H:i', minuteIncrement: 15, disableMobile: true })"
-                                           placeholder="Select start date/time"
-                                           :class="canEditStatusStart() ? 'bg-gray-50 cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-not-allowed'"
-                                           class="w-full pl-[2.1rem] pr-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs sm:text-sm">
+                                    <input type="date" x-model="roomForm.status_start_at"
+                                           class="w-full pl-[2.1rem] pr-2 py-2.5 border border-gray-300 rounded-lg bg-gray-50 cursor-pointer focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs sm:text-sm">
                                 </div>
-                                <p class="mt-1 text-xs text-gray-500" x-show="isMaintenanceOngoing()" x-cloak>
-                                    Start date/time is locked while maintenance is ongoing.
+                                <p class="mt-1 text-xs text-gray-500">
+                                    Select date only. System uses fixed schedule of 8:00 AM to 5:00 PM.
                                 </p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">End Date/Time</label>
-                                <div class="relative">
-                                    <span class="absolute text-gray-400" style="left: 0.75rem; top: 0.65rem;">
-                                        <i class="w-4 h-4 fa-icon fa-solid fa-calendar-days text-base leading-none"></i>
-                                    </span>
-                                    <input type="text" x-model="roomForm.status_end_at"
-                                           :disabled="!canEditStatusEnd()"
-                                           :readonly="!canEditStatusEnd()"
-                                         :style="canEditStatusEnd() ? '' : 'cursor: not-allowed !important;'"
-                                           x-init="flatpickr($el, { enableTime: true, dateFormat: 'Y-m-d H:i', minuteIncrement: 15, disableMobile: true })"
-                                           placeholder="Select end date/time"
-                                           :class="canEditStatusEnd() ? 'bg-gray-50 cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-not-allowed'"
-                                           class="w-full pl-[2.1rem] pr-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs sm:text-sm">
-                                </div>
                             </div>
                         </div>
                     </div>

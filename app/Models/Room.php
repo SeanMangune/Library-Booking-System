@@ -146,22 +146,17 @@ class Room extends Model
 
     public function standardBookingCapacityLimit(): int
     {
-        if (! $this->isCollaborative()) {
-            return max(1, (int) $this->capacity);
-        }
-
-        // Collaborative rooms default to a fixed base capacity of 10.
-        return 10;
+        return max(5, min(10, (int) $this->capacity));
     }
 
     public function maxStudentBookingCapacity(): int
     {
-        if (! $this->isCollaborative()) {
-            return max(1, (int) $this->capacity);
+        if ($this->isCollaborative()) {
+            // Collaborative-room requests may be extended up to 12 by librarian approval.
+            return 12;
         }
 
-        // Collaborative-room requests may be extended up to 12 by librarian approval.
-        return 12;
+        return $this->standardBookingCapacityLimit();
     }
 
     public function absoluteBookingCapacityLimit(): int
@@ -170,12 +165,12 @@ class Room extends Model
             return 12;
         }
 
-        return max(1, (int) $this->capacity);
+        return $this->standardBookingCapacityLimit();
     }
 
     public function requiresCapacityPermissionFor(int $attendees, ?User $user = null): bool
     {
-        // Collaborative-room requests above the base 10 always require librarian approval.
+        // Collaborative-room requests above the room base limit always require librarian approval.
         return $this->isCollaborative() && $attendees > $this->standardBookingCapacityLimit();
     }
 
@@ -183,7 +178,7 @@ class Room extends Model
     {
         $limit = $this->isCollaborative()
             ? $this->absoluteBookingCapacityLimit()
-            : ($user?->isStaff() ? max(1, (int) $this->capacity) : $this->maxStudentBookingCapacity());
+            : $this->standardBookingCapacityLimit();
 
         return $attendees > $limit;
     }

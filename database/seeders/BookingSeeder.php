@@ -48,7 +48,7 @@ class BookingSeeder extends Seeder
             'capacity' => 10,
             'location' => '2F Library',
             'status' => 'operational',
-            'requires_approval' => false,
+            'requires_approval' => true,
             'description' => 'Small collaborative workspace',
         ]);
 
@@ -106,7 +106,7 @@ class BookingSeeder extends Seeder
             'end_time' => '12:00',
             'time' => '10:00 AM',
             'duration' => '2 hours',
-            'attendees' => 15,
+            'attendees' => 12,
             'status' => 'approved',
             'description' => 'Monthly faculty meeting',
         ]);
@@ -151,7 +151,7 @@ class BookingSeeder extends Seeder
             'end_time' => '17:00',
             'time' => '3:00 PM',
             'duration' => '2 hours',
-            'attendees' => 20,
+            'attendees' => 12,
             'status' => 'pending',
         ]);
 
@@ -180,7 +180,7 @@ class BookingSeeder extends Seeder
             'end_time' => '14:00',
             'time' => '11:00 AM',
             'duration' => '3 hours',
-            'attendees' => 18,
+            'attendees' => 12,
             'status' => 'approved',
         ]);
 
@@ -209,7 +209,7 @@ class BookingSeeder extends Seeder
             'end_time' => '22:00',
             'time' => '6:00 PM',
             'duration' => '4 hours',
-            'attendees' => 25,
+            'attendees' => 12,
             'status' => 'rejected',
         ]);
 
@@ -223,7 +223,7 @@ class BookingSeeder extends Seeder
             'end_time' => '16:00',
             'time' => '10:00 AM',
             'duration' => '6 hours',
-            'attendees' => 25,
+            'attendees' => 12,
             'status' => 'cancelled',
         ]);
     }

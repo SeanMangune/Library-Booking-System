@@ -114,6 +114,7 @@ function formatRange(startValue, endValue) {
 const BOOKING_OPEN_HOUR = 8;
 const BOOKING_CLOSE_HOUR = 17;
 const BOOKING_DATE_RANGE_DAYS = 90;
+const BOOKING_MIN_ATTENDEES = 5;
 
 function hourToTimeValue(hour) {
     return `${String(hour).padStart(2, '0')}:00`;
@@ -523,7 +524,7 @@ function createRoomBookingForm(config, dateOverride = null) {
         time_slot: defaultSlot.value,
         start_time: defaultSlot.start_time,
         end_time: defaultSlot.end_time,
-        attendees: 1,
+        attendees: BOOKING_MIN_ATTENDEES,
         user_name: config.userName || '',
         user_email: '',
         description: '',
@@ -630,8 +631,21 @@ export function createRoomCalendarApp(config = {}) {
                 if (max && Number(this.bookingForm.attendees) > Number(max)) {
                     this.bookingForm.attendees = max;
                 }
+                if (Number(this.bookingForm.attendees) < BOOKING_MIN_ATTENDEES) {
+                    this.bookingForm.attendees = BOOKING_MIN_ATTENDEES;
+                }
 
                 this.clearTimeConflictSuggestions();
+            });
+
+            this.$watch('bookingForm.attendees', (value) => {
+                const max = this.attendeeInputMax;
+                if (max && Number(value) > Number(max)) {
+                    this.bookingForm.attendees = Number(max);
+                }
+                if (Number(value) < BOOKING_MIN_ATTENDEES && value !== '' && value !== null) {
+                    this.bookingForm.attendees = BOOKING_MIN_ATTENDEES;
+                }
             });
 
             this.$watch('bookingForm.date', (value) => {
@@ -679,18 +693,18 @@ export function createRoomCalendarApp(config = {}) {
             }
 
             if (!room.is_collaborative) {
-                return `Room capacity: ${room.capacity} attendees.`;
+                return `Minimum 5 attendees required. Room capacity: ${room.capacity} attendees.`;
             }
 
             if (this.isStaffUser) {
-                return `Collaborative room capacity: ${room.capacity} attendees.`;
+                return `Minimum 5 attendees required. Collaborative room capacity: ${room.capacity} attendees.`;
             }
 
             if (room.student_limit > room.standard_limit) {
-                return `Collaborative rooms allow up to ${room.standard_limit} attendees by default. Requests up to ${room.student_limit} attendees need librarian approval.`;
+                return `Minimum 5 attendees required. Collaborative rooms allow up to ${room.standard_limit} attendees by default. Requests up to ${room.student_limit} attendees need librarian approval.`;
             }
 
-            return `This collaborative room allows up to ${room.standard_limit} attendees.`;
+            return `Minimum 5 attendees required. This collaborative room allows up to ${room.standard_limit} attendees.`;
         },
 
         ensureBookingDateOption(dateValue) {
@@ -1011,15 +1025,21 @@ export function createRoomCalendarApp(config = {}) {
 
             const selectedRoom = this.selectedRoomMeta;
             const requestedAttendees = Number(this.bookingForm.attendees || 0);
+            if (requestedAttendees < BOOKING_MIN_ATTENDEES) {
+                showNotification(`At least ${BOOKING_MIN_ATTENDEES} attendees are required for booking.`, 'warning');
+                return;
+            }
+
+            const standardLimit = Number(selectedRoom?.standard_limit || 10);
             const requiresLibrarianApproval = Boolean(
                 selectedRoom?.is_collaborative
                 && !this.isStaffUser
-                && requestedAttendees > Number(selectedRoom.standard_limit || 10),
+                && requestedAttendees > standardLimit,
             );
 
             if (requiresLibrarianApproval) {
                 showNotification(
-                    'This collaborative-room booking exceeds the 10-attendee limit and will be submitted for librarian approval.',
+                    `This collaborative-room booking exceeds the ${standardLimit}-attendee limit and will be submitted for librarian approval.`,
                     'warning',
                 );
             }
@@ -1077,7 +1097,7 @@ function createDashboardBookingForm(config, dateOverride = null) {
         time_slot: defaultSlot.value,
         start_time: defaultSlot.start_time,
         end_time: defaultSlot.end_time,
-        attendees: 1,
+        attendees: BOOKING_MIN_ATTENDEES,
         user_name: config.userName || '',
         user_email: config.userEmail || '',
         description: '',
@@ -1366,6 +1386,9 @@ export function createDashboardApp(config = {}) {
                 if (max && Number(this.bookingForm.attendees) > Number(max)) {
                     this.bookingForm.attendees = max;
                 }
+                if (Number(this.bookingForm.attendees) < BOOKING_MIN_ATTENDEES) {
+                    this.bookingForm.attendees = BOOKING_MIN_ATTENDEES;
+                }
 
                 this.clearTimeConflictSuggestions();
             });
@@ -1375,8 +1398,8 @@ export function createDashboardApp(config = {}) {
                 if (max && Number(value) > Number(max)) {
                     this.bookingForm.attendees = Number(max);
                 }
-                if (Number(value) < 1 && value !== '' && value !== null) {
-                    this.bookingForm.attendees = 1;
+                if (Number(value) < BOOKING_MIN_ATTENDEES && value !== '' && value !== null) {
+                    this.bookingForm.attendees = BOOKING_MIN_ATTENDEES;
                 }
             });
 
@@ -1448,18 +1471,18 @@ export function createDashboardApp(config = {}) {
             }
 
             if (!room.is_collaborative) {
-                return `Room capacity: ${room.capacity} attendees.`;
+                return `Minimum 5 attendees required. Room capacity: ${room.capacity} attendees.`;
             }
 
             if (this.isStaffUser) {
-                return `Collaborative room capacity: ${room.capacity} attendees.`;
+                return `Minimum 5 attendees required. Collaborative room capacity: ${room.capacity} attendees.`;
             }
 
             if (room.student_limit > room.standard_limit) {
-                return `Collaborative rooms allow up to ${room.standard_limit} attendees by default. Requests up to ${room.student_limit} attendees need librarian approval.`;
+                return `Minimum 5 attendees required. Collaborative rooms allow up to ${room.standard_limit} attendees by default. Requests up to ${room.student_limit} attendees need librarian approval.`;
             }
 
-            return `This collaborative room allows up to ${room.standard_limit} attendees.`;
+            return `Minimum 5 attendees required. This collaborative room allows up to ${room.standard_limit} attendees.`;
         },
 
         ensureBookingDateOption(dateValue) {
@@ -2234,15 +2257,21 @@ export function createDashboardApp(config = {}) {
 
             const selectedRoom = this.selectedRoomMeta;
             const requestedAttendees = Number(this.bookingForm.attendees || 0);
+            if (requestedAttendees < BOOKING_MIN_ATTENDEES) {
+                showNotification(`At least ${BOOKING_MIN_ATTENDEES} attendees are required for booking.`, 'warning');
+                return;
+            }
+
+            const standardLimit = Number(selectedRoom?.standard_limit || 10);
             const requiresLibrarianApproval = Boolean(
                 selectedRoom?.is_collaborative
                 && !this.isStaffUser
-                && requestedAttendees > Number(selectedRoom.standard_limit || 10),
+                && requestedAttendees > standardLimit,
             );
 
             if (requiresLibrarianApproval) {
                 showNotification(
-                    'This collaborative-room booking exceeds the 10-attendee limit and will be submitted for librarian approval.',
+                    `This collaborative-room booking exceeds the ${standardLimit}-attendee limit and will be submitted for librarian approval.`,
                     'warning',
                 );
             }

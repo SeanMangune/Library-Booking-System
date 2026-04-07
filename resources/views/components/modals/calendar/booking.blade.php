@@ -217,7 +217,7 @@
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
                                         Number of Attendees <span class="text-red-500">*</span>
                                     </label>
-                                     <input type="number" x-model="bookingForm.attendees" min="1" :max="attendeeInputMax || null" required
+                                     <input type="number" x-model="bookingForm.attendees" min="5" :max="attendeeInputMax || null" required
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                      <p x-show="attendeeGuidance" x-cloak class="mt-1 text-xs text-gray-500" x-text="attendeeGuidance"></p>
                                 </div>

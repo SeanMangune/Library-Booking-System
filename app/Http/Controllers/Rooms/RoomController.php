@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Mail\RoomAddedMail;
 use App\Mail\RoomStatusChangedMail;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
@@ -48,7 +49,6 @@ class RoomController extends Controller
         $validated = $this->validateRoomPayload($request);
 
         $this->ensureRoomNameAllowed($validated['name']);
-        $this->ensureCollaborativeCapacityFloor($validated['name'], (int) $validated['capacity']);
 
         $validated['slug'] = Str::slug($validated['name']) . '-' . Str::random(5);
         $validated['location'] = '2F Library';
@@ -85,11 +85,10 @@ class RoomController extends Controller
         $validated = $this->validateRoomPayload($request);
 
         $this->ensureRoomNameAllowed($validated['name']);
-        $this->ensureCollaborativeCapacityFloor($validated['name'], (int) $validated['capacity']);
 
         $validated['location'] = '2F Library';
         $validated['requires_approval'] = $request->boolean('requires_approval');
-        $validated = $this->normalizeStatusSchedulePayload($validated, $room);
+        $validated = $this->normalizeStatusSchedulePayload($validated);
 
         $oldStatus = $room->effective_status;
         $room->update($validated);
@@ -118,7 +117,7 @@ class RoomController extends Controller
 
         return $request->validate([
             'name' => 'required|string|max:255',
-            'capacity' => 'required|integer|min:1',
+            'capacity' => 'required|integer|min:5|max:10',
             'location' => 'nullable|string|max:255',
             'status' => 'required|in:operational,maintenance,closed',
             'requires_approval' => 'boolean',
@@ -128,7 +127,6 @@ class RoomController extends Controller
                 'date',
             ],
             'status_end_at' => [
-                Rule::requiredIf(fn () => $status === 'maintenance'),
                 'nullable',
                 'date',
                 'after_or_equal:status_start_at',
@@ -137,7 +135,7 @@ class RoomController extends Controller
         ]);
     }
 
-    private function normalizeStatusSchedulePayload(array $validated, ?Room $existingRoom = null): array
+    private function normalizeStatusSchedulePayload(array $validated): array
     {
         if (($validated['status'] ?? null) !== 'maintenance') {
             $validated['status_start_at'] = null;
@@ -146,9 +144,10 @@ class RoomController extends Controller
             return $validated;
         }
 
-        if ($existingRoom && $existingRoom->isMaintenanceOngoing()) {
-            $validated['status_start_at'] = $existingRoom->status_start_at?->format('Y-m-d H:i:s');
-        }
+        $selectedDate = (string) ($validated['status_start_at'] ?? '');
+        $baseDate = Carbon::parse($selectedDate)->startOfDay();
+        $validated['status_start_at'] = $baseDate->copy()->setTime(8, 0, 0)->format('Y-m-d H:i:s');
+        $validated['status_end_at'] = $baseDate->copy()->setTime(17, 0, 0)->format('Y-m-d H:i:s');
 
         return $validated;
     }
@@ -179,15 +178,6 @@ class RoomController extends Controller
         $room->delete();
 
         return response()->json(['success' => true, 'message' => 'Room deleted successfully']);
-    }
-
-    private function ensureCollaborativeCapacityFloor(string $name, int $capacity): void
-    {
-        if (Str::contains(Str::lower($name), ['collaborative', 'collab']) && $capacity !== 10) {
-            throw ValidationException::withMessages([
-                'capacity' => 'Collaborative rooms must use a fixed base capacity of 10. Capacity 12 is only an approval extension, not the room base capacity.',
-            ]);
-        }
     }
 
     private function ensureRoomNameAllowed(string $name): void

@@ -157,7 +157,6 @@ function roomManagement() {
             status: 'operational',
             requires_approval: false,
             status_start_at: '',
-            status_end_at: '',
         },
 
         init() {},
@@ -172,7 +171,6 @@ function roomManagement() {
                 status: 'operational',
                 requires_approval: false,
                 status_start_at: '',
-                status_end_at: '',
             };
             this.showModal = true;
         },
@@ -186,65 +184,25 @@ function roomManagement() {
                 location: room.location || '',
                 status: room.status,
                 requires_approval: room.requires_approval || false,
-                status_start_at: this.normalizeDateTimeForInput(room.status_start_at),
-                status_end_at: this.normalizeDateTimeForInput(room.status_end_at),
+                status_start_at: this.normalizeDateForInput(room.status_start_at),
             };
             this.showModal = true;
         },
 
-        normalizeDateTimeForInput(value) {
+        normalizeDateForInput(value) {
             if (!value) {
                 return '';
             }
 
-            // Extract date/time parts directly via regex to avoid timezone conversion
+            // Extract date directly and avoid timezone shifts.
             const str = String(value);
-            const match = str.match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+            const match = str.match(/(\d{4})-(\d{2})-(\d{2})/);
 
             if (!match) {
                 return str;
             }
 
-            return `${match[1]}-${match[2]}-${match[3]} ${match[4]}:${match[5]}`;
-        },
-
-        parseDateTime(value) {
-            if (!value) {
-                return null;
-            }
-
-            const normalized = String(value).replace(' ', 'T');
-            const parsed = new Date(normalized);
-
-            return Number.isNaN(parsed.getTime()) ? null : parsed;
-        },
-
-        isMaintenanceStatusSelected() {
-            return this.roomForm.status === 'maintenance';
-        },
-
-        isMaintenanceOngoing() {
-            if (!this.isMaintenanceStatusSelected()) {
-                return false;
-            }
-
-            const startAt = this.parseDateTime(this.roomForm.status_start_at);
-            const endAt = this.parseDateTime(this.roomForm.status_end_at);
-            const now = new Date();
-
-            if (!startAt || now < startAt) {
-                return false;
-            }
-
-            return !endAt || now < endAt;
-        },
-
-        canEditStatusStart() {
-            return this.isMaintenanceStatusSelected() && !this.isMaintenanceOngoing();
-        },
-
-        canEditStatusEnd() {
-            return this.isMaintenanceStatusSelected();
+            return `${match[1]}-${match[2]}-${match[3]}`;
         },
 
         onStatusChange() {
@@ -253,7 +211,24 @@ function roomManagement() {
             }
 
             this.roomForm.status_start_at = '';
-            this.roomForm.status_end_at = '';
+        },
+
+        buildRoomPayload() {
+            const payload = {
+                ...this.roomForm,
+                capacity: Number(this.roomForm.capacity || 0),
+            };
+
+            const selectedDate = String(this.roomForm.status_start_at || '').trim();
+            if (payload.status === 'maintenance' && selectedDate) {
+                payload.status_start_at = `${selectedDate} 08:00:00`;
+                payload.status_end_at = `${selectedDate} 17:00:00`;
+            } else {
+                payload.status_start_at = '';
+                payload.status_end_at = '';
+            }
+
+            return payload;
         },
 
         closeModal() {
@@ -273,6 +248,18 @@ function roomManagement() {
         async submitRoom() {
             this.isSubmitting = true;
             try {
+                const payload = this.buildRoomPayload();
+
+                if (!Number.isFinite(payload.capacity) || payload.capacity < 5 || payload.capacity > 10) {
+                    window.notifyApp?.('error', 'Room capacity must be between 5 and 10.');
+                    return;
+                }
+
+                if (payload.status === 'maintenance' && !payload.status_start_at) {
+                    window.notifyApp?.('error', 'Please select a start date for maintenance.');
+                    return;
+                }
+
                 const url = this.isEditing 
                     ? `/rooms/manage/${this.editingRoomId}` 
                     : '/rooms/manage';
@@ -284,7 +271,7 @@ function roomManagement() {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                     },
-                    body: JSON.stringify(this.roomForm)
+                    body: JSON.stringify(payload)
                 });
 
                 const data = await response.json();
