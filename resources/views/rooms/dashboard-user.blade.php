@@ -268,7 +268,7 @@
                                                                                                                          @click.stop="day.isCurrentMonth && !day.isPast && openViewBookingModal(event)"
                                                                                                                          :class="day.isCurrentMonth && !day.isPast ? 'cursor-pointer hover:border-teal-400 hover:text-teal-700' : 'cursor-not-allowed'">
                                                                 <span class="w-1.5 h-1.5 rounded-full" :class="event.status === 'approved' ? 'bg-emerald-500' : 'bg-amber-500'"></span>
-                                                                <span x-text="event.formatted_time?.split(':')[0] + event.formatted_time?.slice(-2)"></span>
+                                                                <span x-text="formatEventChipTime(event)"></span>
                                                                 <span class="opacity-60">|</span>
                                                                 <span x-text="event.room_name?.split(' ')[1] || event.room_name"></span>
                                                             </div>

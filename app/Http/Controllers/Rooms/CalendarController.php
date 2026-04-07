@@ -47,7 +47,10 @@ class CalendarController extends Controller
                 ]);
             }
 
-            $bookings = $query->get();
+            $bookings = $query
+                ->orderBy('date')
+                ->orderBy('start_time')
+                ->get();
 
             $user = $request->user();
             $canViewAll = $user?->isAdmin() || $user?->isSuperAdmin() || $user?->isStaff();
@@ -175,7 +178,10 @@ class CalendarController extends Controller
                 $query->where('room_id', $request->room_id);
             }
 
-            $bookings = $query->get();
+            $bookings = $query
+                ->orderBy('date')
+                ->orderBy('start_time')
+                ->get();
 
             $user = $request->user();
             $canViewAll = $user?->isAdmin() || $user?->isSuperAdmin() || $user?->isStaff();
@@ -183,7 +189,10 @@ class CalendarController extends Controller
             $grouped = $bookings->groupBy(function ($booking) {
                 return $this->asCarbonDate($booking->date)->format('Y-m-d');
             })->map(function ($dayBookings) use ($canViewAll, $user) {
-                return $dayBookings->map(function ($booking) use ($canViewAll, $user) {
+                return $dayBookings
+                    ->sortBy('start_time')
+                    ->values()
+                    ->map(function ($booking) use ($canViewAll, $user) {
                     $isOwner = $user && ($booking->user_id === $user->id || $booking->user_email === $user->email);
                     $canSeeDetails = $canViewAll || $isOwner;
 

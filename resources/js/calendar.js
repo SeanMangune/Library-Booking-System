@@ -1212,7 +1212,7 @@ export function createDashboardApp(config = {}) {
                     isCurrentMonth: true,
                     isToday: date.getTime() === today.getTime(),
                     isPast: date < today,
-                    events: this.calendarData[dateStr] || [],
+                    events: this.sortEventsByStartTime(this.calendarData[dateStr] || []),
                 });
             }
 
@@ -1246,14 +1246,44 @@ export function createDashboardApp(config = {}) {
             Object.keys(this.calendarData).sort().forEach((dateStr) => {
                 const dateObj = new Date(dateStr + 'T00:00:00');
                 if (dateObj >= today && dateObj <= twoWeeksLater) {
-                    const dayEvents = this.calendarData[dateStr] || [];
+                    const dayEvents = this.sortEventsByStartTime(this.calendarData[dateStr] || []);
                     dayEvents.forEach((evt) => {
                         events.push({ ...evt, date: dateStr });
                     });
                 }
             });
 
+            events.sort((first, second) => {
+                if (first.date !== second.date) {
+                    return String(first.date).localeCompare(String(second.date));
+                }
+
+                return this.eventStartMinutes(first) - this.eventStartMinutes(second);
+            });
+
             return events;
+        },
+
+        sortEventsByStartTime(events) {
+            if (!Array.isArray(events)) {
+                return [];
+            }
+
+            return [...events].sort((first, second) => this.eventStartMinutes(first) - this.eventStartMinutes(second));
+        },
+
+        eventStartMinutes(event) {
+            const directTime = event?.start_time || event?.start || event?.extendedProps?.start_time || null;
+            const directMinutes = parseTimeToMinutes(directTime);
+            if (directMinutes !== null) {
+                return directMinutes;
+            }
+
+            const range = String(event?.formatted_time || '').trim();
+            const startLabel = range.includes(' - ') ? range.split(' - ')[0].trim() : range;
+            const fallbackMinutes = parseTimeToMinutes(startLabel);
+
+            return fallbackMinutes ?? Number.MAX_SAFE_INTEGER;
         },
 
         selectCalendarDate(dateStr) {
@@ -2245,6 +2275,33 @@ export function createDashboardApp(config = {}) {
 
         formatTimeRange(startValue, endValue) {
             return formatRange(startValue, endValue);
+        },
+
+        formatEventChipTime(event) {
+            const formattedRange = String(event?.formatted_time || '').trim();
+            const startLabel = formattedRange.includes(' - ')
+                ? formattedRange.split(' - ')[0].trim()
+                : formattedRange;
+
+            const normalizedStart = startLabel || formatClockValue(event?.start_time || event?.start || '');
+            if (!normalizedStart) {
+                return '';
+            }
+
+            const match = normalizedStart.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+            if (!match) {
+                return normalizedStart;
+            }
+
+            const hour = match[1];
+            const minutes = match[2] || '';
+            const suffix = String(match[3]).toUpperCase();
+
+            if (!minutes || minutes === '00') {
+                return `${hour}${suffix}`;
+            }
+
+            return `${hour}:${minutes}${suffix}`;
         },
 
         async submitBooking() {
