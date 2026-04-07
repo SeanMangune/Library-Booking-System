@@ -70,7 +70,6 @@
                                                           :required="!signup.qcid_temp_upload"
                                                        class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-teal-700">
                                                 <p class="mt-3 text-xs text-slate-500">Accepted: JPG, PNG, WEBP up to 25 MB</p>
-                                                      <p x-show="signup.qcid_temp_upload" x-cloak class="mt-1 text-xs text-emerald-600">Previously verified QC ID is already attached for this session.</p>
 
                                                 <div x-show="scan.previewUrl" x-cloak class="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
                                                     <img :src="scan.previewUrl" alt="QC ID preview" class="h-40 w-full object-cover">

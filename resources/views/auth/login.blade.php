@@ -312,7 +312,6 @@ function signupLoginApp($persist, initialSignupOpen) {
                 this.scan.isVerified = true;
                 this.scan.idAssessment = 'Verified';
                 this.scan.confidenceLabel = 'Verified';
-                this.scan.status = 'QC ID already verified from your previous attempt. You can continue registration.';
             }
 
             // Persistence: Sync to URL on change

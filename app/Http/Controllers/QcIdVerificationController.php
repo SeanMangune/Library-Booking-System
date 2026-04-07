@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\QcIdRegistration;
 use App\Services\OcrSpaceClient;
 use App\Services\QcIdOcrVerifier;
 use Illuminate\Http\JsonResponse;
@@ -128,6 +129,14 @@ class QcIdVerificationController extends Controller
             }
         }
 
+        $capturedId = $this->normalizeQcIdDigits((string) ($verification['id_number'] ?? $qrIdNumber ?? ''));
+        if ($verification['is_valid'] && $capturedId !== '' && $this->isQcIdAlreadyInUse($capturedId)) {
+            $verification['is_valid'] = false;
+            $verification['id_assessment'] = 'INVALID';
+            $verification['duplicate_qcid'] = true;
+            $verification['id_number'] = $capturedId;
+        }
+
         $qcidTempUpload = null;
         if ($verification['is_valid'] && $request->hasFile('qcid_image')) {
             try {
@@ -142,7 +151,9 @@ class QcIdVerificationController extends Controller
         }
 
         if (! $verification['is_valid']) {
-            if ($verification['id_assessment'] === 'Fake QC ID') {
+            if (! empty($verification['duplicate_qcid'])) {
+                $message = 'This QC ID is already in use with another account.';
+            } elseif ($verification['id_assessment'] === 'Fake QC ID') {
                 $message = 'Fake QC ID detected.';
                 if (! empty($verification['fake_reason'])) {
                     $message .= ' ' . $verification['fake_reason'];
@@ -783,5 +794,18 @@ class QcIdVerificationController extends Controller
         }
 
         return null;
+    }
+
+    private function isQcIdAlreadyInUse(string $qcidDigits): bool
+    {
+        $normalized = $this->normalizeQcIdDigits($qcidDigits);
+        if ($normalized === '') {
+            return false;
+        }
+
+        return QcIdRegistration::query()
+            ->whereNotNull('qcid_number')
+            ->whereRaw("REPLACE(REPLACE(REPLACE(REPLACE(qcid_number, ' ', ''), '-', ''), '.', ''), '/', '') = ?", [$normalized])
+            ->exists();
     }
 }
