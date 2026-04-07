@@ -4,8 +4,6 @@
 
 @section('breadcrumb')
 <i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
-<span class="text-gray-500">Rooms</span>
-<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
 <span class="text-gray-700 font-medium">Calendar</span>
 @endsection
 

@@ -251,7 +251,6 @@ function initializeRealtimeNotifications() {
 
     if (window.Echo) {
         window.Echo.private(`App.Models.User.${userId}`).notification((notification) => {
-            showNotificationToast(notification || {});
             refreshStateSafe().catch(() => {
                 // Ignore transient realtime refresh failures.
             });

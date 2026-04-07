@@ -4,7 +4,7 @@
 
 @section('breadcrumb')
 <i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
-<span class="text-gray-700 font-medium">My Dashboard</span>
+<span class="text-gray-700 font-medium">Dashboard</span>
 @endsection
 
 @section('content')

@@ -4,9 +4,7 @@
 
 @section('breadcrumb')
 <i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
-<span class="text-gray-500">Rooms</span>
-<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
-<span class="text-gray-700 font-medium">Manage</span>
+<span class="text-gray-700 font-medium">Room Management</span>
 @endsection
 
 @section('content')
@@ -199,15 +197,15 @@ function roomManagement() {
                 return '';
             }
 
-            const parsed = this.parseDateTime(value);
+            // Extract date/time parts directly via regex to avoid timezone conversion
+            const str = String(value);
+            const match = str.match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
 
-            if (!parsed) {
-                return String(value);
+            if (!match) {
+                return str;
             }
 
-            const pad = (num) => String(num).padStart(2, '0');
-
-            return `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())} ${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
+            return `${match[1]}-${match[2]}-${match[3]} ${match[4]}:${match[5]}`;
         },
 
         parseDateTime(value) {

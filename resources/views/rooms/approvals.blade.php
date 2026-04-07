@@ -4,8 +4,6 @@
 
 @section('breadcrumb')
 <i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
-<span class="text-gray-500">Rooms</span>
-<i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
 <span class="text-gray-700 font-medium">Approvals</span>
 @endsection
 
@@ -198,7 +196,7 @@
                         <p class="text-sm font-semibold text-gray-800 mb-3">{{ $booking->title }}</p>
                         @endif
                         <p class="text-sm text-gray-500">
-                            Requested by <span class="font-bold text-gray-900">{{ $booking->user_name }}</span>
+                            Requested by <span class="font-bold text-gray-900" title="{{ $booking->user_name }}">{{ Str::limit($booking->user_name, 14) }}</span>
                         </p>
                     </div>
                 </div>
