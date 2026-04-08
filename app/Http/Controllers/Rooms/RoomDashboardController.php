@@ -99,14 +99,28 @@ class RoomDashboardController extends Controller
 
     private function userDashboard($request, $user, $today, $twoWeeksAhead, $calendarData, $rooms)
     {
+        $dashboardReference = now((string) config('app.booking_timezone', 'Asia/Manila'));
+        $dashboardDate = $dashboardReference->toDateString();
+        $dashboardTime = $dashboardReference->format('H:i:s');
+
+        $activeDashboardWindow = function ($query) use ($dashboardDate, $dashboardTime) {
+            $query
+                ->whereDate('date', '>', $dashboardDate)
+                ->orWhere(function ($todayQuery) use ($dashboardDate, $dashboardTime) {
+                    $todayQuery
+                        ->whereDate('date', '=', $dashboardDate)
+                        ->where(function ($timeQuery) use ($dashboardTime) {
+                            $timeQuery
+                                ->whereNull('end_time')
+                                ->orWhereTime('end_time', '>=', $dashboardTime);
+                        });
+                });
+        };
+
         $dashboardUserBookingsQuery = Booking::with('room')
             ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
             ->where('user_id', $user->id)
-            ->where(function ($query) {
-                $query
-                    ->where('status', '!=', 'pending')
-                    ->orWhere(fn ($pendingQuery) => $pendingQuery->pendingActive());
-            });
+            ->where($activeDashboardWindow);
 
         $userBookings = (clone $dashboardUserBookingsQuery)
             ->orderBy('date', 'desc')
@@ -118,7 +132,7 @@ class RoomDashboardController extends Controller
             ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
             ->where('user_id', $user->id)
             ->where('status', 'approved')
-            ->where('date', '>=', $today)
+            ->where($activeDashboardWindow)
             ->orderBy('date')
             ->orderBy('start_time')
             ->take(5)
@@ -127,13 +141,17 @@ class RoomDashboardController extends Controller
         $pendingUserBookingsQuery = Booking::query()
             ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
             ->where('user_id', $user->id)
-            ->pendingActive();
+            ->pendingActive($dashboardReference);
 
         $userStats = [
             'total' => (clone $dashboardUserBookingsQuery)->count(),
             'upcoming' => $upcomingBookings->count(),
             'pending' => (clone $pendingUserBookingsQuery)->count(),
-            'approved' => Booking::whereHas('room', fn ($roomQuery) => $roomQuery->visible())->where('user_id', $user->id)->where('status', 'approved')->count(),
+            'approved' => Booking::whereHas('room', fn ($roomQuery) => $roomQuery->visible())
+                ->where('user_id', $user->id)
+                ->where('status', 'approved')
+                ->where($activeDashboardWindow)
+                ->count(),
         ];
 
         $allUserBookings = (clone $dashboardUserBookingsQuery)

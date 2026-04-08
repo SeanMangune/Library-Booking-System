@@ -132,7 +132,7 @@
     <x-modals.managerooms.delete-confirmation />
 
     <!-- Affected Bookings Modal -->
-    <div x-show="showAffectedBookingsModal" x-cloak class="modal modal-open p-4" @keydown.escape.window="closeAffectedBookingsModal(true)">
+    <div x-show="showAffectedBookingsModal" x-cloak class="modal p-4" :class="{ 'modal-open': showAffectedBookingsModal }" @keydown.escape.window="closeAffectedBookingsModal(true)">
         <div class="modal-box w-[95vw] max-w-3xl p-0 bg-white rounded-2xl shadow-2xl max-h-[88vh] overflow-hidden flex flex-col" @click.stop>
             <div class="bg-linear-to-r from-amber-500 to-orange-600 px-6 py-5 relative overflow-hidden">
                 <div class="absolute top-0 right-0 p-8 opacity-15 pointer-events-none">
