@@ -65,7 +65,19 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Booking Lifecycle Timezone
+    |--------------------------------------------------------------------------
+    |
+    | Booking lifecycle states (upcoming/active/expired) are evaluated using
+    | this timezone so room schedules align with local library operations.
+    |
+    */
+
+    'booking_timezone' => env('BOOKING_TIMEZONE', env('APP_TIMEZONE', 'Asia/Manila')),
 
     /*
     |--------------------------------------------------------------------------

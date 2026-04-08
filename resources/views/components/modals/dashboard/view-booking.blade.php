@@ -125,17 +125,17 @@
                                         <!-- Booking Status Badge -->
                                         <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
                                               :class="{
-                                                  'bg-emerald-100 text-emerald-700': (selectedBooking.booking_status) === 'valid',
+                                                  'bg-emerald-100 text-emerald-700': (selectedBooking.booking_status || '').toLowerCase() === 'valid' || (selectedBooking.booking_status || '').toLowerCase() === 'active',
                                                   'bg-red-100 text-red-700': (selectedBooking.booking_status) === 'expired',
                                                   'bg-amber-100 text-amber-700': !selectedBooking.booking_status || selectedBooking.booking_status === 'upcoming'
                                               }">
                                             <span class="w-1.5 h-1.5 rounded-full"
                                                   :class="{
-                                                      'bg-emerald-500': (selectedBooking.booking_status) === 'valid',
+                                                      'bg-emerald-500': (selectedBooking.booking_status || '').toLowerCase() === 'valid' || (selectedBooking.booking_status || '').toLowerCase() === 'active',
                                                       'bg-red-500': (selectedBooking.booking_status) === 'expired',
                                                       'bg-amber-500': !selectedBooking.booking_status || selectedBooking.booking_status === 'upcoming'
                                                   }"></span>
-                                            <span x-text="((selectedBooking.booking_status || 'upcoming').charAt(0).toUpperCase() + (selectedBooking.booking_status || 'upcoming').slice(1))"></span>
+                                            <span x-text="((selectedBooking.booking_status || '').toLowerCase() === 'valid' || (selectedBooking.booking_status || '').toLowerCase() === 'active') ? 'Active' : ((selectedBooking.booking_status || 'upcoming').charAt(0).toUpperCase() + (selectedBooking.booking_status || 'upcoming').slice(1))"></span>
                                         </span>
                                     </div>
                                 </div>

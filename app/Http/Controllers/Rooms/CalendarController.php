@@ -75,8 +75,8 @@ class CalendarController extends Controller
                         'roomId' => $booking->room_id,
                         'purpose' => $canSeeDetails ? $booking->title : 'Occupied',
                         'attendees' => $booking->attendees,
-                        'userName' => $canSeeDetails ? $booking->user_name : 'Occupied',
-                        'user_name' => $canSeeDetails ? $booking->user_name : 'Occupied',
+                        'userName' => $canViewAll ? $booking->user_name : null,
+                        'user_name' => $canViewAll ? $booking->user_name : null,
                         'status' => $booking->status,
                         'description' => $canSeeDetails ? $booking->description : '',
                         'formatted_time' => $booking->formatted_time,
@@ -136,7 +136,7 @@ class CalendarController extends Controller
                         'end_time' => $booking->end_time,
                         'formatted_time' => $booking->formatted_time,
                         'formatted_date' => $booking->formatted_date,
-                        'user_name' => $canSeeDetails ? $booking->user_name : 'Occupied',
+                        'user_name' => $canViewAll ? $booking->user_name : null,
                         'attendees' => $booking->attendees,
                         'status' => $booking->status,
 
@@ -197,7 +197,7 @@ class CalendarController extends Controller
                         'end_time' => $booking->end_time,
                         'formatted_time' => $booking->formatted_time,
                         'formatted_date' => $booking->formatted_date,
-                        'user_name' => $canSeeDetails ? $booking->user_name : 'Occupied',
+                        'user_name' => $canViewAll ? $booking->user_name : null,
                         'status' => $booking->status,
                         'attendees' => $booking->attendees,
 

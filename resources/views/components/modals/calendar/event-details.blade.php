@@ -34,9 +34,9 @@
                                 <p class="font-semibold text-gray-900" x-text="(selectedEvent?.attendees || 0) + ' people'"></p>
                             </div>
                         </div>
-                        <div class="p-4 bg-gray-50 rounded-xl">
+                        <div class="p-4 bg-gray-50 rounded-xl" x-show="isStaffUser" x-cloak>
                             <p class="text-xs font-medium text-gray-500 mb-1">Booked By</p>
-                            <p class="font-semibold text-gray-900" x-text="selectedEvent?.user_name"></p>
+                            <p class="font-semibold text-gray-900" x-text="selectedEvent?.user_name || 'Hidden'"></p>
                         </div>
                         <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                             <div>

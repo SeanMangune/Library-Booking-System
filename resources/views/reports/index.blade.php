@@ -29,6 +29,8 @@
             </button>
 
             <a href="{{ route('reports.index', array_filter(array_merge($filters, ['export' => 'csv']))) }}"
+                    data-no-transition
+                    download="booking-report.csv"
                class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-all hover:shadow-lg hover:-translate-y-0.5">
                 <i class="w-4 h-4 fa-icon fa-solid fa-download text-base leading-none"></i>
                 Download CSV

@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Schema;
 
 class Booking extends Model
 {
+    private const DEFAULT_BOOKING_TIMEZONE = 'Asia/Manila';
+
     private static bool $bookingStatusColumnResolved = false;
 
     private static ?bool $bookingStatusColumnExists = null;
@@ -163,23 +165,20 @@ class Booking extends Model
 
     public function determineBookingStatus(?Carbon $reference = null): string
     {
-        $reference ??= now();
+        $reference ??= now($this->bookingTimezone());
 
-        if (blank($this->date)) {
+        $bookingDateValue = $this->normalizedBookingDateValue();
+        if ($bookingDateValue === null) {
             return 'upcoming';
         }
 
-        $bookingDate = $this->date instanceof Carbon
-            ? $this->date->copy()->startOfDay()
-            : Carbon::parse((string) $this->date)->startOfDay();
+        $currentDateValue = $reference->copy()->setTimezone($this->bookingTimezone())->format('Y-m-d');
 
-        $currentDate = $reference->copy()->startOfDay();
-
-        if ($bookingDate->gt($currentDate)) {
+        if ($bookingDateValue > $currentDateValue) {
             return 'upcoming';
         }
 
-        if ($bookingDate->lt($currentDate)) {
+        if ($bookingDateValue < $currentDateValue) {
             return 'expired';
         }
 
@@ -236,25 +235,22 @@ class Booking extends Model
      */
     public function determineQrValidity(?\Carbon\Carbon $reference = null): string
     {
-        $reference ??= now();
+        $reference ??= now($this->bookingTimezone());
 
         // Non-approved bookings are never valid
         if ($this->status !== 'approved') {
             return 'not_valid';
         }
 
-        if (blank($this->date) || blank($this->start_time) || blank($this->end_time)) {
+        $bookingDateValue = $this->normalizedBookingDateValue();
+        if ($bookingDateValue === null || blank($this->start_time) || blank($this->end_time)) {
             return 'not_valid';
         }
 
-        $bookingDate = $this->date instanceof \Carbon\Carbon
-            ? $this->date->copy()->startOfDay()
-            : \Carbon\Carbon::parse((string) $this->date)->startOfDay();
-
-        $currentDate = $reference->copy()->startOfDay();
+        $currentDateValue = $reference->copy()->setTimezone($this->bookingTimezone())->format('Y-m-d');
 
         // Must be today — future or past dates are not valid
-        if (! $bookingDate->equalTo($currentDate)) {
+        if ($bookingDateValue !== $currentDateValue) {
             return 'not_valid';
         }
 
@@ -325,6 +321,33 @@ class Booking extends Model
 
         try {
             return Carbon::parse((string) $time)->format('H:i:s');
+        } catch (\Throwable $exception) {
+            return null;
+        }
+    }
+
+    private function bookingTimezone(): string
+    {
+        return (string) config('app.booking_timezone', self::DEFAULT_BOOKING_TIMEZONE);
+    }
+
+    private function normalizedBookingDateValue(): ?string
+    {
+        $rawDate = $this->getRawOriginal('date');
+        if (is_string($rawDate) && preg_match('/^\d{4}-\d{2}-\d{2}/', $rawDate, $matches) === 1) {
+            return $matches[0];
+        }
+
+        if ($this->date instanceof Carbon) {
+            return $this->date->format('Y-m-d');
+        }
+
+        if (blank($this->date)) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse((string) $this->date, $this->bookingTimezone())->format('Y-m-d');
         } catch (\Throwable $exception) {
             return null;
         }

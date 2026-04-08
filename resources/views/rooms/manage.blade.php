@@ -206,8 +206,8 @@ function roomManagement() {
         previewRequestTimer: null,
         
         filters: {
-            status: 'all',
-            capacity: 'all'
+            status: @js((string) request('status', 'all')),
+            capacity: @js((string) request('capacity', 'all'))
         },
 
         roomForm: {
@@ -219,7 +219,16 @@ function roomManagement() {
             status_start_at: '',
         },
 
-        init() {},
+        init() {
+            const status = String(this.filters.status || 'all').toLowerCase();
+            this.filters.status = ['all', 'operational', 'maintenance', 'closed'].includes(status)
+                ? status
+                : 'all';
+
+            const allowedCapacities = ['all', ...@json($capacities->map(fn ($cap) => (string) $cap)->values()->all())];
+            const capacity = String(this.filters.capacity || 'all');
+            this.filters.capacity = allowedCapacities.includes(capacity) ? capacity : 'all';
+        },
 
         openAddModal() {
             this.isEditing = false;

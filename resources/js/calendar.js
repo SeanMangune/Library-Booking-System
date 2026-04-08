@@ -259,13 +259,145 @@ function parseTimeToMinutes(value) {
     const timePart = normalized.includes('T')
         ? normalized.split('T')[1]
         : normalized;
-    const match = timePart.match(/(\d{1,2}):(\d{2})/);
 
-    if (!match) {
+    const meridiemMatch = timePart.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*([AP]M)\b/i);
+    if (meridiemMatch) {
+        let hours = Number(meridiemMatch[1]);
+        const minutes = Number(meridiemMatch[2]);
+
+        if (Number.isNaN(hours) || Number.isNaN(minutes) || hours < 1 || hours > 12 || minutes < 0 || minutes > 59) {
+            return null;
+        }
+
+        const marker = meridiemMatch[3].toUpperCase();
+        if (marker === 'AM' && hours === 12) {
+            hours = 0;
+        }
+        if (marker === 'PM' && hours < 12) {
+            hours += 12;
+        }
+
+        return (hours * 60) + minutes;
+    }
+
+    const twentyFourHourMatch = timePart.match(/(\d{1,2}):(\d{2})(?::\d{2})?/);
+    if (!twentyFourHourMatch) {
         return null;
     }
 
-    return (Number(match[1]) * 60) + Number(match[2]);
+    const hours = Number(twentyFourHourMatch[1]);
+    const minutes = Number(twentyFourHourMatch[2]);
+
+    if (Number.isNaN(hours) || Number.isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+        return null;
+    }
+
+    return (hours * 60) + minutes;
+}
+
+function normalizeLifecycleStatus(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+
+    if (!normalized) {
+        return null;
+    }
+
+    if (normalized === 'valid') {
+        return 'active';
+    }
+
+    return normalized;
+}
+
+function parseBookingDate(value) {
+    if (!value) {
+        return null;
+    }
+
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+    }
+
+    const raw = String(value).trim();
+    if (!raw) {
+        return null;
+    }
+
+    const isoMatch = raw.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+        return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+    }
+
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) {
+        return null;
+    }
+
+    return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+}
+
+function extractBookingTimeRange(booking) {
+    let start = parseTimeToMinutes(booking?.start_time ?? booking?.start);
+    let end = parseTimeToMinutes(booking?.end_time ?? booking?.end);
+
+    if (start === null || end === null) {
+        const fallbackRange = String(booking?.formatted_time || booking?.time || '').trim();
+        const parts = fallbackRange.split(/\s*[–—-]\s*/).filter(Boolean);
+
+        if (parts.length >= 2) {
+            if (start === null) {
+                start = parseTimeToMinutes(parts[0]);
+            }
+
+            if (end === null) {
+                end = parseTimeToMinutes(parts[1]);
+            }
+        }
+    }
+
+    if (start === null) {
+        return null;
+    }
+
+    if (end === null || end <= start) {
+        end = start + 60;
+    }
+
+    return { start, end };
+}
+
+function deriveBookingLifecycleStatus(booking, reference = new Date()) {
+    const fallbackStatus = normalizeLifecycleStatus(booking?.booking_status) || 'upcoming';
+    const bookingDate = parseBookingDate(booking?.date || booking?.formatted_date || booking?.start);
+
+    if (!bookingDate) {
+        return fallbackStatus;
+    }
+
+    const currentDate = new Date(reference.getFullYear(), reference.getMonth(), reference.getDate());
+    if (bookingDate.getTime() > currentDate.getTime()) {
+        return 'upcoming';
+    }
+
+    if (bookingDate.getTime() < currentDate.getTime()) {
+        return 'expired';
+    }
+
+    const range = extractBookingTimeRange(booking);
+    if (!range) {
+        return fallbackStatus;
+    }
+
+    const currentMinutes = (reference.getHours() * 60) + reference.getMinutes();
+    if (currentMinutes < range.start) {
+        return 'upcoming';
+    }
+
+    if (currentMinutes > range.end) {
+        return 'expired';
+    }
+
+    return 'active';
 }
 
 function toBookingRange(startValue, endValue) {
@@ -414,6 +546,18 @@ function hasConflictError(response, payload) {
 function mapEventFromCalendarInfo(context, info) {
     const props = info.event.extendedProps || {};
     const derivedDate = props.formatted_date || props.date || context.formatDate(info.event.start);
+    const derivedDateValue = props.date
+        || (info.event.start
+            ? `${info.event.start.getFullYear()}-${String(info.event.start.getMonth() + 1).padStart(2, '0')}-${String(info.event.start.getDate()).padStart(2, '0')}`
+            : derivedDate);
+    const derivedStartTime = props.start_time
+        || (info.event.start
+            ? `${String(info.event.start.getHours()).padStart(2, '0')}:${String(info.event.start.getMinutes()).padStart(2, '0')}`
+            : null);
+    const derivedEndTime = props.end_time
+        || (info.event.end
+            ? `${String(info.event.end.getHours()).padStart(2, '0')}:${String(info.event.end.getMinutes()).padStart(2, '0')}`
+            : null);
 
     let derivedTime = props.formatted_time;
     if (!derivedTime && info.event.start && info.event.end) {
@@ -422,19 +566,26 @@ function mapEventFromCalendarInfo(context, info) {
         derivedTime = context.formatTimeRange(start, end);
     }
 
-    return {
+    const mappedBooking = {
         id: info.event.id,
         title: info.event.title,
         purpose: props.purpose || info.event.title,
         room_name: props.room_name || props.room || props.roomName,
-        date: derivedDate,
+        date: derivedDateValue || derivedDate,
         formatted_date: props.formatted_date || derivedDate,
         formatted_time: derivedTime || '',
+        start_time: derivedStartTime,
+        end_time: derivedEndTime,
         user_name: props.user_name || props.userName,
         attendees: props.attendees,
         status: props.status,
         description: props.description,
+        booking_status: props.booking_status || null,
     };
+
+    mappedBooking.booking_status = deriveBookingLifecycleStatus(mappedBooking);
+
+    return mappedBooking;
 }
 
 /**
@@ -2190,9 +2341,14 @@ export function createDashboardApp(config = {}) {
         openViewBookingModal(booking) {
             this.showRoomModal = false;
             this.showDayEventsModal = false;
-            
-            this.selectedBooking = booking;
-            this.viewEvent = booking;
+
+            const selected = {
+                ...booking,
+                booking_status: deriveBookingLifecycleStatus(booking),
+            };
+
+            this.selectedBooking = selected;
+            this.viewEvent = selected;
             this.showViewModal = true;
         },
 
@@ -2209,8 +2365,11 @@ export function createDashboardApp(config = {}) {
                 room_location: booking.room_location || booking.room?.location || '',
                 user_name: booking.user_name || booking.user?.name || 'Unknown',
                 user_email: booking.user_email || booking.user?.email || '',
+                date: booking.date || booking.formatted_date || '',
                 formatted_time: booking.formatted_time || this.formatTimeRange(booking.start_time, booking.end_time),
                 formatted_date: booking.formatted_date || booking.date || '',
+                start_time: booking.start_time || booking.start || null,
+                end_time: booking.end_time || booking.end || null,
                 status: booking.status || 'pending',
                 attendees: booking.attendees || 0,
                 description: booking.description || '',
@@ -2219,6 +2378,9 @@ export function createDashboardApp(config = {}) {
                 qr_code_url: booking.qr_code_url || (booking.qr_token ? `/bookings/qr/${booking.qr_token}` : null),
                 booking_status: booking.booking_status || null,
             };
+
+            mapped.booking_status = deriveBookingLifecycleStatus(mapped);
+
             this.openViewBookingModal(mapped);
         },
 
