@@ -40,6 +40,72 @@ class BookingApprovedNotification extends Notification
     }
 }
 
+class BookingRescheduledNotification extends Notification
+{
+    use Queueable;
+
+    /**
+     * @param array<string, mixed> $previousSchedule
+     */
+    public function __construct(
+        private readonly Booking $booking,
+        private readonly array $previousSchedule = [],
+    ) {
+    }
+
+    public function via(object $notifiable): array
+    {
+        return ['database', 'broadcast'];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(object $notifiable): array
+    {
+        $roomName = $this->booking->room?->name ?? 'Room';
+        $newDate = optional($this->booking->date)->format('M d, Y') ?? 'N/A';
+        $newTime = $this->booking->formatted_time ?: 'N/A';
+
+        $previousDate = isset($this->previousSchedule['date'])
+            ? optional(\Carbon\Carbon::parse((string) $this->previousSchedule['date']))->format('M d, Y')
+            : null;
+        $previousStart = trim((string) ($this->previousSchedule['start_time'] ?? ''));
+        $previousEnd = trim((string) ($this->previousSchedule['end_time'] ?? ''));
+        $previousRoom = trim((string) ($this->previousSchedule['room_name'] ?? ''));
+
+        $previousSummaryParts = [];
+        if ($previousRoom !== '' && $previousRoom !== $roomName) {
+            $previousSummaryParts[] = $previousRoom;
+        }
+        if (! empty($previousDate)) {
+            $previousSummaryParts[] = $previousDate;
+        }
+        if ($previousStart !== '' && $previousEnd !== '') {
+            try {
+                $previousSummaryParts[] = \Carbon\Carbon::parse($previousStart)->format('g:i A')
+                    . ' - '
+                    . \Carbon\Carbon::parse($previousEnd)->format('g:i A');
+            } catch (\Throwable $exception) {
+                $previousSummaryParts[] = $previousStart . ' - ' . $previousEnd;
+            }
+        }
+
+        $message = 'Your booking was rescheduled to ' . $roomName . ' on ' . $newDate . ' (' . $newTime . ').';
+        if (! empty($previousSummaryParts)) {
+            $message .= ' Previous schedule: ' . implode(', ', $previousSummaryParts) . '.';
+        }
+
+        return [
+            'title' => 'Booking rescheduled',
+            'message' => $message,
+            'url' => route('reservations.index'),
+            'booking_id' => $this->booking->id,
+            'status' => (string) $this->booking->status,
+        ];
+    }
+}
+
 class NewBookingSubmittedForStaffNotification extends Notification
 {
     use Queueable;

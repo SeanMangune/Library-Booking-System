@@ -8,6 +8,7 @@ use App\Models\QcIdRegistration;
 use App\Models\Room;
 use App\Models\User;
 use App\Notifications\BookingApprovedNotification;
+use App\Notifications\BookingRescheduledNotification;
 use App\Notifications\NewBookingSubmittedForStaffNotification;
 use App\Services\QcIdOcrVerifier;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\BookingPendingMail;
 use App\Mail\BookingApprovedMail;
+use App\Mail\BookingRescheduledMail;
 use App\Mail\BookingRejectedMail;
 use App\Mail\BookingCancelledMail;
 
@@ -356,6 +358,16 @@ class BookingController extends Controller
             'description' => 'nullable|string',
         ]);
 
+        $booking->loadMissing('room', 'user');
+
+        $previousSchedule = [
+            'room_id' => (int) ($booking->room_id ?? 0),
+            'room_name' => $booking->room?->name,
+            'date' => optional($booking->date)->format('Y-m-d'),
+            'start_time' => (string) ($booking->start_time ?? ''),
+            'end_time' => (string) ($booking->end_time ?? ''),
+        ];
+
         $room = Room::findOrFail((int) $validated['room_id']);
 
         if ($room->isExcludedRoom()) {
@@ -422,7 +434,7 @@ class BookingController extends Controller
             $booking->fill($validated);
             $booking->save();
 
-            return $booking->fresh()->load('room');
+            return $booking->fresh()->load('room', 'user');
         }, 3);
 
         if (! $updatedBooking) {
@@ -430,6 +442,47 @@ class BookingController extends Controller
                 'success' => false,
                 'message' => 'This time slot conflicts with an existing booking',
             ], 422);
+        }
+
+        $updatedSchedule = [
+            'room_id' => (int) ($updatedBooking->room_id ?? 0),
+            'room_name' => $updatedBooking->room?->name,
+            'date' => optional($updatedBooking->date)->format('Y-m-d'),
+            'start_time' => (string) ($updatedBooking->start_time ?? ''),
+            'end_time' => (string) ($updatedBooking->end_time ?? ''),
+        ];
+
+        $scheduleChanged = $previousSchedule['room_id'] !== $updatedSchedule['room_id']
+            || $previousSchedule['date'] !== $updatedSchedule['date']
+            || $previousSchedule['start_time'] !== $updatedSchedule['start_time']
+            || $previousSchedule['end_time'] !== $updatedSchedule['end_time'];
+
+        if ($scheduleChanged) {
+            try {
+                $email = $updatedBooking->user_email ?? $updatedBooking->user?->email;
+                if (! empty($email)) {
+                    Mail::to($email)->queue(new BookingRescheduledMail($updatedBooking, $previousSchedule));
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Booking reschedule email failed.', [
+                    'booking_id' => $updatedBooking->id,
+                    'user_id' => $updatedBooking->user?->id,
+                    'user_email' => $updatedBooking->user_email,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            try {
+                $bookingUser = $updatedBooking->user ?? ($updatedBooking->user_id ? User::find($updatedBooking->user_id) : null);
+                if ($bookingUser) {
+                    $bookingUser->notify(new BookingRescheduledNotification($updatedBooking, $previousSchedule));
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Booking rescheduled in-app notification failed.', [
+                    'booking_id' => $updatedBooking->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return response()->json([
