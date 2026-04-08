@@ -461,7 +461,7 @@ class BookingController extends Controller
             try {
                 $email = $updatedBooking->user_email ?? $updatedBooking->user?->email;
                 if (! empty($email)) {
-                    Mail::to($email)->queue(new BookingRescheduledMail($updatedBooking, $previousSchedule));
+                    Mail::to($email)->send(new BookingRescheduledMail($updatedBooking, $previousSchedule));
                 }
             } catch (\Throwable $e) {
                 Log::warning('Booking reschedule email failed.', [
