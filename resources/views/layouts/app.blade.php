@@ -281,9 +281,9 @@
         $isStaff = $currentUser?->isStaff() ?? false;
         $isAdmin = $currentUser?->isAdmin() ?? false;
         $hasNotificationsTable = \Illuminate\Support\Facades\Schema::hasTable('notifications');
-        $pendingApprovalCount = $isStaff ? \App\Models\Booking::where('status', 'pending')->count() : 0;
+        $pendingApprovalCount = $isStaff ? \App\Models\Booking::pendingActive()->count() : 0;
         $recentPendingApprovals = $isStaff
-            ? \App\Models\Booking::where('status', 'pending')->with('room')->latest()->take(5)->get()
+            ? \App\Models\Booking::pendingActive()->with('room')->latest()->take(5)->get()
             : collect();
         $userUnreadNotifications = ($currentUser && $hasNotificationsTable)
             ? $currentUser->unreadNotifications()->latest()->take(8)->get()
@@ -428,7 +428,7 @@
                        title="Approvals"
                        class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-indigo-200 hover:text-white transition-all duration-200 mb-1 {{ request()->routeIs('approvals.*') ? 'active' : '' }}">
                         <i class="w-5 h-5 fa-icon fa-solid fa-circle-check text-xl leading-none"></i>
-                        @php $pendingCount = \App\Models\Booking::where('status', 'pending')->count(); @endphp
+                        @php $pendingCount = \App\Models\Booking::pendingActive()->count(); @endphp
                         <span class="sidebar-text">Approvals</span>
                         @if($pendingCount > 0)
                         <span class="sidebar-badge sidebar-badge-expanded ml-auto bg-gradient-to-r from-red-500 to-rose-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg shadow-red-500/30 animate-pulse" aria-label="{{ $pendingCount }} pending approvals">{{ $pendingCount }}</span>

@@ -56,7 +56,7 @@ class NotificationController extends Controller
         if ($isStaff) {
             $pendingQuery = Booking::query()
                 ->with('room')
-                ->where('status', 'pending')
+                ->pendingActive()
                 ->latest();
 
             $pendingApprovalCount = (clone $pendingQuery)->count();

@@ -368,6 +368,29 @@ class Booking extends Model
         return $query->where('status', 'pending');
     }
 
+    public function scopePendingActive($query, ?Carbon $reference = null)
+    {
+        $reference ??= now(config('app.booking_timezone', self::DEFAULT_BOOKING_TIMEZONE));
+        $today = $reference->toDateString();
+        $currentTime = $reference->format('H:i:s');
+
+        return $query
+            ->where('status', 'pending')
+            ->where(function ($pendingQuery) use ($today, $currentTime) {
+                $pendingQuery
+                    ->whereDate('date', '>', $today)
+                    ->orWhere(function ($todayQuery) use ($today, $currentTime) {
+                        $todayQuery
+                            ->whereDate('date', '=', $today)
+                            ->where(function ($timeQuery) use ($currentTime) {
+                                $timeQuery
+                                    ->whereNull('end_time')
+                                    ->orWhereTime('end_time', '>=', $currentTime);
+                            });
+                    });
+            });
+    }
+
     public function scopeApproved($query)
     {
         return $query->where('status', 'approved');

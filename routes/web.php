@@ -55,7 +55,10 @@ Route::middleware('guest')->group(function () {
     Route::post('/admin/login', [AuthController::class, 'adminLogin'])->name('admin.login');
 });
 
-Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+Route::post('/logout', [AuthController::class, 'logout'])
+    ->middleware('auth')
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+    ->name('logout');
 
 // Dashboard (user + admin)
 Route::middleware('auth')->group(function () {
