@@ -30,6 +30,7 @@ class Booking extends Model
         'duration',
         'attendees',
         'status',
+        'room_status',
         'booking_status',
         'qr_validity',
         'has_conflict',
@@ -42,6 +43,7 @@ class Booking extends Model
     protected $casts = [
         'date' => 'date',
         'booking_status' => 'string',
+        'room_status' => 'string',
         'has_conflict' => 'boolean',
     ];
 
@@ -60,6 +62,7 @@ class Booking extends Model
                 $booking->booking_status = $booking->determineBookingStatus();
             }
             $booking->qr_validity = $booking->determineQrValidity();
+            $booking->room_status = $booking->determineRoomStatus();
         });
 
         static::retrieved(function (Booking $booking) {
@@ -204,6 +207,23 @@ class Booking extends Model
         return 'upcoming';
     }
 
+    public function determineRoomStatus(): string
+    {
+        if ($this->room?->status === 'maintenance') {
+            return 'maintenance';
+        }
+
+        if ($this->room_id && ! $this->relationLoaded('room')) {
+            $this->load('room');
+        }
+
+        if ($this->room?->status === 'maintenance') {
+            return 'maintenance';
+        }
+
+        return $this->qr_validity === 'valid' ? 'occupied' : 'available';
+    }
+
     public function syncBookingStatus(bool $persist = true): string
     {
         $calculatedStatus = $this->determineBookingStatus();
@@ -268,16 +288,6 @@ class Booking extends Model
         }
 
         return 'not_valid';
-
-        if ($this->booking_status !== $calculatedStatus) {
-            $this->forceFill(['booking_status' => $calculatedStatus]);
-
-            if ($persist && $this->exists) {
-                $this->saveQuietly();
-            }
-        }
-
-        return $calculatedStatus;
     }
 
     private static function hasBookingStatusColumn(): bool
