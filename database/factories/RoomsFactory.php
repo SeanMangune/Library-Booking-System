@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Rooms>
@@ -16,11 +17,14 @@ class RoomsFactory extends Factory
      */
     public function definition(): array
     {
+        $name = $this->faker->unique()->words(2, true);
         return [
-            'name' => $this->faker->word(),
-            'capacity' => $this->faker->numberBetween(1, 100),
+            'name' => $name,
+            'slug' => Str::slug($name) . '-' . Str::random(5),
+            'capacity' => $this->faker->numberBetween(5, 10),
             'location' => '2F Library',
-            'available' => $this->faker->boolean(),
+            'status' => 'operational',
+            'requires_approval' => false,
         ];
     }
 }

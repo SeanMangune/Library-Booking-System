@@ -50,6 +50,16 @@ class RoomDashboardController extends Controller
             'today' => Booking::whereHas('room', fn ($roomQuery) => $roomQuery->visible())->whereDate('date', $today)->where('status', 'approved')->count(),
         ];
 
+        $collaborativeRooms = Room::query()
+            ->visible()
+            ->with(['bookings' => function ($query) {
+                $query->whereIn('room_status', ['occupied', 'maintenance']);
+            }])
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (Room $room) => $room->isCollaborative())
+            ->values();
+
         $pendingBookingsList = Booking::with('room', 'user')
             ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
             ->pendingActive()
@@ -94,7 +104,25 @@ class RoomDashboardController extends Controller
             'approvedBookingsList',
             'rejectedBookingsList',
             'todayBookingsList',
+            'collaborativeRooms',
         ));
+    }
+
+    public function statuses()
+    {
+        $collaborativeRooms = Room::query()
+            ->visible()
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (Room $room) => $room->isCollaborative())
+            ->map(fn (Room $room) => [
+                'id' => $room->id,
+                'name' => $room->name,
+                'status' => $room->dashboardStatus(),
+            ])
+            ->values();
+
+        return response()->json(['rooms' => $collaborativeRooms]);
     }
 
     private function userDashboard($request, $user, $today, $twoWeeksAhead, $calendarData, $rooms)

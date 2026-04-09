@@ -87,25 +87,43 @@
                     </div>
                 </div>
 
-                <!-- System Status Card -->
+                <!-- Collaborative Rooms Card -->
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 animate-slide-in-up stagger-3">
                     <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
                         <h3 class="font-bold text-gray-900 flex items-center gap-2">
-                           <i class="fa-solid fa-shield-check text-teal-600"></i>
-                           System Status
+                           <i class="fa-solid fa-door-open text-emerald-600"></i>
+                           Collaborative Rooms
                         </h3>
                         <span class="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     </div>
                     <div class="p-6">
-                        <div class="flex flex-col gap-4">
-                            <div class="flex items-center justify-between p-3 bg-emerald-50 rounded-xl">
-                                <span class="text-xs font-semibold text-emerald-800 uppercase">Verification</span>
-                                <span x-text="hasVerifiedRegistration ? 'VERIFIED' : 'PENDING'" class="text-xs font-black text-emerald-700"></span>
-                            </div>
-                            <div class="flex items-center justify-between p-3 bg-blue-50 rounded-xl">
-                                <span class="text-xs font-semibold text-blue-800 uppercase">Bookings Today</span>
-                                <span class="text-xs font-black text-blue-700 font-mono">{{ $stats['today'] }} Active</span>
-                            </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            @foreach($collaborativeRooms as $room)
+                                @php
+                                    if ($room->isUnderMaintenanceForDashboard()) {
+                                        $statusLabel = 'Under Maintenance';
+                                        $containerClasses = 'bg-yellow-50 border-yellow-200 text-amber-800';
+                                        $badgeClasses = 'bg-amber-100 text-amber-700';
+                                    } elseif ($room->isOccupiedForDashboard()) {
+                                        $statusLabel = 'Occupied';
+                                        $containerClasses = 'bg-red-50 border-red-200 text-red-800';
+                                        $badgeClasses = 'bg-red-100 text-red-700';
+                                    } else {
+                                        $statusLabel = 'Available';
+                                        $containerClasses = 'bg-green-50 border-green-200 text-emerald-800';
+                                        $badgeClasses = 'bg-emerald-100 text-emerald-700';
+                                    }
+                                @endphp
+                                <div class="rounded-3xl border p-4 flex items-center justify-between {{ $containerClasses }}" data-collab-room-id="{{ $room->id }}">
+                                    <div>
+                                        <p class="text-sm font-semibold">{{ $room->name }}</p>
+                                    </div>
+                                    <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold {{ $badgeClasses }}"
+                                          data-collab-room-status="{{ $statusLabel }}">
+                                        {{ $statusLabel }}
+                                    </span>
+                                </div>
+                            @endforeach
                         </div>
                     </div>
                 </div>

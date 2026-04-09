@@ -1610,6 +1610,77 @@ export function createDashboardApp(config = {}) {
             this.syncMonthFromDate(new Date());
             this.setMonthTitle();
             this.fetchCalendarData();
+            this.refreshCollaborativeRoomStatuses();
+            this.statusRefreshInterval = window.setInterval(() => {
+                this.refreshCollaborativeRoomStatuses();
+            }, 15000);
+        },
+
+        async refreshCollaborativeRoomStatuses() {
+            try {
+                const response = await fetch('/rooms/statuses', {
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                if (!response.ok) {
+                    return;
+                }
+
+                const data = await response.json();
+                if (!data || !Array.isArray(data.rooms)) {
+                    return;
+                }
+
+                this.applyCollaborativeRoomStatusUpdates(data.rooms);
+            } catch (error) {
+                console.error('Unable to refresh collaborative room statuses:', error);
+            }
+        },
+
+        applyCollaborativeRoomStatusUpdates(rooms) {
+            const statusMap = {};
+            rooms.forEach((room) => {
+                statusMap[String(room.id)] = String(room.status || '').toLowerCase();
+            });
+
+            document.querySelectorAll('[data-collab-room-id]').forEach((card) => {
+                const roomId = card.dataset.collabRoomId;
+                const status = statusMap[roomId];
+                if (!status) {
+                    return;
+                }
+
+                const badge = card.querySelector('[data-collab-room-status]');
+                if (!badge) {
+                    return;
+                }
+
+                const label = status === 'maintenance'
+                    ? 'Under Maintenance'
+                    : status === 'occupied'
+                        ? 'Occupied'
+                        : 'Available';
+
+                badge.textContent = label;
+                badge.dataset.collabRoomStatus = label;
+
+                badge.classList.remove('bg-amber-100', 'text-amber-700', 'bg-red-100', 'text-red-700', 'bg-emerald-100', 'text-emerald-700');
+                card.classList.remove('bg-yellow-50', 'border-yellow-200', 'text-amber-800', 'bg-red-50', 'border-red-200', 'text-red-800', 'bg-green-50', 'border-green-200', 'text-emerald-800');
+
+                if (status === 'maintenance') {
+                    badge.classList.add('bg-amber-100', 'text-amber-700');
+                    card.classList.add('bg-yellow-50', 'border-yellow-200', 'text-amber-800');
+                } else if (status === 'occupied') {
+                    badge.classList.add('bg-red-100', 'text-red-700');
+                    card.classList.add('bg-red-50', 'border-red-200', 'text-red-800');
+                } else {
+                    badge.classList.add('bg-emerald-100', 'text-emerald-700');
+                    card.classList.add('bg-green-50', 'border-green-200', 'text-emerald-800');
+                }
+            });
         },
 
         resizeDashboardCalendar() {
