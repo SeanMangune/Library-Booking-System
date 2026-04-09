@@ -812,9 +812,15 @@ class BookingController extends Controller
     {
         $booking->loadMissing('room', 'user');
 
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $rejectionReason = trim((string) $validated['reason']);
+
         $booking->update([
             'status' => 'rejected',
-            'reason' => trim((string) $validated['reason']),
+            'reason' => $rejectionReason !== '' ? $rejectionReason : null,
         ]);
 
         $fresh = $booking->fresh()->load('room', 'user');
@@ -841,18 +847,6 @@ class BookingController extends Controller
         } catch (\Throwable $e) {
             Log::warning('Booking rejected in-app notification failed.', [
                 'booking_id' => $fresh->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
-
-        try {
-            $bookingUser = $booking->user ?? ($booking->user_id ? User::find($booking->user_id) : null);
-            if ($bookingUser) {
-                $bookingUser->notify(new BookingRejectedNotification($booking));
-            }
-        } catch (\Throwable $e) {
-            Log::warning('Booking rejection in-app notification failed.', [
-                'booking_id' => $booking->id,
                 'error' => $e->getMessage(),
             ]);
         }
