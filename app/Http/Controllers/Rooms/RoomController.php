@@ -202,7 +202,7 @@ class RoomController extends Controller
 
     private function syncRoomBookingStatuses(Room $room): void
     {
-        if ($room->status === 'maintenance') {
+        if ($room->effectiveStatus() === 'maintenance') {
             Booking::where('room_id', $room->id)
                 ->update(['room_status' => 'maintenance']);
 

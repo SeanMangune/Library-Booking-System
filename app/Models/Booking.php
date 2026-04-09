@@ -208,15 +208,11 @@ class Booking extends Model
 
     public function determineRoomStatus(): string
     {
-        if ($this->room?->status === 'maintenance') {
-            return 'maintenance';
-        }
-
         if ($this->room_id && ! $this->relationLoaded('room')) {
             $this->load('room');
         }
 
-        if ($this->room?->status === 'maintenance') {
+        if ($this->room?->effectiveStatus() === 'maintenance') {
             return 'maintenance';
         }
 
