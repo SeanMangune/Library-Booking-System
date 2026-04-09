@@ -118,6 +118,8 @@ class RoomController extends Controller
         $room->update($validated);
         $room->refresh();
 
+        $this->syncRoomBookingStatuses($room);
+
         $newStatus = $room->effective_status;
         if ($oldStatus !== $newStatus) {
             $isActive = $newStatus === 'operational';
@@ -198,6 +200,27 @@ class RoomController extends Controller
             ->values();
     }
 
+    private function syncRoomBookingStatuses(Room $room): void
+    {
+        if ($room->status === 'maintenance') {
+            Booking::where('room_id', $room->id)
+                ->update(['room_status' => 'maintenance']);
+
+            return;
+        }
+
+        Booking::where('room_id', $room->id)
+            ->where('qr_validity', 'valid')
+            ->update(['room_status' => 'occupied']);
+
+        Booking::where('room_id', $room->id)
+            ->where(function ($query) {
+                $query->where('qr_validity', '!=', 'valid')
+                    ->orWhereNull('qr_validity');
+            })
+            ->update(['room_status' => 'available']);
+    }
+
     private function validateRoomPayload(Request $request): array
     {
         $status = (string) $request->input('status');
@@ -241,15 +264,22 @@ class RoomController extends Controller
 
     private function syncCompletedMaintenanceWindows(): void
     {
-        Room::query()
+        $completedRooms = Room::query()
             ->where('status', 'maintenance')
             ->whereNotNull('status_end_at')
             ->where('status_end_at', '<=', now())
-            ->update([
+            ->get();
+
+        /** @var Room $room */
+        foreach ($completedRooms as $room) {
+            $room->update([
                 'status' => 'operational',
                 'status_start_at' => null,
                 'status_end_at' => null,
             ]);
+
+            $this->syncRoomBookingStatuses($room);
+        }
     }
 
     public function destroy(Room $room)

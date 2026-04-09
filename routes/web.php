@@ -63,6 +63,7 @@ Route::post('/logout', [AuthController::class, 'logout'])
 // Dashboard (user + admin)
 Route::middleware('auth')->group(function () {
     Route::get('/rooms', [RoomDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/rooms/statuses', [RoomDashboardController::class, 'statuses'])->name('rooms.statuses');
     Route::get('/notifications/unread', [NotificationController::class, 'unread'])->name('notifications.unread');
     Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
 

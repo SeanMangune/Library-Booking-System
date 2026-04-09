@@ -68,6 +68,50 @@ class Room extends Model
         return $this->hasMany(Booking::class)->where('status', 'approved');
     }
 
+    public function dashboardStatus(): string
+    {
+        if ($this->effectiveStatus() === 'maintenance') {
+            return 'maintenance';
+        }
+
+        if ($this->relationLoaded('bookings')) {
+            if ($this->bookings->contains('room_status', 'maintenance')) {
+                return 'maintenance';
+            }
+
+            if ($this->bookings->contains('room_status', 'occupied')) {
+                return 'occupied';
+            }
+
+            return 'available';
+        }
+
+        if ($this->bookings()->where('room_status', 'maintenance')->exists()) {
+            return 'maintenance';
+        }
+
+        if ($this->bookings()->where('room_status', 'occupied')->exists()) {
+            return 'occupied';
+        }
+
+        return 'available';
+    }
+
+    public function isAvailableForDashboard(): bool
+    {
+        return $this->dashboardStatus() === 'available';
+    }
+
+    public function isOccupiedForDashboard(): bool
+    {
+        return $this->dashboardStatus() === 'occupied';
+    }
+
+    public function isUnderMaintenanceForDashboard(): bool
+    {
+        return $this->dashboardStatus() === 'maintenance';
+    }
+
     public function todayBookings(): HasMany
     {
         return $this->hasMany(Booking::class)

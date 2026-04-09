@@ -79,7 +79,7 @@
                     @forelse($rooms as $room)
                     <tr class="room-row hover:bg-gray-50 transition-colors" 
                         data-name="{{ strtolower($room->name) }}"
-                        data-status="{{ $room->effective_status }}"
+                        data-status="{{ $room->status === 'maintenance' ? 'maintenance' : $room->effective_status }}"
                         data-capacity="{{ $room->capacity }}"
                         data-location="{{ $room->location }}">
                         <td class="px-6 py-4 whitespace-nowrap">
@@ -92,11 +92,14 @@
                             <span class="text-sm text-gray-600">{{ $room->capacity }}</span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
+                            @php
+                                $displayStatus = $room->status === 'maintenance' ? 'maintenance' : $room->effective_status;
+                            @endphp
                             <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
-                                @if($room->effective_status === 'operational') bg-green-100 text-green-700
-                                @elseif($room->effective_status === 'maintenance') bg-yellow-100 text-yellow-700
+                                @if($displayStatus === 'operational') bg-green-100 text-green-700
+                                @elseif($displayStatus === 'maintenance') bg-yellow-100 text-yellow-700
                                 @else bg-red-100 text-red-700 @endif">
-                                {{ ucfirst($room->effective_status) }}
+                                {{ ucfirst($displayStatus) }}
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
