@@ -1,5 +1,6 @@
 const TOAST_CONTAINER_ID = 'app-toast-container';
 const DEFAULT_DURATION_MS = 4500;
+const MODAL_DISMISS_TOAST_TYPES = new Set(['warning', 'error']);
 
 const TOAST_THEME = {
     success: {
@@ -66,6 +67,26 @@ function createElement(tag, className = '', text = '') {
 
 function themeFor(type) {
     return TOAST_THEME[type] || TOAST_THEME.info;
+}
+
+function normalizeToastType(type) {
+    return String(type || 'info').trim().toLowerCase();
+}
+
+function dismissOpenModalForToast(type) {
+    if (!MODAL_DISMISS_TOAST_TYPES.has(type)) {
+        return;
+    }
+
+    const escapeEvent = new KeyboardEvent('keydown', {
+        key: 'Escape',
+        code: 'Escape',
+        keyCode: 27,
+        which: 27,
+        bubbles: true,
+    });
+
+    window.dispatchEvent(escapeEvent);
 }
 
 function dismissToast(toast, callback = null) {
@@ -194,8 +215,12 @@ function show(message, options = {}) {
         return null;
     }
 
+    const type = normalizeToastType(options.type || 'info');
+
+    dismissOpenModalForToast(type);
+
     const toast = buildToast({
-        type: options.type || 'info',
+        type,
         title: options.title || '',
         message,
         duration: Number.isFinite(options.duration) ? options.duration : DEFAULT_DURATION_MS,
