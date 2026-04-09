@@ -11,8 +11,16 @@ class BookingSeeder extends Seeder
 {
     public function run(): void
     {
-        // Create rooms matching the user's requirements
-        $collaborativeA = Room::create([
+        // Upsert room defaults so this seeder stays safe when migrations
+        // have already inserted collaborative rooms.
+        $upsertRoom = static function (array $attributes): Room {
+            return Room::query()->updateOrCreate(
+                ['slug' => $attributes['slug']],
+                $attributes,
+            );
+        };
+
+        $collaborativeA = $upsertRoom([
             'name' => 'Collaborative Room A',
             'slug' => 'collaborative-room-a',
             'capacity' => 10,
@@ -22,7 +30,7 @@ class BookingSeeder extends Seeder
             'description' => 'Collaborative workspace for group study and projects',
         ]);
 
-        $collaborativeB = Room::create([
+        $collaborativeB = $upsertRoom([
             'name' => 'Collaborative Room B',
             'slug' => 'collaborative-room-b',
             'capacity' => 10,
@@ -32,7 +40,7 @@ class BookingSeeder extends Seeder
             'description' => 'Collaborative workspace for group study and projects',
         ]);
 
-        $collaborativeC = Room::create([
+        $collaborativeC = $upsertRoom([
             'name' => 'Collaborative Room C',
             'slug' => 'collaborative-room-c',
             'capacity' => 10,
@@ -42,7 +50,7 @@ class BookingSeeder extends Seeder
             'description' => 'Collaborative workspace for group study and projects',
         ]);
 
-        $collaborativeD = Room::create([
+        $collaborativeD = $upsertRoom([
             'name' => 'Collaborative Room D',
             'slug' => 'collaborative-room-d',
             'capacity' => 10,
@@ -52,7 +60,7 @@ class BookingSeeder extends Seeder
             'description' => 'Small collaborative workspace',
         ]);
 
-        $collaborativeE = Room::create([
+        $collaborativeE = $upsertRoom([
             'name' => 'Collaborative Room E',
             'slug' => 'collaborative-room-e',
             'capacity' => 10,
