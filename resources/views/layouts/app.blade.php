@@ -285,6 +285,10 @@
         $recentPendingApprovals = $isStaff
             ? \App\Models\Booking::pendingActive()->with('room')->latest()->take(5)->get()
             : collect();
+        if ($currentUser && $hasNotificationsTable) {
+            app(\App\Services\BookingTimeAlertService::class)->syncForUser($currentUser, $isStaff);
+        }
+
         $userUnreadNotifications = ($currentUser && $hasNotificationsTable)
             ? $currentUser->unreadNotifications()->latest()->take(8)->get()
             : collect();

@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
+use App\Models\User;
+use App\Services\BookingTimeAlertService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Carbon\Carbon;
 
 class NotificationController extends Controller
 {
@@ -31,9 +34,11 @@ class NotificationController extends Controller
             ]);
         }
 
+        app(BookingTimeAlertService::class)->syncForUser($user, $isStaff);
+
         $unreadNotifications = $user->unreadNotifications()
             ->latest()
-            ->take(8)
+            ->take(3)
             ->get()
             ->map(function ($notification) use ($isStaff): array {
                 $url = (string) ($notification->data['url'] ?? '#');

@@ -1545,6 +1545,10 @@ export function createDashboardApp(config = {}) {
                 this.resizeDashboardCalendar();
             });
 
+            window.addEventListener('app:room-status-updated', () => {
+                this.refreshCollaborativeRoomStatuses();
+            });
+
             this.$watch('bookingForm.user_name', (value) => {
                 if (this.hasVerifiedRegistration) {
                     return;
