@@ -64,18 +64,22 @@ class CalendarController extends Controller
                 $roomName = $booking->room?->name;
                 $isOwner = $user && ($booking->user_id === $user->id || $booking->user_email === $user->email);
                 $canSeeDetails = $canViewAll || $isOwner;
+                $eventColor = $canViewAll
+                    ? $this->getEventColor($booking->status)
+                    : ($isOwner ? '#16A34A' : '#DC2626');
 
                 return [
                     'id' => $booking->id,
                     'title' => $canSeeDetails ? ($booking->title ?: ($roomName ?: 'Booking')) : 'Occupied',
                     'start' => $date->format('Y-m-d') . 'T' . $startTime,
                     'end' => $date->format('Y-m-d') . 'T' . $endTime,
-                    'backgroundColor' => $this->getEventColor($booking->status),
-                    'borderColor' => $this->getEventColor($booking->status),
+                    'backgroundColor' => $eventColor,
+                    'borderColor' => $eventColor,
                     'extendedProps' => [
                         'room' => $roomName,
                         'room_name' => $roomName,
                         'roomId' => $booking->room_id,
+                        'is_owner' => (bool) $isOwner,
                         'purpose' => $canSeeDetails ? $booking->title : 'Occupied',
                         'attendees' => $booking->attendees,
                         'userName' => $canViewAll ? $booking->user_name : null,
@@ -135,6 +139,7 @@ class CalendarController extends Controller
                         'title' => $canSeeDetails ? $booking->title : 'Occupied',
                         'room_name' => $booking->room?->name,
                         'room_id' => $booking->room_id,
+                        'is_owner' => (bool) $isOwner,
                         'start_time' => $booking->start_time,
                         'end_time' => $booking->end_time,
                         'formatted_time' => $booking->formatted_time,
@@ -202,6 +207,7 @@ class CalendarController extends Controller
                         'title' => $canSeeDetails ? $booking->title : 'Occupied',
                         'room_name' => $booking->room?->name,
                         'room_id' => $booking->room_id,
+                        'is_owner' => (bool) $isOwner,
                         'start_time' => $booking->start_time,
                         'end_time' => $booking->end_time,
                         'formatted_time' => $booking->formatted_time,

@@ -8,6 +8,9 @@
 @endsection
 
 @section('content')
+@php
+    $audienceLabel = ucfirst($dashboardAudience ?? 'admin');
+@endphp
 <div x-data="dashboardApp()" x-init="init()" class="flex flex-col">
     <!-- Main Dashboard Body -->
     <div class="flex-1 min-h-0 overflow-y-auto px-1 group/dashboard">
@@ -22,7 +25,8 @@
                     </div>
                     <div class="relative z-10">
                         <h2 class="text-xl font-bold text-white">Welcome, Admin!</h2>
-                        <p class="text-indigo-100 mt-1 text-sm leading-relaxed">Modernizing your library experience. Manage your room bookings and status from this dashboard.</p>
+                        <div class="mt-2 inline-flex items-center rounded-full border border-white/30 bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-white">{{ $audienceLabel }}</div>
+                        <p class="text-indigo-100 mt-2 text-sm leading-relaxed">Modernizing your library experience. Manage room operations, approvals, and dashboard analytics from one place.</p>
                         
                         <div class="mt-6 flex flex-wrap gap-3">
                             <a href="{{ route('approvals.index') }}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-700 text-xs font-bold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0">
@@ -405,6 +409,7 @@
     'initialCalendarData' => $calendarData,
     'monthDataUrl' => route('calendar.month'),
     'eventsUrl' => route('calendar.events'),
+    'availabilityUrl' => route('calendar.availability'),
     'verifyQcIdUrl' => route('qcid.verify'),
     'storeBookingUrl' => route('reservations.store'),
 ]) !!}

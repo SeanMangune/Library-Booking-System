@@ -21,7 +21,7 @@ class BookingLifecycleStatusTest extends TestCase
 
     public function test_future_booking_is_saved_as_upcoming(): void
     {
-        Carbon::setTestNow('2026-03-18 10:00:00');
+        $this->setBookingTestNow('2026-03-18 10:00:00');
 
         $booking = $this->createBooking([
             'date' => '2027-01-01',
@@ -34,7 +34,7 @@ class BookingLifecycleStatusTest extends TestCase
 
     public function test_today_booking_inside_time_window_is_saved_as_valid(): void
     {
-        Carbon::setTestNow('2026-03-18 09:30:00');
+        $this->setBookingTestNow('2026-03-18 09:30:00');
 
         $booking = $this->createBooking([
             'date' => '2026-03-18',
@@ -47,7 +47,7 @@ class BookingLifecycleStatusTest extends TestCase
 
     public function test_today_booking_past_end_time_becomes_expired_on_retrieval(): void
     {
-        Carbon::setTestNow('2026-03-18 08:30:00');
+        $this->setBookingTestNow('2026-03-18 08:30:00');
 
         $booking = $this->createBooking([
             'date' => '2026-03-18',
@@ -57,7 +57,7 @@ class BookingLifecycleStatusTest extends TestCase
 
         $this->assertSame('upcoming', $booking->booking_status);
 
-        Carbon::setTestNow('2026-03-18 10:30:00');
+        $this->setBookingTestNow('2026-03-18 10:30:00');
 
         $freshBooking = Booking::query()->findOrFail($booking->id);
 
@@ -92,5 +92,12 @@ class BookingLifecycleStatusTest extends TestCase
             'attendees' => 1,
             'status' => 'pending',
         ], $overrides));
+    }
+
+    private function setBookingTestNow(string $dateTime): void
+    {
+        Carbon::setTestNow(
+            Carbon::parse($dateTime, (string) config('app.booking_timezone', 'Asia/Manila'))
+        );
     }
 }

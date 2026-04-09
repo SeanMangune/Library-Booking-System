@@ -79,6 +79,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/calendar/events', [CalendarController::class, 'events'])->name('calendar.events');
         Route::get('/calendar/day', [CalendarController::class, 'dayEvents'])->name('calendar.day');
         Route::get('/calendar/month', [CalendarController::class, 'monthData'])->name('calendar.month');
+        Route::get('/calendar/availability', [BookingController::class, 'availability'])->name('calendar.availability');
         Route::post('/qc-id/verify', QcIdVerificationController::class)->name('qcid.verify');
         Route::get('/room-reservations', [BookingController::class, 'index'])->name('reservations.index');
         Route::post('/room-reservations/{booking}/cancel', [BookingController::class, 'cancel'])->name('reservations.cancel');

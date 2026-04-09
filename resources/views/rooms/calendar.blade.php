@@ -182,6 +182,7 @@
     'defaultRoomId' => $selectedRoom?->id,
     'defaultDate' => now()->format('Y-m-d'),
     'eventsUrl' => route('calendar.events'),
+    'availabilityUrl' => route('calendar.availability'),
     'verifyQcIdUrl' => route('qcid.verify'),
     'storeBookingUrl' => route('reservations.store'),
 ]) !!}

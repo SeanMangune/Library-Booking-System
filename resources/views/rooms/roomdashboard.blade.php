@@ -523,6 +523,13 @@
                 
                 async rejectBooking() {
                     if (!this.selectedBooking) return;
+
+                    const reasonInput = window.prompt('Enter the reason for rejecting this booking:');
+                    const reason = String(reasonInput || '').trim();
+                    if (!reason) {
+                        window.notifyApp?.('error', 'A rejection reason is required.');
+                        return;
+                    }
                     
                     this.isLoading = true;
                     this.actionType = 'reject';
@@ -533,7 +540,8 @@
                             headers: {
                                 'Content-Type': 'application/json',
                                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                            }
+                            },
+                            body: JSON.stringify({ reason })
                         });
                         
                         if (response.ok) {

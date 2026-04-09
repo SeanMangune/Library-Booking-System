@@ -308,6 +308,7 @@
 
             return $value;
         };
+        $classificationLabel = $currentUser?->classificationLabel() ?? 'Student';
         $initials = $currentUser
             ? collect(preg_split('/\s+/', trim($currentUser->name)))->filter()->take(2)->map(fn ($p) => mb_strtoupper(mb_substr($p, 0, 1)))->implode('')
             : 'U';
@@ -588,7 +589,10 @@
                                 </div>
                                 <div class="hidden sm:block text-left">
                                     <p class="font-semibold text-gray-800" title="{{ $currentUser?->name }}">{{ Str::limit($currentUser?->name, 14) }}</p>
-                                    <p class="text-xs text-gray-500">{{ $currentUser?->roleLabel() ?? 'User' }}</p>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">{{ $classificationLabel }}</span>
+                                        <span class="text-xs text-gray-500">{{ $currentUser?->roleLabel() ?? 'User' }}</span>
+                                    </div>
                                 </div>
                                 <i class="w-4 h-4 text-gray-400 hidden sm:block fa-icon fa-solid fa-chevron-down text-base leading-none"></i>
                             </button>
@@ -603,6 +607,7 @@
                                 <div class="px-4 py-3 border-b border-gray-100">
                                     <p class="text-sm font-semibold text-gray-800">{{ $currentUser?->name }}</p>
                                     <p class="text-xs text-gray-500 break-all">{{ $currentUser?->email }}</p>
+                                    <p class="mt-1 text-[11px] font-semibold uppercase tracking-wide text-indigo-600">{{ $classificationLabel }}</p>
                                 </div>
                                 <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                                     <i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-user text-base leading-none"></i>

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\QcIdRegistration;
 use App\Models\Room;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -16,7 +17,10 @@ class RoomDashboardController extends Controller
         $today = today();
         $twoWeeksAhead = today()->copy()->addDays(14);
         $user = $request->user();
-        $isStaff = $user?->isAdmin() || $user?->isSuperAdmin() || $user?->isStaff();
+        $classification = $user?->classification() ?? User::CLASSIFICATION_STUDENT;
+        $isAdminClassification = $classification === User::CLASSIFICATION_ADMIN
+            || $user?->isAdmin()
+            || $user?->isSuperAdmin();
 
         // Calendar data for current month
         $month = $request->get('month', now()->month);
@@ -24,14 +28,14 @@ class RoomDashboardController extends Controller
         $calendarData = $this->getCalendarData($month, $year, $user);
         $rooms = Room::query()->visible()->operational()->orderBy('name')->get();
 
-        if ($isStaff) {
-            return $this->adminDashboard($request, $user, $today, $twoWeeksAhead, $calendarData, $rooms);
+        if ($isAdminClassification) {
+            return $this->adminDashboard($request, $user, $today, $twoWeeksAhead, $calendarData, $rooms, $classification);
         }
 
-        return $this->userDashboard($request, $user, $today, $twoWeeksAhead, $calendarData, $rooms);
+        return $this->userDashboard($request, $user, $today, $twoWeeksAhead, $calendarData, $rooms, $classification);
     }
 
-    private function adminDashboard($request, $user, $today, $twoWeeksAhead, $calendarData, $rooms)
+    private function adminDashboard($request, $user, $today, $twoWeeksAhead, $calendarData, $rooms, string $classification)
     {
         $collabRoomBookings = Booking::with('room')
             ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
@@ -80,6 +84,7 @@ class RoomDashboardController extends Controller
             ->get();
 
         $isStaff = true;
+        $dashboardAudience = User::CLASSIFICATION_ADMIN;
 
         $pendingBookings = $pendingBookingsList;
 
@@ -94,10 +99,12 @@ class RoomDashboardController extends Controller
             'approvedBookingsList',
             'rejectedBookingsList',
             'todayBookingsList',
+            'classification',
+            'dashboardAudience',
         ));
     }
 
-    private function userDashboard($request, $user, $today, $twoWeeksAhead, $calendarData, $rooms)
+    private function userDashboard($request, $user, $today, $twoWeeksAhead, $calendarData, $rooms, string $classification)
     {
         $dashboardReference = now((string) config('app.booking_timezone', 'Asia/Manila'));
         $dashboardDate = $dashboardReference->toDateString();
@@ -186,6 +193,9 @@ class RoomDashboardController extends Controller
         ];
 
         $isStaff = false;
+        $dashboardAudience = in_array($classification, [User::CLASSIFICATION_FACULTY, User::CLASSIFICATION_STUDENT], true)
+            ? $classification
+            : User::CLASSIFICATION_STUDENT;
 
         return view('rooms.dashboard-user', compact(
             'collabRoomBookings',
@@ -199,6 +209,8 @@ class RoomDashboardController extends Controller
             'userStatsBookings',
             'isVerified',
             'qcIdRegistration',
+            'classification',
+            'dashboardAudience',
         ));
     }
 

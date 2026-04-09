@@ -13,6 +13,12 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
+    public const CLASSIFICATION_STUDENT = 'student';
+
+    public const CLASSIFICATION_FACULTY = 'faculty';
+
+    public const CLASSIFICATION_ADMIN = 'admin';
+
     public const ROLE_USER = 'user';
 
     public const ROLE_ADMIN = 'admin';
@@ -30,6 +36,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'classification',
         'provider',
         'provider_id',
         'settings',
@@ -58,6 +65,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'settings' => 'array',
+            'classification' => 'string',
         ];
     }
 
@@ -91,6 +99,30 @@ class User extends Authenticatable
             self::ROLE_ADMIN => 'Administrator',
             self::ROLE_LIBRARIAN => 'Librarian',
             default => 'User',
+        };
+    }
+
+    public function classification(): string
+    {
+        $classification = strtolower(trim((string) ($this->classification ?? '')));
+
+        if (in_array($classification, [self::CLASSIFICATION_STUDENT, self::CLASSIFICATION_FACULTY, self::CLASSIFICATION_ADMIN], true)) {
+            return $classification;
+        }
+
+        return match ($this->role) {
+            self::ROLE_ADMIN => self::CLASSIFICATION_ADMIN,
+            self::ROLE_LIBRARIAN => self::CLASSIFICATION_FACULTY,
+            default => self::CLASSIFICATION_STUDENT,
+        };
+    }
+
+    public function classificationLabel(): string
+    {
+        return match ($this->classification()) {
+            self::CLASSIFICATION_ADMIN => 'Admin',
+            self::CLASSIFICATION_FACULTY => 'Faculty',
+            default => 'Student',
         };
     }
 

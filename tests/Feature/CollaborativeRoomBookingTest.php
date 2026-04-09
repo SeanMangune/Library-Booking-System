@@ -7,6 +7,7 @@ use App\Models\Room;
 use App\Models\User;
 use App\Services\QcIdOcrVerifier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Tests\TestCase;
 
 class CollaborativeRoomBookingTest extends TestCase
@@ -18,6 +19,7 @@ class CollaborativeRoomBookingTest extends TestCase
         parent::setUp();
 
         $this->withoutVite();
+        $this->withoutMiddleware(ValidateCsrfToken::class);
     }
 
     public function test_student_can_request_twelve_attendees_in_a_collaborative_room_for_staff_approval(): void
@@ -28,14 +30,7 @@ class CollaborativeRoomBookingTest extends TestCase
             'role' => User::ROLE_USER,
         ]);
 
-        $room = Room::create([
-            'name' => 'Collaborative Room C',
-            'slug' => 'collaborative-room-c',
-            'capacity' => 10,
-            'location' => 'Third Floor',
-            'status' => 'operational',
-            'requires_approval' => false,
-        ]);
+        $room = $this->collaborativeRoom();
 
         $this->mock(QcIdOcrVerifier::class, function ($mock) {
             $mock->shouldReceive('verify')->andReturn([
@@ -71,14 +66,7 @@ class CollaborativeRoomBookingTest extends TestCase
             'role' => User::ROLE_USER,
         ]);
 
-        $room = Room::create([
-            'name' => 'Collaborative Room C',
-            'slug' => 'collaborative-room-c',
-            'capacity' => 10,
-            'location' => 'Third Floor',
-            'status' => 'operational',
-            'requires_approval' => false,
-        ]);
+        $room = $this->collaborativeRoom();
 
         $this->mock(QcIdOcrVerifier::class, function ($mock) {
             $mock->shouldReceive('verify')->never();
@@ -98,29 +86,22 @@ class CollaborativeRoomBookingTest extends TestCase
 
         $response->assertStatus(422);
         $response->assertJsonFragment([
-            'message' => 'Collaborative rooms are fixed at 10 attendees, and can only be extended up to 12 with librarian permission.',
+            'message' => 'Collaborative rooms allow up to 10 attendees by default, and can only be extended up to 12 with librarian permission.',
         ]);
     }
 
-    public function test_librarian_must_add_an_approval_note_when_granting_extra_collaborative_capacity(): void
+    public function test_admin_can_approve_extra_collaborative_capacity_without_an_approval_note(): void
     {
         /** @var User $student */
         $student = User::factory()->create([
             'role' => User::ROLE_USER,
         ]);
-        /** @var User $librarian */
-        $librarian = User::factory()->create([
-            'role' => User::ROLE_LIBRARIAN,
+        /** @var User $admin */
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
         ]);
 
-        $room = Room::create([
-            'name' => 'Collaborative Room C',
-            'slug' => 'collaborative-room-c',
-            'capacity' => 10,
-            'location' => 'Third Floor',
-            'status' => 'operational',
-            'requires_approval' => false,
-        ]);
+        $room = $this->collaborativeRoom();
 
         $booking = Booking::withoutEvents(function () use ($room, $student) {
             return Booking::create([
@@ -139,16 +120,7 @@ class CollaborativeRoomBookingTest extends TestCase
             ]);
         });
 
-        $missingNoteResponse = $this->actingAs($librarian)->postJson(route('approvals.approve', $booking), []);
-
-        $missingNoteResponse->assertStatus(422);
-        $missingNoteResponse->assertJsonFragment([
-            'message' => 'Add a short approval note before granting a collaborative room booking above 10 attendees.',
-        ]);
-
-        $approvedResponse = $this->actingAs($librarian)->postJson(route('approvals.approve', $booking), [
-            'reason' => 'Approved after confirming the group size and room availability.',
-        ]);
+        $approvedResponse = $this->actingAs($admin)->postJson(route('approvals.approve', $booking), []);
 
         $approvedResponse->assertOk();
         $approvedResponse->assertJsonPath('booking.booking_status', 'upcoming');
@@ -157,6 +129,21 @@ class CollaborativeRoomBookingTest extends TestCase
             'id' => $booking->id,
             'status' => 'approved',
             'booking_status' => 'upcoming',
+            'reason' => null,
         ]);
+    }
+
+    private function collaborativeRoom(): Room
+    {
+        return Room::query()->firstOrCreate(
+            ['slug' => 'collaborative-room-c'],
+            [
+                'name' => 'Collaborative Room C',
+                'capacity' => 10,
+                'location' => 'Third Floor',
+                'status' => 'operational',
+                'requires_approval' => true,
+            ]
+        );
     }
 }

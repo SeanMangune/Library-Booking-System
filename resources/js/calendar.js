@@ -44,6 +44,20 @@ function buildUrl(base, params) {
     return url.toString();
 }
 
+async function fetchBookingAvailability(availabilityUrl, params = {}) {
+    const response = await fetch(buildUrl(availabilityUrl, params), {
+        headers: {
+            Accept: 'application/json',
+        },
+    });
+
+    if (!response.ok) {
+        throw new Error('Unable to load booking availability.');
+    }
+
+    return response.json();
+}
+
 async function performQcIdVerification(file, userName, verifyUrl) {
     const reader = new FileReader();
     const base64Promise = new Promise((resolve) => {
@@ -686,6 +700,7 @@ function createRoomBookingForm(config, dateOverride = null) {
 
 export function createRoomCalendarApp(config = {}) {
     const eventsUrl = config.eventsUrl || '/rooms/calendar/events';
+    const availabilityUrl = config.availabilityUrl || '/rooms/calendar/availability';
     const storeBookingUrl = config.storeBookingUrl || '/rooms/room-reservations';
     const verifyQcIdUrl = config.verifyQcIdUrl || '/rooms/qc-id/verify';
 
@@ -708,9 +723,14 @@ export function createRoomCalendarApp(config = {}) {
         isStaffUser: Boolean(config.isStaffUser),
         rooms: Array.isArray(config.rooms) ? config.rooms : [],
         get bookingTimeSlots() {
-            return filterPastTimeSlots(BOOKING_TIME_SLOTS, this.bookingForm.date);
+            return this.availableTimeSlots;
         },
-        bookingDateOptions: buildBookingDateOptions(config.bookingDateRangeDays),
+        bookingDateOptions: [],
+        availableTimeSlots: [],
+        availableRooms: [],
+        availabilityError: '',
+        isLoadingAvailability: false,
+        _isSyncingAvailability: false,
         qcIdFile: null,
         qcIdPreviewUrl: '',
         qcIdIsProcessing: false,
@@ -799,18 +819,25 @@ export function createRoomCalendarApp(config = {}) {
                 }
             });
 
-            this.$watch('bookingForm.date', (value) => {
-                this.ensureBookingDateOption(value);
+            this.$watch('bookingForm.date', async () => {
+                if (this._isSyncingAvailability) {
+                    return;
+                }
                 this.clearTimeConflictSuggestions();
+                await this.syncBookingAvailability(true);
             });
 
-            this.$watch('bookingForm.time_slot', (value) => {
+            this.$watch('bookingForm.time_slot', async (value) => {
+                if (this._isSyncingAvailability) {
+                    return;
+                }
                 applyBookingTimeSlot(this.bookingForm, value);
                 this.clearTimeConflictSuggestions();
+                await this.syncBookingAvailability(false);
             });
 
-            this.ensureBookingDateOption(this.bookingForm.date);
             applyBookingTimeSlot(this.bookingForm, this.bookingForm.time_slot);
+            this.syncBookingAvailability(true);
 
             if (this.hasVerifiedRegistration) {
                 this.qcIdVerification = {
@@ -856,6 +883,83 @@ export function createRoomCalendarApp(config = {}) {
             }
 
             return `Minimum 5 attendees required. This collaborative room allows up to ${room.standard_limit} attendees.`;
+        },
+
+        async syncBookingAvailability(resetRoom = false) {
+            if (this._isSyncingAvailability) {
+                return;
+            }
+
+            this._isSyncingAvailability = true;
+            this.isLoadingAvailability = true;
+            this.availabilityError = '';
+
+            try {
+                const payload = await fetchBookingAvailability(availabilityUrl, {
+                    days: config.bookingDateRangeDays || BOOKING_DATE_RANGE_DAYS,
+                    date: this.bookingForm.date || undefined,
+                    time_slot: this.bookingForm.time_slot || undefined,
+                });
+
+                const dates = Array.isArray(payload?.dates) ? payload.dates : [];
+                const timeSlots = Array.isArray(payload?.time_slots) ? payload.time_slots : [];
+                const rooms = Array.isArray(payload?.rooms) ? payload.rooms : [];
+
+                this.bookingDateOptions = dates;
+                this.availableTimeSlots = timeSlots;
+                this.availableRooms = rooms;
+
+                if (!dates.length) {
+                    this.bookingForm.date = '';
+                    this.bookingForm.time_slot = '';
+                    this.bookingForm.start_time = '';
+                    this.bookingForm.end_time = '';
+                    this.bookingForm.room_id = '';
+                    this.availabilityError = 'No available booking dates were found right now.';
+                    return;
+                }
+
+                const selectedDate = String(payload?.selected?.date || this.bookingForm.date || dates[0].value || '');
+                if (!dates.some((option) => option.value === selectedDate)) {
+                    this.bookingForm.date = String(dates[0].value || '');
+                } else {
+                    this.bookingForm.date = selectedDate;
+                }
+
+                if (!timeSlots.length) {
+                    this.bookingForm.time_slot = '';
+                    this.bookingForm.start_time = '';
+                    this.bookingForm.end_time = '';
+                    this.bookingForm.room_id = '';
+                    this.availabilityError = 'No available time slots for the selected date.';
+                    return;
+                }
+
+                const selectedSlot = String(payload?.selected?.time_slot || this.bookingForm.time_slot || timeSlots[0].value || '');
+                if (!timeSlots.some((slot) => slot.value === selectedSlot)) {
+                    this.bookingForm.time_slot = String(timeSlots[0].value || '');
+                } else {
+                    this.bookingForm.time_slot = selectedSlot;
+                }
+
+                applyBookingTimeSlot(this.bookingForm, this.bookingForm.time_slot);
+
+                if (!rooms.length) {
+                    this.bookingForm.room_id = '';
+                    this.availabilityError = 'No rooms are available for the selected date and time.';
+                    return;
+                }
+
+                if (resetRoom || !rooms.some((room) => String(room.id) === String(this.bookingForm.room_id))) {
+                    this.bookingForm.room_id = String(rooms[0].id);
+                }
+            } catch (error) {
+                console.error('Failed to load booking availability:', error);
+                this.availabilityError = 'Unable to load live availability right now. Please try again.';
+            } finally {
+                this.isLoadingAvailability = false;
+                this._isSyncingAvailability = false;
+            }
         },
 
         ensureBookingDateOption(dateValue) {
@@ -919,6 +1023,7 @@ export function createRoomCalendarApp(config = {}) {
             applyBookingTimeSlot(this.bookingForm, slotValue);
             this.clearTimeConflictSuggestions();
             this.qcIdError = '';
+            this.syncBookingAvailability(false);
         },
 
         async handleBookingConflict(response, payload) {
@@ -1088,25 +1193,16 @@ export function createRoomCalendarApp(config = {}) {
 
         openBookingModal(date = null) {
             this.clearTimeConflictSuggestions();
+            this.availabilityError = '';
 
-            // Always rebuild bookingDateOptions from today for every modal open
-            this.bookingDateOptions = buildBookingDateOptions();
-
-            // Prevent selecting a past date, even if pre-filled
-            const todayStr = new Date().toISOString().split('T')[0];
-            let formDate = date || this.bookingForm.date;
-            if (formDate && formDate < todayStr) {
-                this.bookingForm.date = todayStr;
-            } else if (formDate && this.bookingDateOptions.some(opt => opt.value === formDate)) {
-                this.bookingForm.date = formDate;
-            } else {
-                this.bookingForm.date = todayStr;
+            if (date) {
+                this.bookingForm.date = date;
             }
 
             applyBookingTimeSlot(this.bookingForm, this.bookingForm.time_slot);
 
-            if (this.selectedRoom) {
-                this.bookingForm.room_id = this.selectedRoom.id;
+            if (this.selectedRoom && !this.bookingForm.room_id) {
+                this.bookingForm.room_id = String(this.selectedRoom.id);
             }
 
             this.qcIdError = '';
@@ -1120,6 +1216,7 @@ export function createRoomCalendarApp(config = {}) {
                 };
             }
 
+            this.syncBookingAvailability(true);
             this.showBookingModal = true;
         },
 
@@ -1169,6 +1266,33 @@ export function createRoomCalendarApp(config = {}) {
         async submitBooking() {
             if (!this.isStaffUser && !this.hasVerifiedRegistration && (!this.qcIdVerification?.is_valid || !this.bookingForm.qc_id_ocr_text)) {
                 this.qcIdError = 'Upload and verify a valid QC ID before creating the booking.';
+                return;
+            }
+
+            const previousSelection = {
+                date: this.bookingForm.date,
+                time_slot: this.bookingForm.time_slot,
+                room_id: String(this.bookingForm.room_id || ''),
+            };
+
+            await this.syncBookingAvailability(false);
+
+            if (!this.bookingForm.date || !this.bookingForm.time_slot || !this.bookingForm.room_id) {
+                this.qcIdError = this.availabilityError || 'Please select an available date, time slot, and room.';
+                showNotification(this.qcIdError, 'warning');
+                return;
+            }
+
+            const availabilityChanged = previousSelection.date
+                && (
+                    previousSelection.date !== this.bookingForm.date
+                    || previousSelection.time_slot !== this.bookingForm.time_slot
+                    || previousSelection.room_id !== String(this.bookingForm.room_id || '')
+                );
+
+            if (availabilityChanged) {
+                this.qcIdError = 'Availability changed while you were filling the form. Please review the updated options and submit again.';
+                showNotification(this.qcIdError, 'warning');
                 return;
             }
 
@@ -1259,6 +1383,7 @@ function createDashboardBookingForm(config, dateOverride = null) {
 
 export function createDashboardApp(config = {}) {
     const eventsUrl = config.eventsUrl || '/rooms/calendar/events';
+    const availabilityUrl = config.availabilityUrl || '/rooms/calendar/availability';
     const storeBookingUrl = config.storeBookingUrl || '/rooms/room-reservations';
     const verifyQcIdUrl = config.verifyQcIdUrl || '/rooms/qc-id/verify';
     const monthDataUrl = config.monthDataUrl || '/rooms/calendar/month';
@@ -1297,9 +1422,14 @@ export function createDashboardApp(config = {}) {
         isStaffUser: Boolean(config.isStaffUser),
         rooms: Array.isArray(config.rooms) ? config.rooms : [],
         get bookingTimeSlots() {
-            return filterPastTimeSlots(BOOKING_TIME_SLOTS, this.bookingForm.date);
+            return this.availableTimeSlots;
         },
-        bookingDateOptions: buildBookingDateOptions(config.bookingDateRangeDays),
+        bookingDateOptions: [],
+        availableTimeSlots: [],
+        availableRooms: [],
+        availabilityError: '',
+        isLoadingAvailability: false,
+        _isSyncingAvailability: false,
         qcIdFile: null,
         qcIdPreviewUrl: '',
         qcIdIsProcessing: false,
@@ -1584,18 +1714,25 @@ export function createDashboardApp(config = {}) {
                 }
             });
 
-            this.$watch('bookingForm.date', (value) => {
-                this.ensureBookingDateOption(value);
+            this.$watch('bookingForm.date', async () => {
+                if (this._isSyncingAvailability) {
+                    return;
+                }
                 this.clearTimeConflictSuggestions();
+                await this.syncBookingAvailability(true);
             });
 
-            this.$watch('bookingForm.time_slot', (value) => {
+            this.$watch('bookingForm.time_slot', async (value) => {
+                if (this._isSyncingAvailability) {
+                    return;
+                }
                 applyBookingTimeSlot(this.bookingForm, value);
                 this.clearTimeConflictSuggestions();
+                await this.syncBookingAvailability(false);
             });
 
-            this.ensureBookingDateOption(this.bookingForm.date);
             applyBookingTimeSlot(this.bookingForm, this.bookingForm.time_slot);
+            this.syncBookingAvailability(true);
 
             if (this.hasVerifiedRegistration) {
                 this.qcIdVerification = {
@@ -1666,6 +1803,83 @@ export function createDashboardApp(config = {}) {
             return `Minimum 5 attendees required. This collaborative room allows up to ${room.standard_limit} attendees.`;
         },
 
+        async syncBookingAvailability(resetRoom = false) {
+            if (this._isSyncingAvailability) {
+                return;
+            }
+
+            this._isSyncingAvailability = true;
+            this.isLoadingAvailability = true;
+            this.availabilityError = '';
+
+            try {
+                const payload = await fetchBookingAvailability(availabilityUrl, {
+                    days: config.bookingDateRangeDays || BOOKING_DATE_RANGE_DAYS,
+                    date: this.bookingForm.date || undefined,
+                    time_slot: this.bookingForm.time_slot || undefined,
+                });
+
+                const dates = Array.isArray(payload?.dates) ? payload.dates : [];
+                const timeSlots = Array.isArray(payload?.time_slots) ? payload.time_slots : [];
+                const rooms = Array.isArray(payload?.rooms) ? payload.rooms : [];
+
+                this.bookingDateOptions = dates;
+                this.availableTimeSlots = timeSlots;
+                this.availableRooms = rooms;
+
+                if (!dates.length) {
+                    this.bookingForm.date = '';
+                    this.bookingForm.time_slot = '';
+                    this.bookingForm.start_time = '';
+                    this.bookingForm.end_time = '';
+                    this.bookingForm.room_id = '';
+                    this.availabilityError = 'No available booking dates were found right now.';
+                    return;
+                }
+
+                const selectedDate = String(payload?.selected?.date || this.bookingForm.date || dates[0].value || '');
+                if (!dates.some((option) => option.value === selectedDate)) {
+                    this.bookingForm.date = String(dates[0].value || '');
+                } else {
+                    this.bookingForm.date = selectedDate;
+                }
+
+                if (!timeSlots.length) {
+                    this.bookingForm.time_slot = '';
+                    this.bookingForm.start_time = '';
+                    this.bookingForm.end_time = '';
+                    this.bookingForm.room_id = '';
+                    this.availabilityError = 'No available time slots for the selected date.';
+                    return;
+                }
+
+                const selectedSlot = String(payload?.selected?.time_slot || this.bookingForm.time_slot || timeSlots[0].value || '');
+                if (!timeSlots.some((slot) => slot.value === selectedSlot)) {
+                    this.bookingForm.time_slot = String(timeSlots[0].value || '');
+                } else {
+                    this.bookingForm.time_slot = selectedSlot;
+                }
+
+                applyBookingTimeSlot(this.bookingForm, this.bookingForm.time_slot);
+
+                if (!rooms.length) {
+                    this.bookingForm.room_id = '';
+                    this.availabilityError = 'No rooms are available for the selected date and time.';
+                    return;
+                }
+
+                if (resetRoom || !rooms.some((room) => String(room.id) === String(this.bookingForm.room_id))) {
+                    this.bookingForm.room_id = String(rooms[0].id);
+                }
+            } catch (error) {
+                console.error('Failed to load booking availability:', error);
+                this.availabilityError = 'Unable to load live availability right now. Please try again.';
+            } finally {
+                this.isLoadingAvailability = false;
+                this._isSyncingAvailability = false;
+            }
+        },
+
         ensureBookingDateOption(dateValue) {
             ensureBookingDateOption(this.bookingDateOptions, dateValue);
         },
@@ -1727,6 +1941,7 @@ export function createDashboardApp(config = {}) {
             applyBookingTimeSlot(this.bookingForm, slotValue);
             this.clearTimeConflictSuggestions();
             this.qcIdError = '';
+            this.syncBookingAvailability(false);
         },
 
         async runQcIdVerification(file) {
@@ -2314,20 +2529,12 @@ export function createDashboardApp(config = {}) {
 
         openBookingModal(date = null) {
             this.clearTimeConflictSuggestions();
-            // Always rebuild bookingDateOptions from today for every modal open
-            this.bookingDateOptions = buildBookingDateOptions();
+            this.availabilityError = '';
 
             this.bookingForm = createDashboardBookingForm(config, date);
 
-            // Prevent selecting a past date, even if pre-filled
-            const todayStr = new Date().toISOString().split('T')[0];
-            let formDate = date || this.bookingForm.date;
-            if (formDate && formDate < todayStr) {
-                this.bookingForm.date = todayStr;
-            } else if (formDate && this.bookingDateOptions.some(opt => opt.value === formDate)) {
-                this.bookingForm.date = formDate;
-            } else {
-                this.bookingForm.date = todayStr;
+            if (date) {
+                this.bookingForm.date = date;
             }
 
             applyBookingTimeSlot(this.bookingForm, this.bookingForm.time_slot);
@@ -2351,6 +2558,7 @@ export function createDashboardApp(config = {}) {
                 this.resetQcIdState({ keepPreview: false });
             }
 
+            this.syncBookingAvailability(true);
             this.showBookingModal = true;
         },
 
@@ -2469,6 +2677,33 @@ export function createDashboardApp(config = {}) {
         async submitBooking() {
             if (!this.isStaffUser && !this.hasVerifiedRegistration && (!this.qcIdVerification?.is_valid || !this.bookingForm.qc_id_ocr_text)) {
                 this.qcIdError = 'Upload and verify a valid QC ID before creating the booking.';
+                return;
+            }
+
+            const previousSelection = {
+                date: this.bookingForm.date,
+                time_slot: this.bookingForm.time_slot,
+                room_id: String(this.bookingForm.room_id || ''),
+            };
+
+            await this.syncBookingAvailability(false);
+
+            if (!this.bookingForm.date || !this.bookingForm.time_slot || !this.bookingForm.room_id) {
+                this.qcIdError = this.availabilityError || 'Please select an available date, time slot, and room.';
+                showNotification(this.qcIdError, 'warning');
+                return;
+            }
+
+            const availabilityChanged = previousSelection.date
+                && (
+                    previousSelection.date !== this.bookingForm.date
+                    || previousSelection.time_slot !== this.bookingForm.time_slot
+                    || previousSelection.room_id !== String(this.bookingForm.room_id || '')
+                );
+
+            if (availabilityChanged) {
+                this.qcIdError = 'Availability changed while you were filling the form. Please review the updated options and submit again.';
+                showNotification(this.qcIdError, 'warning');
                 return;
             }
 

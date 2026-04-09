@@ -36,19 +36,18 @@ export function createApprovalDetailsModalState() {
         selectedBooking: null,
         isLoading: false,
         actionType: null,
-        showExceptionInput: false,
-        exceptionReason: '',
+        rejectionReason: '',
 
         openApprovalModal(booking) {
             this.selectedBooking = booking;
-            this.showExceptionInput = false;
-            this.exceptionReason = '';
+            this.rejectionReason = '';
             this.showModal = true;
         },
 
         closeModal() {
             this.showModal = false;
             this.selectedBooking = null;
+            this.rejectionReason = '';
         },
 
         async approveBooking() {
@@ -66,9 +65,7 @@ export function createApprovalDetailsModalState() {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': csrfToken(),
                     },
-                    body: JSON.stringify({
-                        reason: this.exceptionReason,
-                    }),
+                    body: JSON.stringify({}),
                 });
 
                 const contentType = response.headers.get('content-type') || '';
@@ -117,6 +114,12 @@ export function createApprovalDetailsModalState() {
                 return;
             }
 
+            const reason = String(this.rejectionReason || '').trim();
+            if (!reason) {
+                window.notifyApp?.('error', 'A rejection reason is required.');
+                return;
+            }
+
             this.isLoading = true;
             this.actionType = 'reject';
 
@@ -127,6 +130,7 @@ export function createApprovalDetailsModalState() {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': csrfToken(),
                     },
+                    body: JSON.stringify({ reason }),
                 });
 
                 const contentType = response.headers.get('content-type') || '';
@@ -144,6 +148,7 @@ export function createApprovalDetailsModalState() {
 
                 this.showModal = false;
                 this.showRejectModal = true;
+                this.rejectionReason = '';
             } catch (error) {
                 console.error('Error:', error);
                 window.notifyApp?.('error', error?.message || 'An error occurred while rejecting the booking');

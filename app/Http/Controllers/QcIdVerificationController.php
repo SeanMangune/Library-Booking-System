@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use App\Models\QcIdRegistration;
 use App\Services\OcrSpaceClient;
 use App\Services\QcIdOcrVerifier;
@@ -10,6 +11,8 @@ use Illuminate\Http\Request;
 
 class QcIdVerificationController extends Controller
 {
+    private const MIN_REGISTRATION_AGE = 15;
+
     public function __invoke(Request $request, QcIdOcrVerifier $verifier, OcrSpaceClient $ocrSpace): JsonResponse
     {
         // Increase maximum execution time specifically for this route
@@ -130,6 +133,17 @@ class QcIdVerificationController extends Controller
         }
 
         $capturedId = $this->normalizeQcIdDigits((string) ($verification['id_number'] ?? $qrIdNumber ?? ''));
+
+        if ($verification['is_valid']) {
+            $birthDateError = $this->dateOfBirthValidationError($verification);
+            if ($birthDateError !== null) {
+                $verification['is_valid'] = false;
+                $verification['id_assessment'] = 'INVALID';
+                $verification['invalid_date_of_birth'] = true;
+                $verification['date_of_birth_error'] = $birthDateError;
+            }
+        }
+
         if ($verification['is_valid'] && $capturedId !== '' && $this->isQcIdAlreadyInUse($capturedId)) {
             $verification['is_valid'] = false;
             $verification['id_assessment'] = 'INVALID';
@@ -151,7 +165,9 @@ class QcIdVerificationController extends Controller
         }
 
         if (! $verification['is_valid']) {
-            if (! empty($verification['duplicate_qcid'])) {
+            if (! empty($verification['invalid_date_of_birth'])) {
+                $message = (string) ($verification['date_of_birth_error'] ?? 'Date of birth from your QC ID is invalid. Please upload a clear QC ID image.');
+            } elseif (! empty($verification['duplicate_qcid'])) {
                 $message = 'This QC ID is already in use with another account.';
             } elseif ($verification['id_assessment'] === 'Fake QC ID') {
                 $message = 'Fake QC ID detected.';
@@ -791,6 +807,33 @@ class QcIdVerificationController extends Controller
             $day = $a > 12 ? $a : $b;
 
             return checkdate($month, $day, $year) ? sprintf('%04d-%02d-%02d', $year, $month, $day) : null;
+        }
+
+        return null;
+    }
+
+    private function dateOfBirthValidationError(array &$verification): ?string
+    {
+        $normalizedDob = $this->normalizeDateYmd((string) ($verification['date_of_birth'] ?? ''));
+        if ($normalizedDob === null) {
+            return 'Date of birth could not be extracted from your QC ID. Please upload a clearer image and try again.';
+        }
+
+        $verification['date_of_birth'] = $normalizedDob;
+
+        try {
+            $dob = Carbon::createFromFormat('Y-m-d', $normalizedDob)->startOfDay();
+        } catch (\Throwable $e) {
+            return 'Date of birth could not be validated from your QC ID. Please rescan your ID.';
+        }
+
+        $today = Carbon::now()->startOfDay();
+        if ($dob->greaterThan($today)) {
+            return 'Date of birth on the QC ID cannot be in the future.';
+        }
+
+        if ($dob->age < self::MIN_REGISTRATION_AGE) {
+            return 'Registrants must be at least ' . self::MIN_REGISTRATION_AGE . ' years old.';
         }
 
         return null;

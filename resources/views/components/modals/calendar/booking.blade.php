@@ -151,24 +151,12 @@
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Room <span class="text-red-500">*</span>
-                                    </label>
-                                    <select x-model="bookingForm.room_id" required
-                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                                        <option value="">Select a room</option>
-                                        @foreach($rooms as $room)
-                                        <option value="{{ $room->id }}">{{ $room->name }} (Capacity: {{ $room->standardBookingCapacityLimit() }})</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
                                         Date <span class="text-red-500">*</span>
+                                        <span class="text-xs font-normal text-gray-500">(Step 1)</span>
                                     </label>
                                     <select x-model="bookingForm.date" required
                                             class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                                        <option value="">Select a date</option>
+                                        <option value="">Select an available date</option>
                                         <template x-for="dateOption in bookingDateOptions" :key="dateOption.value">
                                             <option :value="dateOption.value" x-text="dateOption.label"></option>
                                         </template>
@@ -178,14 +166,38 @@
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
                                         Time Slot <span class="text-red-500">*</span>
+                                        <span class="text-xs font-normal text-gray-500">(Step 2)</span>
                                     </label>
                                     <select x-model="bookingForm.time_slot" required
-                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                                        <option value="">Select a time slot</option>
+                                            :disabled="!bookingForm.date || isLoadingAvailability"
+                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 disabled:bg-gray-100 disabled:text-gray-400">
+                                        <option value="" x-text="!bookingForm.date ? 'Select date first' : 'Select an available time slot'"></option>
                                         <template x-for="slot in bookingTimeSlots" :key="slot.value">
                                             <option :value="slot.value" x-text="slot.label"></option>
                                         </template>
                                     </select>
+                                    <div x-show="isLoadingAvailability" x-cloak class="mt-2 text-xs text-gray-500">
+                                        Refreshing live availability...
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        Room <span class="text-red-500">*</span>
+                                        <span class="text-xs font-normal text-gray-500">(Step 3)</span>
+                                    </label>
+                                    <select x-model="bookingForm.room_id" required
+                                            :disabled="!bookingForm.time_slot || isLoadingAvailability"
+                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 disabled:bg-gray-100 disabled:text-gray-400">
+                                        <option value="" x-text="!bookingForm.time_slot ? 'Select time first' : 'Select an available room'"></option>
+                                        <template x-for="room in availableRooms" :key="`room-${room.id}`">
+                                            <option :value="String(room.id)" x-text="room.name + ' (Capacity: ' + (room.standard_limit || room.capacity || '-') + ')'" ></option>
+                                        </template>
+                                    </select>
+                                    <div x-show="availabilityError" x-cloak class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs font-medium text-amber-800" x-text="availabilityError"></div>
+                                </div>
+
+                                <div>
                                     <div x-show="isLoadingTimeConflictSuggestions" x-cloak class="mt-2 text-xs text-gray-500">
                                         Checking nearby available slots...
                                     </div>

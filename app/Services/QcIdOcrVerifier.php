@@ -472,14 +472,22 @@ class QcIdOcrVerifier
      */
     private function extractFields(string $normalized, array $lines): array
     {
+        $layoutFields = $this->extractQcIdLayoutFields($normalized, $lines);
+
         $fields = [
             'cardholder_name' => $this->extractCardholderName($normalized, $lines),
             'sex' => ($layoutFields['sex'] ?? null) ?? $this->extractSex($normalized),
             'blood_type' => ($layoutFields['blood_type'] ?? null) ?? $this->extractBloodType($normalized),
-            'date_of_birth' => ($layoutFields['date_of_birth'] ?? null) ?? $this->extractDate($normalized, $lines),
+            'date_of_birth' => ($layoutFields['date_of_birth'] ?? null)
+                ?? $this->extractNearestDateToLabel($normalized, 'DATE\s*(OF)?\s*BIRTH')
+                ?? $this->extractDate($normalized, $lines),
             'civil_status' => ($layoutFields['civil_status'] ?? null) ?? $this->extractCivilStatus($normalized),
-            'date_issued' => ($layoutFields['date_issued'] ?? null) ?? $this->extractDate($normalized, $lines),
-            'valid_until' => ($layoutFields['valid_until'] ?? null) ?? $this->extractDate($normalized, $lines),
+            'date_issued' => ($layoutFields['date_issued'] ?? null)
+                ?? $this->extractNearestDateToLabel($normalized, 'DATE\s*ISSUED')
+                ?? $this->extractDate($normalized, $lines),
+            'valid_until' => ($layoutFields['valid_until'] ?? null)
+                ?? $this->extractNearestDateToLabel($normalized, 'VALID\s*UNTIL')
+                ?? $this->extractDate($normalized, $lines),
             'id_number' => $this->extractIdNumber($normalized, $lines),
         ];
 

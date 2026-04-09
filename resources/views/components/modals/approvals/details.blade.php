@@ -13,50 +13,6 @@
         </div>
 
         <div class="p-6 flex-1 min-h-0 overflow-y-auto">
-            <template x-if="selectedBooking?.requires_capacity_permission">
-                <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl mb-4">
-                    <div class="flex items-center gap-2 mb-2">
-                        <i class="w-5 h-5 text-blue-600 fa-icon fa-solid fa-circle-info text-xl leading-none"></i>
-                        <span class="text-sm font-semibold text-blue-800">Collaborative Room Permission</span>
-                    </div>
-                    <p class="text-sm text-blue-700 mb-3" x-text="'Collaborative rooms allow up to ' + selectedBooking?.standard_capacity_limit + ' attendees by default. This request asks for ' + selectedBooking?.attendees + ' attendees and needs librarian approval.'"></p>
-
-                    <div x-show="showExceptionInput" class="mb-3">
-                        <textarea x-model="exceptionReason"
-                                  placeholder="Enter the approval note for allowing the extra attendees..."
-                                  class="w-full p-3 border border-blue-200 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300 resize-none"
-                                  rows="3"></textarea>
-                    </div>
-
-                    <button x-show="!showExceptionInput" @click="showExceptionInput = true"
-                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
-                        Add approval note
-                    </button>
-                </div>
-            </template>
-
-            <template x-if="selectedBooking?.exceeds_capacity">
-                <div class="p-4 bg-purple-50 border border-purple-200 rounded-xl mb-4">
-                    <div class="flex items-center gap-2 mb-2">
-                        <i class="w-5 h-5 text-purple-600 fa-icon fa-solid fa-users text-xl leading-none"></i>
-                        <span class="text-sm font-semibold text-purple-800">Capacity Exceeded</span>
-                    </div>
-                    <p class="text-sm text-purple-700 mb-3" x-text="'This booking requests ' + selectedBooking?.attendees + ' attendees but the room capacity is ' + selectedBooking?.room_capacity + '.'"></p>
-
-                    <div x-show="showExceptionInput" class="mb-3">
-                        <textarea x-model="exceptionReason"
-                                  placeholder="Enter the reason for capacity exception..."
-                                  class="w-full p-3 border border-purple-200 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-300 resize-none"
-                                  rows="3"></textarea>
-                    </div>
-
-                    <button x-show="!showExceptionInput && !selectedBooking?.requires_capacity_permission" @click="showExceptionInput = true"
-                            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors">
-                        Request Exception Reason
-                    </button>
-                </div>
-            </template>
-
             <template x-if="selectedBooking?.has_conflict">
                 <div class="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl mb-4">
                     <i class="w-5 h-5 text-red-500 shrink-0 mt-0.5 fa-icon fa-solid fa-triangle-exclamation text-xl leading-none"></i>
@@ -148,15 +104,26 @@
                 </div>
             </template>
 
+            <template x-if="selectedBooking?.status === 'pending'">
+                <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+                    <label class="block text-sm font-semibold text-red-800 mb-2">Rejection reason (required for reject)</label>
+                    <textarea x-model="rejectionReason"
+                              placeholder="Explain why this booking is being rejected..."
+                              class="w-full p-3 border border-red-200 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-300 resize-none"
+                              rows="3"></textarea>
+                    <p class="mt-2 text-xs text-red-700">This reason will be included in the user's rejection email and notification.</p>
+                </div>
+            </template>
+
             <!-- Show Approve/Reject only if pending -->
             <template x-if="selectedBooking?.status === 'pending'">
                 <div class="flex gap-3">
                     <button @click="approveBooking()"
-                            :disabled="isLoading || ((selectedBooking?.exceeds_capacity || selectedBooking?.requires_capacity_permission) && !showExceptionInput)"
+                            :disabled="isLoading"
                             class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                         <i x-show="!isLoading || actionType !== 'approve'" class="w-5 h-5 fa-icon fa-solid fa-circle-check text-xl leading-none"></i>
                         <i x-show="isLoading && actionType === 'approve'" class="animate-spin w-5 h-5 fa-icon fa-solid fa-spinner text-xl leading-none"></i>
-                        <span x-text="isLoading && actionType === 'approve' ? 'Approving...' : (showExceptionInput ? 'Approve with Note' : 'Approve')"></span>
+                        <span x-text="isLoading && actionType === 'approve' ? 'Approving...' : 'Approve'"></span>
                     </button>
                     <button @click="rejectBooking()"
                             :disabled="isLoading"

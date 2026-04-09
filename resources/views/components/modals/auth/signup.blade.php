@@ -71,6 +71,40 @@
                                                        class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-teal-700">
                                                 <p class="mt-3 text-xs text-slate-500">Accepted: JPG, PNG, WEBP up to 25 MB</p>
 
+                                                <div class="mt-3 flex flex-wrap gap-2">
+                                                    <button type="button"
+                                                            @click="openSignupCamera()"
+                                                            :disabled="scan.isProcessing || scan.isCapturing"
+                                                            class="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-50 disabled:opacity-60">
+                                                        <i class="fa-solid fa-camera"></i>
+                                                        <span>Use Camera</span>
+                                                    </button>
+                                                    <button type="button"
+                                                            x-show="scan.cameraOpen"
+                                                            x-cloak
+                                                            @click="closeSignupCamera()"
+                                                            class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+                                                        <i class="fa-solid fa-xmark"></i>
+                                                        <span>Close Camera</span>
+                                                    </button>
+                                                </div>
+
+                                                <div x-show="scan.cameraOpen" x-cloak class="mt-3 rounded-xl border border-indigo-200 bg-white p-3">
+                                                    <div x-ref="signupCameraViewport" class="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-slate-300 bg-black">
+                                                        <video x-ref="signupCameraVideo" autoplay playsinline muted class="h-full w-full object-cover"></video>
+                                                        <div class="pointer-events-none absolute inset-0 bg-black/20"></div>
+                                                        <div x-ref="signupCameraGuideFrame" class="pointer-events-none absolute left-1/2 top-1/2 h-[72%] w-[72%] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-4 border-emerald-300 shadow-[0_0_0_9999px_rgba(15,23,42,0.35)]"></div>
+                                                    </div>
+                                                    <p class="mt-2 text-[11px] text-slate-500">Fit the entire QC ID inside the guide frame, hold steady, then capture.</p>
+                                                    <button type="button"
+                                                            @click="captureSignupQcIdPhoto()"
+                                                            :disabled="scan.isProcessing || scan.isCapturing"
+                                                            class="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                                                            x-text="scan.isCapturing ? 'Capturing...' : 'Capture inside frame'"></button>
+                                                </div>
+
+                                                <div x-show="scan.cameraError" x-cloak class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700" x-text="scan.cameraError"></div>
+
                                                 <div x-show="scan.previewUrl" x-cloak class="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
                                                     <img :src="scan.previewUrl" alt="QC ID preview" class="h-40 w-full object-cover">
                                                 </div>
@@ -230,6 +264,7 @@
                                                     <option value="">Select sex</option>
                                                     <option value="MALE" @selected(old('sex') === 'MALE')>Male</option>
                                                     <option value="FEMALE" @selected(old('sex') === 'FEMALE')>Female</option>
+                                                    <option value="PREFER_NOT_TO_SAY" @selected(old('sex') === 'PREFER_NOT_TO_SAY')>Prefer not to say</option>
                                                 </select>
                                             </div>
                                             <div>

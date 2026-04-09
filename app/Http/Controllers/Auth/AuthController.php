@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\QcIdRegistration;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
@@ -20,9 +22,16 @@ use Laravel\Socialite\Two\AbstractProvider;
 use Laravel\Socialite\Two\User as SocialiteUser;
 use Laravel\Socialite\Two\GoogleProvider;
 use Laravel\Socialite\Two\InvalidStateException;
+use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
+    private const REGISTRATION_MAX_ATTEMPTS = 4;
+
+    private const REGISTRATION_COOLDOWN_SECONDS = 600;
+
+    private const REGISTRATION_MIN_AGE = 15;
+
     private ?array $usersTableColumns = null;
     private bool $usersTableColumnsResolved = false;
     public function showLogin()
@@ -181,10 +190,18 @@ class AuthController extends Controller
                 'email' => 'admin@local.test',
                 'password' => Hash::make('admin123'),
                 'role' => 'admin',
+                'classification' => User::CLASSIFICATION_ADMIN,
             ]);
         } else {
             if ($adminUser->role !== 'admin') {
-                $adminUser->forceFill(['role' => 'admin'])->save();
+                $adminUser->forceFill([
+                    'role' => 'admin',
+                    'classification' => User::CLASSIFICATION_ADMIN,
+                ])->save();
+            } elseif ($adminUser->classification() !== User::CLASSIFICATION_ADMIN) {
+                $adminUser->forceFill([
+                    'classification' => User::CLASSIFICATION_ADMIN,
+                ])->save();
             }
         }
 
@@ -327,10 +344,17 @@ class AuthController extends Controller
             'username' => substr((string) preg_replace('/[^A-Za-z0-9_]/', '', (string) $request->input('username')), 0, 15),
             'qcid_number' => (string) preg_replace('/\D+/', '', (string) $request->input('qcid_number')),
             'qr_validated_id' => (($qr = (string) preg_replace('/\D+/', '', (string) $request->input('qr_validated_id'))) !== '' ? $qr : null),
+            'sex' => strtoupper(trim((string) $request->input('sex'))),
             'address' => $this->sanitizeAddressInput((string) $request->input('address')),
         ]);
 
-        $validated = $request->validate([
+        $registrationAttemptBucket = $this->registrationAttemptBucket($request, (string) $request->input('email'));
+        $lockedSeconds = $this->registrationLockoutSecondsRemaining($registrationAttemptBucket);
+        if ($lockedSeconds > 0) {
+            return $this->registrationLockoutResponse($request, $lockedSeconds);
+        }
+
+        $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:50', 'regex:/^[\p{L}\s,.\-]+$/u'],
             'username' => ['required', 'string', 'max:15', 'alpha_dash', 'unique:users,username'],
             'email' => [
@@ -354,10 +378,10 @@ class AuthController extends Controller
             ],
             'phone_number' => ['nullable', 'string', 'max:20'],
             'qcid_number' => ['required', 'string', 'size:14', 'regex:/^\d{14}$/'],
-            'user_type' => ['nullable', 'string'],
-            'employee_category' => ['nullable', 'string'],
-            'course' => ['nullable', 'string'],
-            'sex' => ['nullable', 'string'],
+            'user_type' => ['required', 'string', 'in:student,employee,alumni'],
+            'employee_category' => ['nullable', 'string', 'max:50', 'required_if:user_type,employee'],
+            'course' => ['nullable', 'string', 'max:100', 'required_if:user_type,student'],
+            'sex' => ['nullable', 'string', 'in:MALE,FEMALE,PREFER_NOT_TO_SAY'],
             'civil_status' => ['nullable', 'string'],
             'date_of_birth' => ['nullable', 'date'],
             'date_issued' => ['nullable', 'date'],
@@ -375,16 +399,29 @@ class AuthController extends Controller
             'email.email' => 'Use a real email.',
             'qcid_number.size' => 'QC ID number must be exactly 14 digits.',
             'qcid_number.regex' => 'QC ID number must contain digits only.',
+            'sex.in' => 'Sex must be Male, Female, or Prefer not to say.',
             'otp_token.required' => 'Email verification is required. Please verify your email address first.',
             'qcid_image.required_without' => 'Please upload and verify your QC ID image before registration.',
         ]);
+
+        if ($validator->fails()) {
+            return $this->registrationFailureResponse(
+                $request,
+                $registrationAttemptBucket,
+                $validator->errors()->toArray()
+            );
+        }
+
+        $validated = $validator->validated();
 
         // Verify OTP token from cache
         $otpTokenKey = 'reg_otp_verified:' . strtolower($validated['email']);
         $cachedToken = Cache::get($otpTokenKey);
 
         if (! $cachedToken || $cachedToken !== $validated['otp_token']) {
-            return back()->withErrors(['email' => 'Email verification has expired or is invalid. Please verify your email again.'])->withInput();
+            return $this->registrationFailureResponse($request, $registrationAttemptBucket, [
+                'email' => 'Email verification has expired or is invalid. Please verify your email again.',
+            ]);
         }
 
         $normalizedTempPath = $this->normalizeTempPath((string) ($validated['qcid_temp_upload'] ?? ''));
@@ -393,9 +430,9 @@ class AuthController extends Controller
             $scanSnapshot = $this->getVerifiedScanSnapshot($request, $normalizedTempPath);
 
             if ($scanSnapshot === null) {
-                return back()->withErrors([
+                return $this->registrationFailureResponse($request, $registrationAttemptBucket, [
                     'qcid_image' => 'Your QC ID verification session has expired. Please re-upload and verify your QC ID.',
-                ])->withInput();
+                ]);
             }
 
             // Scanner-captured dates are final and cannot be manually overridden.
@@ -412,10 +449,18 @@ class AuthController extends Controller
             }
         }
 
+        if ($dateOfBirthError = $this->registrationDateOfBirthError($validated['date_of_birth'] ?? null)) {
+            return $this->registrationFailureResponse($request, $registrationAttemptBucket, [
+                'date_of_birth' => $dateOfBirthError,
+            ]);
+        }
+
         $ocrText = $validated['ocr_text'];
         $ocrVerifier = app(\App\Services\QcIdOcrVerifier::class);
         if ($ocrVerifier->detectFakeId($ocrText)) {
-            return back()->withErrors(['ocr_text' => 'The provided QC ID is invalid or a sample ID. Registration denied.'])->withInput();
+            return $this->registrationFailureResponse($request, $registrationAttemptBucket, [
+                'ocr_text' => 'The provided QC ID is invalid or a sample ID. Registration denied.',
+            ]);
         }
 
         // === QR Cross-Validation Gate (Server-side) ===
@@ -428,16 +473,16 @@ class AuthController extends Controller
             $enteredClean = preg_replace('/\D+/', '', $enteredId);
 
             if ($qrClean !== $enteredClean) {
-                return back()->withErrors([
+                return $this->registrationFailureResponse($request, $registrationAttemptBucket, [
                     'qcid_number' => "QC ID number mismatch! Your ID's QR code shows {$qrValidatedId}, but you entered {$enteredId}. The QC ID number must match what's on your physical card."
-                ])->withInput();
+                ]);
             }
         }
 
         if ($this->isQcIdAlreadyInUse((string) ($validated['qcid_number'] ?? ''))) {
-            return back()->withErrors([
+            return $this->registrationFailureResponse($request, $registrationAttemptBucket, [
                 'qcid_number' => 'This QC ID is already in use with another account.',
-            ])->withInput();
+            ]);
         }
 
         // Resolve QC ID image source: direct upload (desktop flow) or
@@ -453,24 +498,24 @@ class AuthController extends Controller
 
             if ($tempPath !== '') {
                 if (! str_starts_with($tempPath, 'qcid_scans_temp/')) {
-                    return back()->withErrors([
+                    return $this->registrationFailureResponse($request, $registrationAttemptBucket, [
                         'qcid_image' => 'The verified QC ID image token is invalid. Please re-upload and verify your QC ID.',
-                    ])->withInput();
+                    ]);
                 }
 
                 if (! Storage::disk('public')->exists($tempPath)) {
-                    return back()->withErrors([
+                    return $this->registrationFailureResponse($request, $registrationAttemptBucket, [
                         'qcid_image' => 'The verified QC ID image has expired. Please re-upload and verify your QC ID.',
-                    ])->withInput();
+                    ]);
                 }
 
                 $extension = pathinfo($tempPath, PATHINFO_EXTENSION) ?: 'jpg';
                 $targetPath = 'qcid_images/' . (string) Str::uuid() . '.' . $extension;
 
                 if (! Storage::disk('public')->copy($tempPath, $targetPath)) {
-                    return back()->withErrors([
+                    return $this->registrationFailureResponse($request, $registrationAttemptBucket, [
                         'qcid_image' => 'Unable to finalize your verified QC ID image. Please upload and verify again.',
-                    ])->withInput();
+                    ]);
                 }
 
                 $imagePath = $targetPath;
@@ -480,10 +525,12 @@ class AuthController extends Controller
         }
 
         if ($imagePath === null) {
-            return back()->withErrors([
+            return $this->registrationFailureResponse($request, $registrationAttemptBucket, [
                 'qcid_image' => 'Please upload and verify your QC ID image before registration.',
-            ])->withInput();
+            ]);
         }
+
+        $classification = $this->classificationFromRegistration($validated);
 
         try {
             $user = User::create([
@@ -492,6 +539,7 @@ class AuthController extends Controller
                 'email' => $validated['email'],
                 'password' => Hash::make($validated['password']),
                 'role' => 'user',
+                'classification' => $classification,
             ]);
 
             // Create the initial verified registration record
@@ -517,9 +565,9 @@ class AuthController extends Controller
                 Storage::disk('public')->delete($imagePath);
             }
 
-            return back()->withErrors([
+            return $this->registrationFailureResponse($request, $registrationAttemptBucket, [
                 'email' => 'Unable to complete registration right now. Please try again.',
-            ])->withInput();
+            ]);
         }
 
         if ($tempPathForCleanup !== null) {
@@ -529,6 +577,7 @@ class AuthController extends Controller
 
         // Consume OTP token only after successful account creation.
         Cache::forget($otpTokenKey);
+        $this->clearRegistrationAttemptState($registrationAttemptBucket);
 
         return redirect()->route('login')
             ->with('registration_success', 'Your account has been created successfully! Please log in with your username or email and password.')
@@ -701,6 +750,164 @@ class AuthController extends Controller
             ->whereNotNull('qcid_number')
             ->whereRaw("REPLACE(REPLACE(REPLACE(REPLACE(qcid_number, ' ', ''), '-', ''), '.', ''), '/', '') = ?", [$digits])
             ->exists();
+    }
+
+    private function registrationAttemptBucket(Request $request, string $email = ''): string
+    {
+        $normalizedEmail = strtolower(trim($email));
+        if ($normalizedEmail === '') {
+            $normalizedEmail = strtolower(trim((string) $request->input('email', '')));
+        }
+
+        return sha1($request->ip() . '|' . $normalizedEmail);
+    }
+
+    private function registrationAttemptsCacheKey(string $bucket): string
+    {
+        return 'register_attempts:' . $bucket;
+    }
+
+    private function registrationLockoutCacheKey(string $bucket): string
+    {
+        return 'register_lockout:' . $bucket;
+    }
+
+    private function registrationLockoutSecondsRemaining(string $bucket): int
+    {
+        $lockoutKey = $this->registrationLockoutCacheKey($bucket);
+        $lockedUntil = (int) Cache::get($lockoutKey, 0);
+
+        if ($lockedUntil <= now()->timestamp) {
+            Cache::forget($lockoutKey);
+
+            return 0;
+        }
+
+        return $lockedUntil - now()->timestamp;
+    }
+
+    private function registrationLockoutResponse(Request $request, int $seconds): RedirectResponse
+    {
+        $minutes = max(1, (int) ceil($seconds / 60));
+
+        return back()->withErrors([
+            'email' => 'Too many failed registration attempts. Please wait ' . $minutes . ' minute(s) before trying again.',
+        ])->withInput($request->except(['password', 'password_confirmation', 'otp_token']));
+    }
+
+    private function registrationFailureResponse(Request $request, string $bucket, array $errors): RedirectResponse
+    {
+        $normalized = $this->normalizeRegistrationErrors($errors);
+        $state = $this->recordRegistrationFailure($bucket);
+
+        if ($state['locked']) {
+            $minutes = max(1, (int) ceil(((int) $state['lockout_seconds']) / 60));
+            $normalized['email'] = 'Too many failed registration attempts. Please wait ' . $minutes . ' minute(s) before trying again.';
+        } elseif (((int) $state['attempts_remaining']) <= 1) {
+            $warning = 'Warning: ' . (int) $state['attempts_remaining'] . ' attempt(s) remaining before a temporary cooldown.';
+            $normalized['email'] = isset($normalized['email'])
+                ? trim($normalized['email'] . ' ' . $warning)
+                : $warning;
+        }
+
+        return back()->withErrors($normalized)
+            ->withInput($request->except(['password', 'password_confirmation', 'otp_token']));
+    }
+
+    private function normalizeRegistrationErrors(array $errors): array
+    {
+        $normalized = [];
+
+        foreach ($errors as $field => $message) {
+            if (is_array($message)) {
+                $first = $message[0] ?? null;
+                if (is_string($first) && trim($first) !== '') {
+                    $normalized[(string) $field] = $first;
+                }
+
+                continue;
+            }
+
+            if (is_string($message) && trim($message) !== '') {
+                $normalized[(string) $field] = $message;
+            }
+        }
+
+        if ($normalized === []) {
+            $normalized['email'] = 'Unable to complete registration right now. Please review your details and try again.';
+        }
+
+        return $normalized;
+    }
+
+    private function recordRegistrationFailure(string $bucket): array
+    {
+        $attemptsKey = $this->registrationAttemptsCacheKey($bucket);
+        $lockoutKey = $this->registrationLockoutCacheKey($bucket);
+
+        $attempts = (int) Cache::get($attemptsKey, 0) + 1;
+        Cache::put($attemptsKey, $attempts, now()->addSeconds(self::REGISTRATION_COOLDOWN_SECONDS + 60));
+
+        if ($attempts >= self::REGISTRATION_MAX_ATTEMPTS) {
+            Cache::put(
+                $lockoutKey,
+                now()->timestamp + self::REGISTRATION_COOLDOWN_SECONDS,
+                now()->addSeconds(self::REGISTRATION_COOLDOWN_SECONDS)
+            );
+            Cache::forget($attemptsKey);
+
+            return [
+                'locked' => true,
+                'lockout_seconds' => self::REGISTRATION_COOLDOWN_SECONDS,
+                'attempts_remaining' => 0,
+            ];
+        }
+
+        return [
+            'locked' => false,
+            'lockout_seconds' => 0,
+            'attempts_remaining' => max(0, self::REGISTRATION_MAX_ATTEMPTS - $attempts),
+        ];
+    }
+
+    private function clearRegistrationAttemptState(string $bucket): void
+    {
+        Cache::forget($this->registrationAttemptsCacheKey($bucket));
+        Cache::forget($this->registrationLockoutCacheKey($bucket));
+    }
+
+    private function registrationDateOfBirthError(mixed $dateOfBirth): ?string
+    {
+        $dateString = trim((string) ($dateOfBirth ?? ''));
+        if ($dateString === '') {
+            return 'Date of birth is required and must be extracted from your QC ID scan.';
+        }
+
+        try {
+            $dob = Carbon::parse($dateString)->startOfDay();
+        } catch (\Throwable $e) {
+            return 'Date of birth from your QC ID could not be verified. Please scan your QC ID again.';
+        }
+
+        $today = Carbon::now()->startOfDay();
+        if ($dob->greaterThan($today)) {
+            return 'Date of birth cannot be in the future.';
+        }
+
+        if ($dob->age < self::REGISTRATION_MIN_AGE) {
+            return 'You must be at least ' . self::REGISTRATION_MIN_AGE . ' years old to register.';
+        }
+
+        return null;
+    }
+
+    private function classificationFromRegistration(array $validated): string
+    {
+        $userType = strtolower(trim((string) ($validated['user_type'] ?? '')));
+
+        return $userType === 'employee'
+            ? User::CLASSIFICATION_FACULTY
+            : User::CLASSIFICATION_STUDENT;
     }
 
     public function logout(Request $request)

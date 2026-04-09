@@ -8,6 +8,7 @@ use App\Models\QcIdRegistration;
 use App\Models\Room;
 use App\Models\User;
 use App\Notifications\BookingApprovedNotification;
+use App\Notifications\BookingRejectedNotification;
 use App\Notifications\BookingRescheduledNotification;
 use App\Notifications\NewBookingSubmittedForStaffNotification;
 use App\Services\QcIdOcrVerifier;
@@ -25,6 +26,12 @@ use App\Mail\BookingCancelledMail;
 
 class BookingController extends Controller
 {
+    private const BOOKING_OPEN_HOUR = 8;
+
+    private const BOOKING_CLOSE_HOUR = 17;
+
+    private const BOOKING_MAX_AVAILABILITY_DAYS = 90;
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -79,6 +86,166 @@ class BookingController extends Controller
         }
 
         return view('rooms.reservations', compact('bookings', 'rooms', 'qcIdRegistration'));
+    }
+
+    public function availability(Request $request)
+    {
+        $validated = $request->validate([
+            'date' => ['nullable', 'date', 'after_or_equal:today'],
+            'time_slot' => ['nullable', 'regex:/^\d{2}:\d{2}-\d{2}:\d{2}$/'],
+            'days' => ['nullable', 'integer', 'min:1', 'max:' . self::BOOKING_MAX_AVAILABILITY_DAYS],
+        ]);
+
+        $days = (int) ($validated['days'] ?? self::BOOKING_MAX_AVAILABILITY_DAYS);
+        $startDate = Carbon::today();
+        $endDate = Carbon::today()->copy()->addDays($days);
+
+        $rooms = Room::query()
+            ->visible()
+            ->operational()
+            ->orderBy('name')
+            ->get();
+
+        if ($rooms->isEmpty()) {
+            return response()->json([
+                'dates' => [],
+                'time_slots' => [],
+                'rooms' => [],
+                'selected' => [
+                    'date' => null,
+                    'time_slot' => null,
+                ],
+            ]);
+        }
+
+        $roomPayload = $rooms->map(function (Room $room): array {
+            return [
+                'id' => $room->id,
+                'name' => $room->name,
+                'capacity' => $room->standardBookingCapacityLimit(),
+                'is_collaborative' => $room->isCollaborative(),
+                'standard_limit' => $room->standardBookingCapacityLimit(),
+                'student_limit' => $room->maxStudentBookingCapacity(),
+            ];
+        })->values();
+
+        $roomPayloadById = $roomPayload
+            ->mapWithKeys(fn (array $room) => [(string) $room['id'] => $room])
+            ->all();
+
+        $bookings = Booking::query()
+            ->select(['room_id', 'date', 'start_time', 'end_time'])
+            ->whereIn('status', ['pending', 'approved'])
+            ->whereIn('room_id', $rooms->pluck('id')->all())
+            ->whereBetween('date', [$startDate->toDateString(), $endDate->toDateString()])
+            ->get();
+
+        $bookedRanges = [];
+        foreach ($bookings as $booking) {
+            $dateKey = Carbon::parse($booking->date)->toDateString();
+            $roomKey = (string) $booking->room_id;
+            $startMinutes = $this->timeStringToMinutes((string) $booking->start_time);
+            $endMinutes = $this->timeStringToMinutes((string) $booking->end_time);
+
+            if ($startMinutes === null) {
+                continue;
+            }
+
+            if ($endMinutes === null || $endMinutes <= $startMinutes) {
+                $endMinutes = $startMinutes + 60;
+            }
+
+            $bookedRanges[$dateKey][$roomKey][] = [
+                'start' => $startMinutes,
+                'end' => $endMinutes,
+            ];
+        }
+
+        $slotDefinitions = $this->bookingSlotDefinitions();
+        $dateOptions = [];
+        $timeSlotsByDate = [];
+        $roomsByDateAndSlot = [];
+
+        for ($offset = 0; $offset <= $days; $offset += 1) {
+            $date = $startDate->copy()->addDays($offset);
+            if ($date->dayOfWeek === Carbon::SUNDAY) {
+                continue;
+            }
+
+            $dateKey = $date->toDateString();
+            $availableSlots = [];
+
+            foreach ($slotDefinitions as $slot) {
+                $availableRooms = [];
+
+                foreach ($rooms as $room) {
+                    $roomKey = (string) $room->id;
+                    $isConflicting = false;
+
+                    foreach (($bookedRanges[$dateKey][$roomKey] ?? []) as $range) {
+                        if ($range['start'] < $slot['end_minutes'] && $range['end'] > $slot['start_minutes']) {
+                            $isConflicting = true;
+                            break;
+                        }
+                    }
+
+                    if (! $isConflicting && isset($roomPayloadById[$roomKey])) {
+                        $availableRooms[] = $roomPayloadById[$roomKey];
+                    }
+                }
+
+                if ($availableRooms === []) {
+                    continue;
+                }
+
+                $availableSlots[] = [
+                    'value' => $slot['value'],
+                    'label' => $slot['label'],
+                    'start_time' => $slot['start_time'],
+                    'end_time' => $slot['end_time'],
+                    'available_room_count' => count($availableRooms),
+                ];
+
+                $roomsByDateAndSlot[$dateKey][$slot['value']] = $availableRooms;
+            }
+
+            if ($availableSlots === []) {
+                continue;
+            }
+
+            $dateOptions[] = [
+                'value' => $dateKey,
+                'label' => $date->format('D, M j, Y'),
+            ];
+
+            $timeSlotsByDate[$dateKey] = $availableSlots;
+        }
+
+        $requestedDate = (string) ($validated['date'] ?? '');
+        $selectedDate = $requestedDate !== '' && array_key_exists($requestedDate, $timeSlotsByDate)
+            ? $requestedDate
+            : (($dateOptions[0]['value'] ?? null));
+
+        $timeSlots = $selectedDate ? ($timeSlotsByDate[$selectedDate] ?? []) : [];
+
+        $requestedSlot = (string) ($validated['time_slot'] ?? '');
+        $selectedSlot = $requestedSlot !== '' && collect($timeSlots)->contains(fn (array $slot) => $slot['value'] === $requestedSlot)
+            ? $requestedSlot
+            : (($timeSlots[0]['value'] ?? null));
+
+        $availableRoomsForSlot = ($selectedDate && $selectedSlot)
+            ? ($roomsByDateAndSlot[$selectedDate][$selectedSlot] ?? [])
+            : [];
+
+        return response()->json([
+            'dates' => $dateOptions,
+            'time_slots' => $timeSlots,
+            'rooms' => array_values($availableRoomsForSlot),
+            'selected' => [
+                'date' => $selectedDate,
+                'time_slot' => $selectedSlot,
+            ],
+        ]);
     }
 
     public function store(Request $request, QcIdOcrVerifier $qcIdOcrVerifier)
@@ -542,16 +709,11 @@ class BookingController extends Controller
     {
         $booking->loadMissing('room', 'user');
 
-        if ($booking->requiresCapacityPermission() && blank(trim((string) $request->get('reason')))) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Add a short approval note before granting a collaborative room booking above 10 attendees.',
-            ], 422);
-        }
+        $approvalReason = trim((string) $request->get('reason'));
 
         $booking->update([
             'status' => 'approved',
-            'reason' => $request->get('reason'),
+            'reason' => $approvalReason !== '' ? $approvalReason : null,
         ]);
 
         // --- Ensure a unique qr_token exists for this booking ---
@@ -648,9 +810,15 @@ class BookingController extends Controller
 
     public function reject(Booking $booking, Request $request)
     {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+        ]);
+
+        $booking->loadMissing('room', 'user');
+
         $booking->update([
             'status' => 'rejected',
-            'reason' => $request->get('reason'),
+            'reason' => trim((string) $validated['reason']),
         ]);
 
         try {
@@ -660,6 +828,18 @@ class BookingController extends Controller
             }
         } catch (\Throwable $e) {
             Log::warning('Booking rejection email failed.', [
+                'booking_id' => $booking->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        try {
+            $bookingUser = $booking->user ?? ($booking->user_id ? User::find($booking->user_id) : null);
+            if ($bookingUser) {
+                $bookingUser->notify(new BookingRejectedNotification($booking));
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Booking rejection in-app notification failed.', [
                 'booking_id' => $booking->id,
                 'error' => $e->getMessage(),
             ]);
@@ -798,5 +978,57 @@ class BookingController extends Controller
         $booking->syncBookingStatus();
 
         return view('rooms.verify', ['booking' => $booking, 'token' => $token]);
+    }
+
+    /**
+     * @return array<int, array{value: string, label: string, start_time: string, end_time: string, start_minutes: int, end_minutes: int}>
+     */
+    private function bookingSlotDefinitions(): array
+    {
+        $slots = [];
+
+        for ($hour = self::BOOKING_OPEN_HOUR; $hour < self::BOOKING_CLOSE_HOUR; $hour += 1) {
+            $start = sprintf('%02d:00', $hour);
+            $end = sprintf('%02d:00', $hour + 1);
+
+            $slots[] = [
+                'value' => $start . '-' . $end,
+                'label' => $this->formatSlotLabel($start, $end),
+                'start_time' => $start,
+                'end_time' => $end,
+                'start_minutes' => $hour * 60,
+                'end_minutes' => ($hour + 1) * 60,
+            ];
+        }
+
+        return $slots;
+    }
+
+    private function formatSlotLabel(string $startTime, string $endTime): string
+    {
+        try {
+            $start = Carbon::createFromFormat('H:i', $startTime)->format('g:i A');
+            $end = Carbon::createFromFormat('H:i', $endTime)->format('g:i A');
+
+            return $start . ' - ' . $end;
+        } catch (\Throwable $e) {
+            return $startTime . ' - ' . $endTime;
+        }
+    }
+
+    private function timeStringToMinutes(string $time): ?int
+    {
+        if (preg_match('/^(\d{1,2}):(\d{2})(?::\d{2})?$/', trim($time), $match) !== 1) {
+            return null;
+        }
+
+        $hours = (int) $match[1];
+        $minutes = (int) $match[2];
+
+        if ($hours < 0 || $hours > 23 || $minutes < 0 || $minutes > 59) {
+            return null;
+        }
+
+        return ($hours * 60) + $minutes;
     }
 }

@@ -8,6 +8,13 @@
 @endsection
 
 @section('content')
+@php
+    $audience = $dashboardAudience ?? 'student';
+    $audienceLabel = ucfirst($audience);
+    $audienceDescription = $audience === 'faculty'
+        ? 'Faculty dashboard for room scheduling, reservation tracking, and streamlined approvals follow-up.'
+        : 'Student dashboard for managing reservations, reviewing schedules, and planning study sessions.';
+@endphp
 <div x-data="dashboardApp()" x-init="init()" class="flex flex-col xl:h-[calc(100dvh-9rem)] xl:overflow-hidden">
     <div class="flex-1 min-h-0 overflow-y-auto px-1 group/dashboard">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-8">
@@ -21,7 +28,8 @@
                     </div>
                     <div class="relative z-10">
                         <h2 class="text-xl font-bold text-white">Welcome, {{ explode(',', auth()->user()->name)[1] ?? auth()->user()->name }}!</h2>
-                        <p class="text-indigo-100 mt-1 text-sm leading-relaxed">Your personal library booking dashboard. Manage your reservations and stay organized.</p>
+                        <div class="mt-2 inline-flex items-center rounded-full border border-white/30 bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-white">{{ $audienceLabel }}</div>
+                        <p class="text-indigo-100 mt-2 text-sm leading-relaxed">{{ $audienceDescription }}</p>
 
                         <div class="mt-5 mb-6 p-4 rounded-xl bg-white/10 border border-white/20 backdrop-blur-sm group-hover/welcome:bg-white/15 transition-all">
                             <h3 class="font-bold text-white text-xs uppercase tracking-wider mb-2 opacity-90 flex items-center gap-2">
@@ -267,7 +275,7 @@
                                                                                                                      <div class="text-[10px] px-2 py-1 bg-white border border-gray-100 text-gray-700 rounded-lg shadow-sm truncate transition-all font-medium flex items-center gap-1.5"
                                                                                                                          @click.stop="day.isCurrentMonth && !day.isPast && openViewBookingModal(event)"
                                                                                                                          :class="day.isCurrentMonth && !day.isPast ? 'cursor-pointer hover:border-teal-400 hover:text-teal-700' : 'cursor-not-allowed'">
-                                                                <span class="w-1.5 h-1.5 rounded-full" :class="event.status === 'approved' ? 'bg-emerald-500' : 'bg-amber-500'"></span>
+                                                                <span class="w-1.5 h-1.5 rounded-full" :class="event.is_owner ? 'bg-emerald-500' : 'bg-rose-500'"></span>
                                                                 <span x-text="formatEventChipTime(event)"></span>
                                                                 <span class="opacity-60">|</span>
                                                                 <span x-text="event.room_name?.split(' ')[1] || event.room_name"></span>
@@ -306,7 +314,11 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <span class="self-start sm:self-center shrink-0 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white transition-colors border border-emerald-200 group-hover:border-emerald-600 ml-15 sm:ml-0">Approved</span>
+                                                                        <span class="self-start sm:self-center shrink-0 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-colors border ml-15 sm:ml-0"
+                                                                                    :class="event.is_owner
+                                                                                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200 group-hover:bg-emerald-600 group-hover:text-white group-hover:border-emerald-600'
+                                                                                        : 'bg-rose-100 text-rose-700 border-rose-200 group-hover:bg-rose-600 group-hover:text-white group-hover:border-rose-600'"
+                                                                                    x-text="event.is_owner ? 'My Booking' : 'Occupied'"></span>
                                 </div>
                             </template>
                             <template x-if="listEvents.length === 0">
@@ -423,6 +435,7 @@
     'initialCalendarData' => $calendarData,
     'monthDataUrl' => route('calendar.month'),
     'eventsUrl' => route('calendar.events'),
+    'availabilityUrl' => route('calendar.availability'),
     'verifyQcIdUrl' => route('qcid.verify'),
     'storeBookingUrl' => route('reservations.store'),
 ]) !!}

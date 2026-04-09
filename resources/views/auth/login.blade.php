@@ -262,6 +262,7 @@ function signupLoginApp($persist, initialSignupOpen) {
             file: null,
             previewUrl: '',
             isProcessing: false,
+            isCapturing: false,
             error: '',
             status: '',
             idAssessment: '',
@@ -270,6 +271,9 @@ function signupLoginApp($persist, initialSignupOpen) {
             isQrVerified: null,
             qrData: '',
             qrIdNumber: '',
+            cameraOpen: false,
+            cameraError: '',
+            cameraStream: null,
         },
 
         init() {
@@ -320,6 +324,7 @@ function signupLoginApp($persist, initialSignupOpen) {
                 if (val) {
                     url.searchParams.set('auth', 'signup');
                 } else {
+                    this.closeSignupCamera();
                     url.searchParams.set('auth', 'login');
                 }
                 window.history.replaceState({}, '', url);
@@ -404,6 +409,32 @@ function signupLoginApp($persist, initialSignupOpen) {
             return '';
         },
 
+        validateSignupDateOfBirth(value) {
+            const normalized = this.normalizeDate(value || '');
+            if (!normalized) {
+                return 'Date of birth must be extracted from your QC ID before registration.';
+            }
+
+            const dob = new Date(`${normalized}T00:00:00`);
+            if (Number.isNaN(dob.getTime())) {
+                return 'Date of birth from your QC ID is invalid. Please rescan your ID.';
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (dob > today) {
+                return 'Date of birth cannot be in the future.';
+            }
+
+            const minAllowedDob = new Date(today.getFullYear() - 15, today.getMonth(), today.getDate());
+            if (dob > minAllowedDob) {
+                return 'You must be at least 15 years old to register.';
+            }
+
+            this.signup.date_of_birth = normalized;
+            return '';
+        },
+
         validateAndSubmitSignup(formEl) {
             this.scan.error = '';
             this.signup.username = this.sanitizeUsername(this.signup.username || '');
@@ -416,6 +447,12 @@ function signupLoginApp($persist, initialSignupOpen) {
 
             if ((this.signup.qcid_number || '').length !== 14) {
                 this.scan.error = 'QC ID number must be exactly 14 digits.';
+                return;
+            }
+
+            const dobError = this.validateSignupDateOfBirth(this.signup.date_of_birth);
+            if (dobError) {
+                this.scan.error = dobError;
                 return;
             }
 
@@ -620,9 +657,7 @@ function signupLoginApp($persist, initialSignupOpen) {
             }, 1000);
         },
 
-        onSignupQcImageChange(event) {
-            const file = event.target?.files?.[0] || null;
-            this.scan.file = file;
+        resetSignupScanData() {
             this.scan.error = '';
             this.scan.status = '';
             this.scan.idAssessment = '';
@@ -631,6 +666,7 @@ function signupLoginApp($persist, initialSignupOpen) {
             this.scan.isQrVerified = null;
             this.scan.qrData = '';
             this.scan.qrIdNumber = '';
+            this.scan.cameraError = '';
 
             // Reset registration fields (excluding account info)
             this.signup.name = '';
@@ -643,23 +679,303 @@ function signupLoginApp($persist, initialSignupOpen) {
             this.signup.address = '';
             this.signup.ocr_text = '';
             this.signup.qcid_temp_upload = '';
+        },
+
+        prepareSignupScanFile(file) {
+            this.scan.file = file;
+            this.resetSignupScanData();
 
             if (!file) {
+                if (this.scan.previewUrl) {
+                    URL.revokeObjectURL(this.scan.previewUrl);
+                }
                 this.scan.previewUrl = '';
-                return;
+                return false;
             }
 
-            if (!file.type.startsWith('image/')) {
+            if (!String(file.type || '').startsWith('image/')) {
                 this.scan.error = 'Please upload an image file for QC ID scanning.';
                 this.scan.file = null;
+                if (this.scan.previewUrl) {
+                    URL.revokeObjectURL(this.scan.previewUrl);
+                }
                 this.scan.previewUrl = '';
-                return;
+                return false;
+            }
+
+            if (file.size > (25 * 1024 * 1024)) {
+                this.scan.error = 'Image is too large. Please use an image under 25 MB.';
+                this.scan.file = null;
+                return false;
             }
 
             if (this.scan.previewUrl) {
                 URL.revokeObjectURL(this.scan.previewUrl);
             }
+
             this.scan.previewUrl = URL.createObjectURL(file);
+            return true;
+        },
+
+        stopSignupCameraStream() {
+            const stream = this.scan.cameraStream;
+            if (stream && typeof stream.getTracks === 'function') {
+                stream.getTracks().forEach((track) => track.stop());
+            }
+
+            this.scan.cameraStream = null;
+
+            const videoEl = this.$refs?.signupCameraVideo;
+            if (videoEl) {
+                try {
+                    videoEl.pause();
+                } catch (e) {
+                    // Ignore pause errors from interrupted media state.
+                }
+                videoEl.srcObject = null;
+            }
+        },
+
+        closeSignupCamera() {
+            this.stopSignupCameraStream();
+            this.scan.cameraOpen = false;
+            this.scan.isCapturing = false;
+            this.scan.cameraError = '';
+        },
+
+        async openSignupCamera() {
+            if (this.scan.isProcessing || this.scan.isCapturing) {
+                return;
+            }
+
+            if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+                this.scan.cameraError = 'Camera capture is not supported on this browser. Please upload an image instead.';
+                return;
+            }
+
+            this.scan.cameraError = '';
+            this.stopSignupCameraStream();
+            this.scan.cameraOpen = true;
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                    },
+                    audio: false,
+                });
+
+                this.scan.cameraStream = stream;
+
+                await this.$nextTick();
+
+                const videoEl = this.$refs?.signupCameraVideo;
+                if (!videoEl) {
+                    throw new Error('Unable to initialize camera preview.');
+                }
+
+                videoEl.srcObject = stream;
+                await videoEl.play();
+            } catch (error) {
+                this.stopSignupCameraStream();
+                this.scan.cameraOpen = false;
+                this.scan.cameraError = 'Unable to access the camera. Please allow camera permission or upload an image file.';
+            }
+        },
+
+        evaluateCapturedQcIdQuality(canvasEl) {
+            const minEdge = Math.min(canvasEl.width, canvasEl.height);
+            if (minEdge < 700) {
+                return 'Move closer so the QC ID fully fills the guide frame before capturing.';
+            }
+
+            const sampleMax = 240;
+            const scale = Math.min(1, sampleMax / Math.max(canvasEl.width, canvasEl.height));
+            const sampleWidth = Math.max(96, Math.round(canvasEl.width * scale));
+            const sampleHeight = Math.max(96, Math.round(canvasEl.height * scale));
+
+            const sampleCanvas = document.createElement('canvas');
+            sampleCanvas.width = sampleWidth;
+            sampleCanvas.height = sampleHeight;
+            const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+            if (!sampleCtx) {
+                return 'Unable to analyze image quality. Please retake the photo.';
+            }
+
+            sampleCtx.drawImage(canvasEl, 0, 0, sampleWidth, sampleHeight);
+            const imageData = sampleCtx.getImageData(0, 0, sampleWidth, sampleHeight);
+            const pixels = imageData.data;
+
+            const gray = new Float32Array(sampleWidth * sampleHeight);
+            let brightnessTotal = 0;
+
+            for (let y = 0; y < sampleHeight; y += 1) {
+                for (let x = 0; x < sampleWidth; x += 1) {
+                    const offset = ((y * sampleWidth) + x) * 4;
+                    const luma = (0.299 * pixels[offset]) + (0.587 * pixels[offset + 1]) + (0.114 * pixels[offset + 2]);
+                    gray[(y * sampleWidth) + x] = luma;
+                    brightnessTotal += luma;
+                }
+            }
+
+            const averageBrightness = brightnessTotal / gray.length;
+            if (averageBrightness < 45) {
+                return 'Image is too dark. Improve lighting before capturing.';
+            }
+
+            if (averageBrightness > 235) {
+                return 'Image is overexposed. Reduce glare and retake the photo.';
+            }
+
+            let edgeSum = 0;
+            let edgeSquaredSum = 0;
+            let edgeCount = 0;
+
+            for (let y = 1; y < sampleHeight - 1; y += 1) {
+                for (let x = 1; x < sampleWidth - 1; x += 1) {
+                    const idx = (y * sampleWidth) + x;
+                    const gx = gray[idx + 1] - gray[idx - 1];
+                    const gy = gray[idx + sampleWidth] - gray[idx - sampleWidth];
+                    const magnitude = Math.sqrt((gx * gx) + (gy * gy));
+
+                    edgeSum += magnitude;
+                    edgeSquaredSum += magnitude * magnitude;
+                    edgeCount += 1;
+                }
+            }
+
+            if (edgeCount === 0) {
+                return 'Image quality could not be measured. Please retake the photo.';
+            }
+
+            const edgeMean = edgeSum / edgeCount;
+            const edgeVariance = (edgeSquaredSum / edgeCount) - (edgeMean * edgeMean);
+
+            if (edgeVariance < 140) {
+                return 'Image looks blurry. Hold your device steady and retake the photo.';
+            }
+
+            return '';
+        },
+
+        async captureSignupQcIdPhoto() {
+            if (this.scan.isCapturing || this.scan.isProcessing) {
+                return;
+            }
+
+            this.scan.cameraError = '';
+
+            const videoEl = this.$refs?.signupCameraVideo;
+            const viewportEl = this.$refs?.signupCameraViewport;
+            const frameEl = this.$refs?.signupCameraGuideFrame;
+
+            if (!videoEl || !viewportEl || !frameEl || !videoEl.videoWidth || !videoEl.videoHeight) {
+                this.scan.cameraError = 'Camera is not ready yet. Please wait a moment and try again.';
+                return;
+            }
+
+            this.scan.isCapturing = true;
+
+            try {
+                const viewportRect = viewportEl.getBoundingClientRect();
+                const frameRect = frameEl.getBoundingClientRect();
+
+                const frameX = Math.max(0, frameRect.left - viewportRect.left);
+                const frameY = Math.max(0, frameRect.top - viewportRect.top);
+                const frameWidth = Math.min(frameRect.width, viewportRect.width - frameX);
+                const frameHeight = Math.min(frameRect.height, viewportRect.height - frameY);
+
+                const videoWidth = videoEl.videoWidth;
+                const videoHeight = videoEl.videoHeight;
+
+                const sourceAspect = videoWidth / videoHeight;
+                const viewportAspect = viewportRect.width / viewportRect.height;
+
+                let renderedWidth;
+                let renderedHeight;
+                let offsetX = 0;
+                let offsetY = 0;
+
+                if (sourceAspect > viewportAspect) {
+                    renderedHeight = viewportRect.height;
+                    renderedWidth = renderedHeight * sourceAspect;
+                    offsetX = (renderedWidth - viewportRect.width) / 2;
+                } else {
+                    renderedWidth = viewportRect.width;
+                    renderedHeight = renderedWidth / sourceAspect;
+                    offsetY = (renderedHeight - viewportRect.height) / 2;
+                }
+
+                const scaleX = videoWidth / renderedWidth;
+                const scaleY = videoHeight / renderedHeight;
+
+                const sourceX = Math.max(0, (frameX + offsetX) * scaleX);
+                const sourceY = Math.max(0, (frameY + offsetY) * scaleY);
+                const sourceWidth = Math.max(1, Math.min(videoWidth - sourceX, frameWidth * scaleX));
+                const sourceHeight = Math.max(1, Math.min(videoHeight - sourceY, frameHeight * scaleY));
+
+                const captureCanvas = document.createElement('canvas');
+                captureCanvas.width = Math.max(900, Math.round(sourceWidth));
+                captureCanvas.height = Math.max(560, Math.round(sourceHeight));
+
+                const captureCtx = captureCanvas.getContext('2d', { willReadFrequently: true });
+                if (!captureCtx) {
+                    throw new Error('Unable to process camera capture.');
+                }
+
+                captureCtx.drawImage(
+                    videoEl,
+                    sourceX,
+                    sourceY,
+                    sourceWidth,
+                    sourceHeight,
+                    0,
+                    0,
+                    captureCanvas.width,
+                    captureCanvas.height
+                );
+
+                const qualityError = this.evaluateCapturedQcIdQuality(captureCanvas);
+                if (qualityError) {
+                    this.scan.cameraError = qualityError;
+                    return;
+                }
+
+                const blob = await new Promise((resolve) => {
+                    captureCanvas.toBlob(resolve, 'image/jpeg', 0.94);
+                });
+
+                if (!blob) {
+                    throw new Error('Unable to capture image from camera. Please try again.');
+                }
+
+                const capturedFile = new File([blob], `qcid-capture-${Date.now()}.jpg`, {
+                    type: 'image/jpeg',
+                });
+
+                const ready = this.prepareSignupScanFile(capturedFile);
+                if (!ready) {
+                    return;
+                }
+
+                this.closeSignupCamera();
+                this.scanSignupQcId();
+            } catch (error) {
+                this.scan.cameraError = error?.message || 'Unable to capture from camera. Please try again.';
+            } finally {
+                this.scan.isCapturing = false;
+            }
+        },
+
+        onSignupQcImageChange(event) {
+            const file = event.target?.files?.[0] || null;
+            this.closeSignupCamera();
+
+            if (!this.prepareSignupScanFile(file)) {
+                return;
+            }
 
             // Auto-start scanning immediately after upload selection.
             this.scanSignupQcId();
@@ -1153,6 +1469,11 @@ function signupLoginApp($persist, initialSignupOpen) {
         async scanSignupQcId() {
             this.scan.error = '';
             this.scan.status = '';
+            this.scan.cameraError = '';
+
+            if (this.scan.cameraOpen) {
+                this.closeSignupCamera();
+            }
 
             if (!this.scan.file) {
                 this.scan.error = 'Upload your QC ID image first.';
@@ -1321,6 +1642,7 @@ function signupLoginApp($persist, initialSignupOpen) {
                         const sexVal = verification.sex.toUpperCase();
                         if (sexVal === 'M' || sexVal === 'MALE') this.signup.sex = 'MALE';
                         else if (sexVal === 'F' || sexVal === 'FEMALE') this.signup.sex = 'FEMALE';
+                        else if (['PREFER_NOT_TO_SAY', 'PREFER NOT TO SAY', 'UNKNOWN', 'UNSPECIFIED', 'N/A', 'NA', 'OTHER'].includes(sexVal)) this.signup.sex = 'PREFER_NOT_TO_SAY';
                     }
                     if (verification.civil_status) {
                         this.signup.civil_status = verification.civil_status;

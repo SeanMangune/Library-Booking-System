@@ -166,13 +166,14 @@ class Booking extends Model
     public function determineBookingStatus(?Carbon $reference = null): string
     {
         $reference ??= now($this->bookingTimezone());
+        $referenceInTimezone = $reference->copy()->setTimezone($this->bookingTimezone());
 
         $bookingDateValue = $this->normalizedBookingDateValue();
         if ($bookingDateValue === null) {
             return 'upcoming';
         }
 
-        $currentDateValue = $reference->copy()->setTimezone($this->bookingTimezone())->format('Y-m-d');
+        $currentDateValue = $referenceInTimezone->format('Y-m-d');
 
         if ($bookingDateValue > $currentDateValue) {
             return 'upcoming';
@@ -182,7 +183,7 @@ class Booking extends Model
             return 'expired';
         }
 
-        $currentTime = $reference->format('H:i:s');
+        $currentTime = $referenceInTimezone->format('H:i:s');
         $startTime = $this->normalizeBookingTime($this->start_time);
         $endTime = $this->normalizeBookingTime($this->end_time);
 
@@ -236,6 +237,7 @@ class Booking extends Model
     public function determineQrValidity(?\Carbon\Carbon $reference = null): string
     {
         $reference ??= now($this->bookingTimezone());
+        $referenceInTimezone = $reference->copy()->setTimezone($this->bookingTimezone());
 
         // Non-approved bookings are never valid
         if ($this->status !== 'approved') {
@@ -247,7 +249,7 @@ class Booking extends Model
             return 'not_valid';
         }
 
-        $currentDateValue = $reference->copy()->setTimezone($this->bookingTimezone())->format('Y-m-d');
+        $currentDateValue = $referenceInTimezone->format('Y-m-d');
 
         // Must be today — future or past dates are not valid
         if ($bookingDateValue !== $currentDateValue) {
@@ -255,7 +257,7 @@ class Booking extends Model
         }
 
         // Check time window
-        $currentTime = $reference->format('H:i:s');
+        $currentTime = $referenceInTimezone->format('H:i:s');
         $startTime   = $this->normalizeBookingTime($this->start_time);
         $endTime     = $this->normalizeBookingTime($this->end_time);
 
