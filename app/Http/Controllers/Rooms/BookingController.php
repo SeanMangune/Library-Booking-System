@@ -8,6 +8,7 @@ use App\Models\QcIdRegistration;
 use App\Models\Room;
 use App\Models\User;
 use App\Notifications\BookingApprovedNotification;
+use App\Notifications\BookingRejectedNotification;
 use App\Notifications\BookingRescheduledNotification;
 use App\Notifications\NewBookingSubmittedForStaffNotification;
 use App\Services\QcIdOcrVerifier;
@@ -648,19 +649,37 @@ class BookingController extends Controller
 
     public function reject(Booking $booking, Request $request)
     {
+        $booking->loadMissing('room', 'user');
+
         $booking->update([
             'status' => 'rejected',
             'reason' => $request->get('reason'),
         ]);
 
+        $fresh = $booking->fresh()->load('room', 'user');
+
         try {
-            $email = $booking->user_email ?? $booking->user?->email;
+            $email = $fresh->user_email ?? $fresh->user?->email;
             if (! empty($email)) {
-                Mail::to($email)->queue(new BookingRejectedMail($booking));
+                Mail::to($email)->send(new BookingRejectedMail($fresh));
             }
         } catch (\Throwable $e) {
             Log::warning('Booking rejection email failed.', [
-                'booking_id' => $booking->id,
+                'booking_id' => $fresh->id,
+                'user_id' => $fresh->user?->id,
+                'user_email' => $fresh->user_email,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        try {
+            $bookingUser = $fresh->user ?? ($fresh->user_id ? User::find($fresh->user_id) : null);
+            if ($bookingUser) {
+                $bookingUser->notify(new BookingRejectedNotification($fresh));
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Booking rejected in-app notification failed.', [
+                'booking_id' => $fresh->id,
                 'error' => $e->getMessage(),
             ]);
         }
