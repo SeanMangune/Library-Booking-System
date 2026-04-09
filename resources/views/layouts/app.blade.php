@@ -481,12 +481,14 @@
                             <i class="w-6 h-6 fa-icon fa-solid fa-bars text-2xl leading-none"></i>
                         </button>
                         <!-- Breadcrumb -->
+                        @unless(request()->routeIs('dashboard'))
                         <nav class="hidden sm:flex items-center gap-2 text-sm">
                             <a href="{{ route('dashboard') }}" class="text-gray-500 hover:text-gray-700">
                                 <i class="w-4 h-4 fa-icon fa-solid fa-house text-base leading-none"></i>
                             </a>
                             @yield('breadcrumb')
                         </nav>
+                        @endunless
                     </div>
                     
                     <div class="flex items-center gap-4">

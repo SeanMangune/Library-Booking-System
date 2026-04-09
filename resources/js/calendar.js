@@ -1795,6 +1795,8 @@ export function createDashboardApp(config = {}) {
                     return;
                 }
 
+                const progressBar = card.querySelector('[data-collab-room-progress]');
+
                 const label = status === 'maintenance'
                     ? 'Under Maintenance'
                     : status === 'occupied'
@@ -1804,18 +1806,44 @@ export function createDashboardApp(config = {}) {
                 badge.textContent = label;
                 badge.dataset.collabRoomStatus = label;
 
-                badge.classList.remove('bg-amber-100', 'text-amber-700', 'bg-red-100', 'text-red-700', 'bg-emerald-100', 'text-emerald-700');
-                card.classList.remove('bg-yellow-50', 'border-yellow-200', 'text-amber-800', 'bg-red-50', 'border-red-200', 'text-red-800', 'bg-green-50', 'border-green-200', 'text-emerald-800');
+                badge.classList.remove('bg-amber-100', 'text-amber-700', 'bg-rose-100', 'text-rose-700', 'bg-emerald-100', 'text-emerald-700');
+                card.classList.remove('border-amber-100', 'border-rose-100', 'border-emerald-100');
+
+                if (progressBar) {
+                    progressBar.classList.remove(
+                        'from-amber-400',
+                        'via-orange-400',
+                        'to-amber-500',
+                        'from-rose-400',
+                        'via-rose-500',
+                        'to-red-500',
+                        'from-emerald-400',
+                        'via-teal-500',
+                        'to-emerald-500',
+                    );
+                }
 
                 if (status === 'maintenance') {
                     badge.classList.add('bg-amber-100', 'text-amber-700');
-                    card.classList.add('bg-yellow-50', 'border-yellow-200', 'text-amber-800');
+                    card.classList.add('border-amber-100');
+                    if (progressBar) {
+                        progressBar.classList.add('from-amber-400', 'via-orange-400', 'to-amber-500');
+                        progressBar.style.width = '45%';
+                    }
                 } else if (status === 'occupied') {
-                    badge.classList.add('bg-red-100', 'text-red-700');
-                    card.classList.add('bg-red-50', 'border-red-200', 'text-red-800');
+                    badge.classList.add('bg-rose-100', 'text-rose-700');
+                    card.classList.add('border-rose-100');
+                    if (progressBar) {
+                        progressBar.classList.add('from-rose-400', 'via-rose-500', 'to-red-500');
+                        progressBar.style.width = '70%';
+                    }
                 } else {
                     badge.classList.add('bg-emerald-100', 'text-emerald-700');
-                    card.classList.add('bg-green-50', 'border-green-200', 'text-emerald-800');
+                    card.classList.add('border-emerald-100');
+                    if (progressBar) {
+                        progressBar.classList.add('from-emerald-400', 'via-teal-500', 'to-emerald-500');
+                        progressBar.style.width = '100%';
+                    }
                 }
             });
         },

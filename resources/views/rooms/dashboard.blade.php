@@ -33,7 +33,7 @@
                                 <i class="fa-solid fa-calendar opacity-70"></i> Manage Bookings
                             </a>
                             <a href="{{ route('reservations.index') }}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-800/50 hover:bg-indigo-800/70 text-white text-xs font-semibold rounded-xl transition-all border border-indigo-500/30 hover:shadow-md">
-                                <i class="fa-solid fa-list opacity-70"></i> My Reservations
+                                <i class="fa-solid fa-list opacity-70"></i> All Reservations
                             </a>
                         </div>
                     </div>
@@ -93,42 +93,56 @@
 
                 <!-- Collaborative Rooms Card -->
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 animate-slide-in-up stagger-3">
-                    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
+                    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50">
                         <h3 class="font-bold text-gray-900 flex items-center gap-2">
-                           <i class="fa-solid fa-door-open text-emerald-600"></i>
+                           <i class="fa-solid fa-door-open text-indigo-500"></i>
                            Collaborative Rooms
                         </h3>
-                        <span class="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     </div>
-                    <div class="p-6">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            @foreach($collaborativeRooms as $room)
-                                @php
-                                    if ($room->isUnderMaintenanceForDashboard()) {
-                                        $statusLabel = 'Under Maintenance';
-                                        $containerClasses = 'bg-yellow-50 border-yellow-200 text-amber-800';
-                                        $badgeClasses = 'bg-amber-100 text-amber-700';
-                                    } elseif ($room->isOccupiedForDashboard()) {
-                                        $statusLabel = 'Occupied';
-                                        $containerClasses = 'bg-red-50 border-red-200 text-red-800';
-                                        $badgeClasses = 'bg-red-100 text-red-700';
-                                    } else {
-                                        $statusLabel = 'Available';
-                                        $containerClasses = 'bg-green-50 border-green-200 text-emerald-800';
-                                        $badgeClasses = 'bg-emerald-100 text-emerald-700';
-                                    }
-                                @endphp
-                                <div class="rounded-3xl border p-4 flex items-center justify-between {{ $containerClasses }}" data-collab-room-id="{{ $room->id }}">
-                                    <div>
-                                        <p class="text-sm font-semibold">{{ $room->name }}</p>
-                                    </div>
-                                    <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold {{ $badgeClasses }}"
-                                          data-collab-room-status="{{ $statusLabel }}">
-                                        {{ $statusLabel }}
-                                    </span>
+                    <div class="p-4 space-y-3">
+                        @foreach($collaborativeRooms as $room)
+                            @php
+                                if ($room->isUnderMaintenanceForDashboard()) {
+                                    $statusLabel = 'Under Maintenance';
+                                    $rowBorderClasses = 'border-amber-100';
+                                    $badgeClasses = 'bg-amber-100 text-amber-700';
+                                    $progressClasses = 'from-amber-400 via-orange-400 to-amber-500';
+                                    $statusPercent = 45;
+                                } elseif ($room->isOccupiedForDashboard()) {
+                                    $statusLabel = 'Occupied';
+                                    $rowBorderClasses = 'border-rose-100';
+                                    $badgeClasses = 'bg-rose-100 text-rose-700';
+                                    $progressClasses = 'from-rose-400 via-rose-500 to-red-500';
+                                    $statusPercent = 70;
+                                } else {
+                                    $statusLabel = 'Available';
+                                    $rowBorderClasses = 'border-emerald-100';
+                                    $badgeClasses = 'bg-emerald-100 text-emerald-700';
+                                    $progressClasses = 'from-emerald-400 via-teal-500 to-emerald-500';
+                                    $statusPercent = 100;
+                                }
+                            @endphp
+                            <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border transition-all duration-300 {{ $rowBorderClasses }}"
+                                 data-collab-room-id="{{ $room->id }}">
+                                <div class="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0 border border-gray-100">
+                                    <i class="fa-solid fa-door-open text-gray-400"></i>
                                 </div>
-                            @endforeach
-                        </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between mb-1.5 gap-2">
+                                        <span class="text-xs font-bold text-gray-900 truncate">{{ $room->name }}</span>
+                                        <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md {{ $badgeClasses }}"
+                                              data-collab-room-status="{{ $statusLabel }}">
+                                            {{ $statusLabel }}
+                                        </span>
+                                    </div>
+                                    <div class="h-2 bg-gray-200/80 rounded-full overflow-hidden shadow-inner">
+                                        <div class="h-full bg-linear-to-r {{ $progressClasses }} rounded-full transition-all duration-500"
+                                             style="width: {{ $statusPercent }}%"
+                                             data-collab-room-progress></div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
 

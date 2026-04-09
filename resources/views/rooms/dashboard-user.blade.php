@@ -9,11 +9,32 @@
 
 @section('content')
 @php
+    $currentUser = auth()->user();
     $audience = $dashboardAudience ?? 'student';
     $audienceLabel = ucfirst($audience);
     $audienceDescription = $audience === 'faculty'
         ? 'Faculty dashboard for room scheduling, reservation tracking, and streamlined approvals follow-up.'
         : 'Student dashboard for managing reservations, reviewing schedules, and planning study sessions.';
+
+    $fullName = trim((string) ($currentUser?->name ?? 'User'));
+    if (str_contains($fullName, ',')) {
+        $welcomeSurname = trim((string) strtok($fullName, ','));
+    } else {
+        $nameParts = preg_split('/\s+/', $fullName, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $welcomeSurname = ! empty($nameParts) ? trim((string) end($nameParts)) : $fullName;
+    }
+
+    $sexValue = strtoupper(trim((string) ($qcIdRegistration?->sex ?? '')));
+    $honorific = '';
+    if (($classification ?? null) === \App\Models\User::CLASSIFICATION_FACULTY) {
+        if (in_array($sexValue, ['M', 'MALE'], true)) {
+            $honorific = 'Sir ';
+        } elseif (in_array($sexValue, ['F', 'FEMALE'], true)) {
+            $honorific = "Ma'am ";
+        }
+    }
+
+    $welcomeDisplayName = trim($honorific . $welcomeSurname);
 @endphp
 <div x-data="dashboardApp()" x-init="init()" class="flex flex-col xl:h-[calc(100dvh-9rem)] xl:overflow-hidden">
     <div class="flex-1 min-h-0 overflow-y-auto px-1 group/dashboard">
@@ -27,7 +48,7 @@
                         <i class="fa-solid fa-book-open-reader text-9xl text-white"></i>
                     </div>
                     <div class="relative z-10">
-                        <h2 class="text-xl font-bold text-white">Welcome, {{ explode(',', auth()->user()->name)[1] ?? auth()->user()->name }}!</h2>
+                        <h2 class="text-xl font-bold text-white">Welcome, {{ $welcomeDisplayName }}!</h2>
                         <div class="mt-2 inline-flex items-center rounded-full border border-white/30 bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-white">{{ $audienceLabel }}</div>
                         <p class="text-indigo-100 mt-2 text-sm leading-relaxed">{{ $audienceDescription }}</p>
 
