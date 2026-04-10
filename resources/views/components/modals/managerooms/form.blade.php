@@ -155,7 +155,7 @@
                                            class="w-full pl-[2.1rem] pr-2 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-xs sm:text-sm">
                                 </div>
                                 <p class="mt-1 text-xs text-gray-500">
-                                    Select date only. System uses fixed schedule of 8:00 AM to 5:00 PM.
+                                    Select date only. System uses fixed schedule of 8:00 AM to 7:00 PM.
                                 </p>
                             </div>
                         </div>
@@ -169,7 +169,7 @@
                             </div>
 
                             <p class="mt-1 text-xs text-amber-700" x-show="!roomForm.status_start_at">
-                                Select a maintenance date to preview affected bookings for 8:00 AM to 5:00 PM.
+                                Select a maintenance date to preview affected bookings for 8:00 AM to 7:00 PM.
                             </p>
 
                             <p class="mt-1 text-xs text-red-600" x-show="previewWindowError" x-text="previewWindowError"></p>

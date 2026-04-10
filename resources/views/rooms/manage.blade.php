@@ -291,7 +291,7 @@ function roomManagement() {
 
             return {
                 startAt: `${selectedDate} 08:00:00`,
-                endAt: `${selectedDate} 17:00:00`,
+                endAt: `${selectedDate} 19:00:00`,
             };
         },
 

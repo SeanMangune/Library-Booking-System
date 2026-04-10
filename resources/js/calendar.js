@@ -126,7 +126,7 @@ function formatRange(startValue, endValue) {
 }
 
 const BOOKING_OPEN_HOUR = 8;
-const BOOKING_CLOSE_HOUR = 17;
+const BOOKING_CLOSE_HOUR = 19;
 const BOOKING_DATE_RANGE_DAYS = 90;
 const BOOKING_MIN_ATTENDEES = 5;
 

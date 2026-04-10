@@ -28,7 +28,7 @@ class BookingController extends Controller
 {
     private const BOOKING_OPEN_HOUR = 8;
 
-    private const BOOKING_CLOSE_HOUR = 17;
+    private const BOOKING_CLOSE_HOUR = 19;
 
     private const BOOKING_MAX_AVAILABILITY_DAYS = 90;
 
