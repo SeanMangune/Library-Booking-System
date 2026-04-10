@@ -72,6 +72,45 @@ class QcIdOcrVerifier
 
         $score += $parsedFieldCount * 5;
 
+        $idDigits = preg_replace('/\D/', '', (string) ($fields['id_number'] ?? '')) ?? '';
+        $hasIdNumber = strlen($idDigits) >= 13 && strlen($idDigits) <= 14;
+        $hasCardholderName = !empty($fields['cardholder_name'])
+            && mb_strlen((string) $fields['cardholder_name'], 'UTF-8') >= 6;
+        $hasBirthDate = !empty($fields['date_of_birth']);
+        $hasIssuedDate = !empty($fields['date_issued']);
+        $hasValidUntil = !empty($fields['valid_until']);
+        $hasDatePair = $hasIssuedDate && $hasValidUntil;
+        $hasDemographicField = $hasBirthDate || !empty($fields['sex']) || !empty($fields['civil_status']);
+        $hasQcAddress = !empty($fields['address'])
+            && preg_match('/QUEZON\s*(?:CITY|C\s*ITY|C1TY|1TY|ITY|LITY|CTY)/i', (string) $fields['address']) === 1;
+        $hasQcSignal = count($matchedMarkers) > 0
+            || count($fragmentHits) > 0
+            || $hasQcAddress;
+
+        // Structured field evidence from real QC cards should significantly
+        // improve acceptance on noisy camera captures.
+        if ($hasIdNumber) {
+            $score += 12;
+        }
+        if ($hasDatePair) {
+            $score += 10;
+        }
+        if ($hasCardholderName) {
+            $score += 8;
+        }
+        if ($hasDemographicField) {
+            $score += 6;
+        }
+        if ($hasQcAddress) {
+            $score += 10;
+        }
+
+        $hasStructuredCoreEvidence = $hasIdNumber
+            && $hasDatePair
+            && ($hasCardholderName || $hasDemographicField);
+        $hasHighCompletenessEvidence = $hasStructuredCoreEvidence
+            && ($hasQcSignal || $parsedFieldCount >= 6);
+
         // Any date-like string (YYYY/MM/DD or DD/MM/YYYY etc.) in the
         // full normalized text adds a small bonus regardless of labels.
         if (preg_match('/\d{4}[\/-]\d{2}[\/-]\d{2}|\d{2}[\/-]\d{2}[\/-]\d{4}/', $normalized)) {
@@ -83,8 +122,17 @@ class QcIdOcrVerifier
             $score += 8;
         }
 
-        // Threshold: 70 points is required for a strict verification.
-        $looksLikeQcId = $score >= 70;
+        // Adaptive threshold: preserve strict checks by default, but allow
+        // richly extracted field sets from noisy captures.
+        $acceptanceThreshold = 70;
+        if ($hasStructuredCoreEvidence) {
+            $acceptanceThreshold = 58;
+        }
+        if ($hasHighCompletenessEvidence) {
+            $acceptanceThreshold = 50;
+        }
+
+        $looksLikeQcId = $score >= $acceptanceThreshold;
 
         // Optional name-match gate – only applied when a name was
         // entered AND the card name was successfully parsed.
@@ -95,7 +143,7 @@ class QcIdOcrVerifier
             // because OCR frequently garbles names.
             if (!$nameMatches) {
                 $score -= 15;
-                $looksLikeQcId = $score >= 70;
+                $looksLikeQcId = $score >= $acceptanceThreshold;
             }
         }
 
@@ -105,8 +153,8 @@ class QcIdOcrVerifier
         // Always check for non-QC IDs. If detected AND no strong
         // QC-specific marker is present, force rejection.
         $rejectedIdType = $this->detectNonQcId($normalized);
-        $hasStrongQcMarker = in_array('qc_citizen_card', $markerKeys)
-            || in_array('kasama_pag_unlad', $markerKeys);
+        $hasStrongQcMarker = in_array('qc_citizen_card', $markerKeys, true)
+            || in_array('kasama_pag_unlad', $markerKeys, true);
         if ($rejectedIdType !== null) {
             // Hard rejection if a non-QC ID marker is detected, 
             // unless we have an extremely high confidence QC marker (like CITIZENCARD).

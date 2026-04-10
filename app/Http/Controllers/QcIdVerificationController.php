@@ -135,7 +135,7 @@ class QcIdVerificationController extends Controller
         $capturedId = $this->normalizeQcIdDigits((string) ($verification['id_number'] ?? $qrIdNumber ?? ''));
 
         if ($verification['is_valid']) {
-            $birthDateError = $this->dateOfBirthValidationError($verification);
+            $birthDateError = $this->dateOfBirthValidationError($verification, $combinedText, $verifier);
             if ($birthDateError !== null) {
                 $verification['is_valid'] = false;
                 $verification['id_assessment'] = 'INVALID';
@@ -165,6 +165,9 @@ class QcIdVerificationController extends Controller
         }
 
         if (! $verification['is_valid']) {
+            $readableTextLength = mb_strlen((string) (preg_replace('/\s+/', '', $combinedText) ?? ''), 'UTF-8');
+            $confidenceScore = (int) ($verification['confidence_score'] ?? 0);
+
             if (! empty($verification['invalid_date_of_birth'])) {
                 $message = (string) ($verification['date_of_birth_error'] ?? 'Date of birth from your QC ID is invalid. Please upload a clear QC ID image.');
             } elseif (! empty($verification['duplicate_qcid'])) {
@@ -178,6 +181,10 @@ class QcIdVerificationController extends Controller
             } elseif (! empty($verification['rejected_id_type'])) {
                 $rejectedType = $verification['rejected_id_type'];
                 $message = "This ID is invalid because it's a {$rejectedType}. Only Quezon City Citizen IDs (QC IDs) are accepted.";
+            } elseif ($readableTextLength < 40) {
+                $message = 'The camera capture could not be read clearly. Retake the QC ID photo with better lighting, no glare, and keep the full card inside the frame.';
+            } elseif ($confidenceScore > 0 && $confidenceScore < 45) {
+                $message = 'QC ID details were detected but not confidently enough. Please retake a sharper photo and ensure the full card text is readable.';
             } else {
                 $message = 'Only a Quezon City Citizen ID (QC ID) is accepted. Please upload a QC ID Image.';
             }
@@ -791,6 +798,54 @@ class QcIdVerificationController extends Controller
             return null;
         }
 
+        // Apply light OCR normalization before parsing date tokens.
+        $value = strtr($value, [
+            'O' => '0',
+            'o' => '0',
+            'Q' => '0',
+            'q' => '0',
+            'D' => '0',
+            'I' => '1',
+            'i' => '1',
+            'L' => '1',
+            'l' => '1',
+            '|' => '/',
+            '\\' => '/',
+            '.' => '/',
+            '-' => '/',
+        ]);
+
+        $value = preg_replace('/\s*\/\s*/', '/', $value) ?? $value;
+        $value = preg_replace('/\s+/', '', $value) ?? $value;
+
+        if (preg_match('/^(\d{4})(\d{2})(\d{2})$/', $value, $m) === 1) {
+            return checkdate((int) $m[2], (int) $m[3], (int) $m[1])
+                ? sprintf('%04d-%02d-%02d', (int) $m[1], (int) $m[2], (int) $m[3])
+                : null;
+        }
+
+        // OCR artifact: YYYY/MMDD (e.g. 2003/1001)
+        if (preg_match('/^(\d{4})\/(\d{4})$/', $value, $m) === 1) {
+            $year = (int) $m[1];
+            $month = (int) substr($m[2], 0, 2);
+            $day = (int) substr($m[2], 2, 2);
+
+            return checkdate($month, $day, $year)
+                ? sprintf('%04d-%02d-%02d', $year, $month, $day)
+                : null;
+        }
+
+        // OCR artifact: YYYYM/DD (e.g. 20030/01)
+        if (preg_match('/^(\d{5})\/(\d{2})$/', $value, $m) === 1) {
+            $year = (int) substr($m[1], 0, 4);
+            $month = (int) substr($m[1], 4, 1);
+            $day = (int) $m[2];
+
+            return checkdate($month, $day, $year)
+                ? sprintf('%04d-%02d-%02d', $year, $month, $day)
+                : null;
+        }
+
         if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m) === 1) {
             return checkdate((int) $m[2], (int) $m[3], (int) $m[1]) ? sprintf('%04d-%02d-%02d', (int) $m[1], (int) $m[2], (int) $m[3]) : null;
         }
@@ -812,9 +867,192 @@ class QcIdVerificationController extends Controller
         return null;
     }
 
-    private function dateOfBirthValidationError(array &$verification): ?string
+    private function normalizeDateYmdWithVerifier(string $value, QcIdOcrVerifier $verifier): ?string
     {
-        $normalizedDob = $this->normalizeDateYmd((string) ($verification['date_of_birth'] ?? ''));
+        $normalized = $this->normalizeDateYmd($value);
+        if ($normalized !== null) {
+            return $normalized;
+        }
+
+        $verifierNormalized = $verifier->normalizeDateToYmd($value);
+        if ($verifierNormalized === null) {
+            return null;
+        }
+
+        return $this->normalizeDateYmd($verifierNormalized);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function extractDateCandidatesFromText(string $text, QcIdOcrVerifier $verifier): array
+    {
+        $normalized = mb_strtoupper($text, 'UTF-8');
+        $normalized = strtr($normalized, [
+            '|' => '/',
+            '\\' => '/',
+            '.' => '/',
+            '-' => '/',
+            'O' => '0',
+            'Q' => '0',
+            'D' => '0',
+            'I' => '1',
+            'L' => '1',
+        ]);
+
+        $patterns = [
+            '/\b(?:19|20)\d{2}\s*\/\s*\d{1,2}\s*\/\s*\d{1,2}\b/',
+            '/\b\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*(?:19|20)\d{2}\b/',
+            '/\b(?:19|20)\d{2}\s*\/\s*\d{4}\b/',
+            '/\b(?:19|20)\d{4}\s*\/\s*\d{2}\b/',
+            '/\b(?:19|20)\d{6}\b/',
+            '/\b(?:19|20)\d{2}\s+\d{1,2}\s+\d{1,2}\b/',
+            '/\b\d{1,2}\s+\d{1,2}\s+(?:19|20)\d{2}\b/',
+        ];
+
+        $dates = [];
+        foreach ($patterns as $pattern) {
+            if (preg_match_all($pattern, $normalized, $matches) < 1) {
+                continue;
+            }
+
+            foreach ($matches[0] as $rawDate) {
+                $candidate = $this->normalizeDateYmdWithVerifier((string) $rawDate, $verifier);
+                if ($candidate === null || in_array($candidate, $dates, true)) {
+                    continue;
+                }
+
+                $dates[] = $candidate;
+            }
+        }
+
+        return $dates;
+    }
+
+    private function extractDateNearBirthLabel(string $text, QcIdOcrVerifier $verifier): ?string
+    {
+        if (trim($text) === '') {
+            return null;
+        }
+
+        if (preg_match_all('/(?:DOB|D\s*\/?\s*O\s*\/?\s*B|DATE\s*(?:OF)?\s*BIRTH|BIRTH\s*DATE|BIRTHDATE)/i', $text, $matches, PREG_OFFSET_CAPTURE) < 1) {
+            return null;
+        }
+
+        foreach ($matches[0] as $hit) {
+            $offset = (int) ($hit[1] ?? 0);
+            $start = max(0, $offset - 40);
+            $window = substr($text, $start, 140);
+            if ($window === false || $window === '') {
+                continue;
+            }
+
+            $candidates = $this->extractDateCandidatesFromText($window, $verifier);
+            if ($candidates !== []) {
+                return $candidates[0];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param list<string> $excludedDates
+     */
+    private function scoreDobCandidate(string $candidate, array $excludedDates): int
+    {
+        if (in_array($candidate, $excludedDates, true)) {
+            return PHP_INT_MIN;
+        }
+
+        try {
+            $dob = Carbon::createFromFormat('Y-m-d', $candidate)->startOfDay();
+        } catch (\Throwable $e) {
+            return PHP_INT_MIN;
+        }
+
+        $today = Carbon::now()->startOfDay();
+        if ($dob->greaterThan($today)) {
+            return PHP_INT_MIN;
+        }
+
+        $age = $dob->age;
+        $year = (int) $dob->format('Y');
+        $score = 0;
+
+        if ($age >= self::MIN_REGISTRATION_AGE && $age <= 100) {
+            $score += 60;
+        } elseif ($age >= 10 && $age < self::MIN_REGISTRATION_AGE) {
+            $score += 30;
+        } elseif ($age > 100) {
+            $score += 20;
+        } else {
+            $score += 5;
+        }
+
+        $oldestLikelyRegistrationYear = (int) $today->format('Y') - self::MIN_REGISTRATION_AGE;
+        if ($year >= 1940 && $year <= $oldestLikelyRegistrationYear) {
+            $score += 25;
+        }
+
+        if ($year >= 2016) {
+            $score -= 30;
+        }
+
+        return $score;
+    }
+
+    private function recoverDateOfBirthCandidate(array $verification, string $combinedText, QcIdOcrVerifier $verifier): ?string
+    {
+        $excludedDates = array_values(array_unique(array_filter([
+            $this->normalizeDateYmdWithVerifier((string) ($verification['date_issued'] ?? ''), $verifier),
+            $this->normalizeDateYmdWithVerifier((string) ($verification['valid_until'] ?? ''), $verifier),
+        ])));
+
+        $searchText = trim(implode("\n", array_filter([
+            (string) ($verification['normalized_text'] ?? ''),
+            $combinedText,
+        ])));
+
+        if ($searchText === '') {
+            return null;
+        }
+
+        $labelCandidate = $this->extractDateNearBirthLabel($searchText, $verifier);
+        if ($labelCandidate !== null && $this->scoreDobCandidate($labelCandidate, $excludedDates) >= 20) {
+            return $labelCandidate;
+        }
+
+        $candidates = $this->extractDateCandidatesFromText($searchText, $verifier);
+        if ($candidates === []) {
+            return null;
+        }
+
+        $bestCandidate = null;
+        $bestScore = PHP_INT_MIN;
+        foreach ($candidates as $candidate) {
+            $score = $this->scoreDobCandidate($candidate, $excludedDates);
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestCandidate = $candidate;
+            }
+        }
+
+        return $bestScore >= 40 ? $bestCandidate : null;
+    }
+
+    private function dateOfBirthValidationError(array &$verification, string $combinedText, QcIdOcrVerifier $verifier): ?string
+    {
+        $normalizedDob = $this->normalizeDateYmdWithVerifier((string) ($verification['date_of_birth'] ?? ''), $verifier);
+
+        if ($normalizedDob === null) {
+            $normalizedDob = $this->recoverDateOfBirthCandidate($verification, $combinedText, $verifier);
+            if ($normalizedDob !== null) {
+                $verification['date_of_birth'] = $normalizedDob;
+                $verification['_date_of_birth_source'] = $verification['_date_of_birth_source'] ?? 'ocr_fallback';
+            }
+        }
+
         if ($normalizedDob === null) {
             return 'Date of birth could not be extracted from your QC ID. Please upload a clearer image and try again.';
         }

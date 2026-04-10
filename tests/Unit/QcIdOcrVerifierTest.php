@@ -120,6 +120,26 @@ TEXT;
         $this->assertTrue($result['is_valid']);
     }
 
+    public function test_it_accepts_camera_ocr_with_fragmented_city_marker_and_complete_fields(): void
+    {
+        $text = <<<'TEXT'
+MANGUNE, SEAN MICHAEL CALINAWAN
+M 2003/10/01 SINGLE
+2024/02/16 2034/10/01
+19 A KING CONSTANTINE EXT, KINGSPOINT BAGBAG, QUEZON C1TY
+005 000 01257479
+TEXT;
+
+        $result = (new QcIdOcrVerifier())->verify($text, 'Sean Michael Mangune');
+
+        $this->assertTrue($result['is_valid']);
+        $this->assertSame('005 000 01257479', $result['id_number']);
+        $this->assertSame('2003/10/01', $result['date_of_birth']);
+        $this->assertSame('2024/02/16', $result['date_issued']);
+        $this->assertSame('2034/10/01', $result['valid_until']);
+        $this->assertStringContainsString('QUEZON CITY', (string) $result['address']);
+    }
+
     public function test_fuzzy_name_matching_with_ocr_typos(): void
     {
         $verifier = new QcIdOcrVerifier();

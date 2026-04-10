@@ -29,7 +29,7 @@ class OcrSpaceClient
         // Run engine 1 only when engine 2 result is weak/incomplete.
         // This keeps verification responsive on slow networks.
         $engine1Text = '';
-        if ($this->shouldRunSecondaryEngine($engine2Text)) {
+        if ($this->shouldRunSecondaryEngine($engine2Text, $fileName)) {
             $engine1Text = $this->callOcrEngine($endpoint, $apiKey, $language, $fileContents, $fileName, '1', true);
         }
 
@@ -44,8 +44,13 @@ class OcrSpaceClient
         ];
     }
 
-    private function shouldRunSecondaryEngine(string $engine2Text): bool
+    private function shouldRunSecondaryEngine(string $engine2Text, string $fileName = ''): bool
     {
+        $isCameraCapture = preg_match('/qcid-capture-\d+\.(?:jpg|jpeg|png|webp)$/i', $fileName) === 1;
+        if ($isCameraCapture) {
+            return true;
+        }
+
         $normalized = mb_strtoupper(trim($engine2Text));
         if ($normalized === '') {
             return true;
@@ -64,7 +69,7 @@ class OcrSpaceClient
             }
         }
 
-        return $hits < 3 && mb_strlen($normalized) < 350;
+        return $hits < 5 || mb_strlen($normalized) < 700;
     }
 
     /**
@@ -110,8 +115,48 @@ class OcrSpaceClient
             $secondary = $primary === $engine1Text ? $engine2Text : $engine1Text;
         }
 
-        // Always append secondary for the verifier to have maximum data
-        return trim($primary . "\n" . $secondary);
+        // Merge lines from both engines, deduplicating OCR duplicates while
+        // keeping the richer variant of near-identical lines.
+        return $this->mergeUniqueLines($primary, $secondary);
+    }
+
+    private function mergeUniqueLines(string $primary, string $secondary): string
+    {
+        $lines = array_merge(
+            preg_split('/\R+/', $primary) ?: [],
+            preg_split('/\R+/', $secondary) ?: []
+        );
+
+        $result = [];
+        $indexByFingerprint = [];
+
+        foreach ($lines as $line) {
+            $cleanLine = trim((string) $line);
+            if ($cleanLine === '') {
+                continue;
+            }
+
+            $fingerprint = mb_strtoupper((string) (preg_replace('/[^A-Z0-9]/iu', '', $cleanLine) ?? ''));
+            if ($fingerprint === '' || mb_strlen($fingerprint) < 5) {
+                continue;
+            }
+
+            if (array_key_exists($fingerprint, $indexByFingerprint)) {
+                $existingIndex = $indexByFingerprint[$fingerprint];
+                $existingLine = $result[$existingIndex] ?? '';
+
+                if (mb_strlen($cleanLine) > mb_strlen((string) $existingLine)) {
+                    $result[$existingIndex] = $cleanLine;
+                }
+
+                continue;
+            }
+
+            $indexByFingerprint[$fingerprint] = count($result);
+            $result[] = $cleanLine;
+        }
+
+        return trim(implode("\n", $result));
     }
 
     /**

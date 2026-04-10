@@ -874,6 +874,32 @@ function signupLoginApp($persist, initialSignupOpen) {
             return '';
         },
 
+        optimizeCapturedQcIdForScan(canvasEl) {
+            const optimized = document.createElement('canvas');
+            optimized.width = canvasEl.width;
+            optimized.height = canvasEl.height;
+
+            const ctx = optimized.getContext('2d', { willReadFrequently: true });
+            if (!ctx) {
+                return canvasEl;
+            }
+
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.filter = 'contrast(132%) saturate(108%) brightness(104%)';
+            ctx.drawImage(canvasEl, 0, 0, optimized.width, optimized.height);
+            ctx.filter = 'none';
+
+            // A light overlay pass improves text edge separation for OCR.
+            ctx.globalCompositeOperation = 'overlay';
+            ctx.globalAlpha = 0.16;
+            ctx.drawImage(canvasEl, 0, 0, optimized.width, optimized.height);
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = 1;
+
+            return optimized;
+        },
+
         async captureSignupQcIdPhoto() {
             if (this.scan.isCapturing || this.scan.isProcessing) {
                 return;
@@ -901,6 +927,14 @@ function signupLoginApp($persist, initialSignupOpen) {
                 const frameWidth = Math.min(frameRect.width, viewportRect.width - frameX);
                 const frameHeight = Math.min(frameRect.height, viewportRect.height - frameY);
 
+                // Keep a safety margin so card edges/labels are not clipped.
+                const framePaddingX = frameWidth * 0.08;
+                const framePaddingY = frameHeight * 0.08;
+                const paddedFrameX = Math.max(0, frameX - framePaddingX);
+                const paddedFrameY = Math.max(0, frameY - framePaddingY);
+                const paddedFrameWidth = Math.min(viewportRect.width - paddedFrameX, frameWidth + (framePaddingX * 2));
+                const paddedFrameHeight = Math.min(viewportRect.height - paddedFrameY, frameHeight + (framePaddingY * 2));
+
                 const videoWidth = videoEl.videoWidth;
                 const videoHeight = videoEl.videoHeight;
 
@@ -925,19 +959,22 @@ function signupLoginApp($persist, initialSignupOpen) {
                 const scaleX = videoWidth / renderedWidth;
                 const scaleY = videoHeight / renderedHeight;
 
-                const sourceX = Math.max(0, (frameX + offsetX) * scaleX);
-                const sourceY = Math.max(0, (frameY + offsetY) * scaleY);
-                const sourceWidth = Math.max(1, Math.min(videoWidth - sourceX, frameWidth * scaleX));
-                const sourceHeight = Math.max(1, Math.min(videoHeight - sourceY, frameHeight * scaleY));
+                const sourceX = Math.max(0, Math.round((paddedFrameX + offsetX) * scaleX));
+                const sourceY = Math.max(0, Math.round((paddedFrameY + offsetY) * scaleY));
+                const sourceWidth = Math.max(1, Math.round(Math.min(videoWidth - sourceX, paddedFrameWidth * scaleX)));
+                const sourceHeight = Math.max(1, Math.round(Math.min(videoHeight - sourceY, paddedFrameHeight * scaleY)));
 
                 const captureCanvas = document.createElement('canvas');
-                captureCanvas.width = Math.max(900, Math.round(sourceWidth));
-                captureCanvas.height = Math.max(560, Math.round(sourceHeight));
+                captureCanvas.width = sourceWidth;
+                captureCanvas.height = sourceHeight;
 
                 const captureCtx = captureCanvas.getContext('2d', { willReadFrequently: true });
                 if (!captureCtx) {
                     throw new Error('Unable to process camera capture.');
                 }
+
+                captureCtx.imageSmoothingEnabled = true;
+                captureCtx.imageSmoothingQuality = 'high';
 
                 captureCtx.drawImage(
                     videoEl,
@@ -957,8 +994,10 @@ function signupLoginApp($persist, initialSignupOpen) {
                     return;
                 }
 
+                const optimizedCanvas = this.optimizeCapturedQcIdForScan(captureCanvas);
+
                 const blob = await new Promise((resolve) => {
-                    captureCanvas.toBlob(resolve, 'image/jpeg', 0.94);
+                    optimizedCanvas.toBlob(resolve, 'image/jpeg', 0.98);
                 });
 
                 if (!blob) {
@@ -1126,6 +1165,42 @@ function signupLoginApp($persist, initialSignupOpen) {
                             return tryDecodeImageData(imageData);
                         };
 
+                        const buildQrEnhancedCanvas = (sourceCanvas) => {
+                            const enhanced = document.createElement('canvas');
+                            enhanced.width = sourceCanvas.width;
+                            enhanced.height = sourceCanvas.height;
+                            const ectx = enhanced.getContext('2d', { willReadFrequently: true });
+                            if (!ectx) return null;
+
+                            ectx.filter = 'grayscale(100%) contrast(190%) brightness(118%)';
+                            ectx.drawImage(sourceCanvas, 0, 0, enhanced.width, enhanced.height);
+                            ectx.filter = 'none';
+
+                            return enhanced;
+                        };
+
+                        const decodeVariants = (baseCanvas) => {
+                            const variants = [baseCanvas];
+                            const enhanced = buildQrEnhancedCanvas(baseCanvas);
+                            if (enhanced) {
+                                variants.push(enhanced);
+                            }
+
+                            for (const variant of variants) {
+                                const direct = decodeCanvas(variant);
+                                if (direct) return direct;
+
+                                for (const degrees of [90, 180, 270]) {
+                                    const rotated = rotateCanvas(variant, degrees);
+                                    if (!rotated) continue;
+                                    const decoded = decodeCanvas(rotated);
+                                    if (decoded) return decoded;
+                                }
+                            }
+
+                            return null;
+                        };
+
                         const cropAttempts = [
                             { sx: 0, sy: 0, sw: img.width, sh: img.height, maxEdge: 1400 },
                             { sx: img.width * 0.45, sy: 0, sw: img.width * 0.55, sh: img.height, maxEdge: 1600 },
@@ -1162,19 +1237,10 @@ function signupLoginApp($persist, initialSignupOpen) {
                                 targetHeight,
                             );
 
-                            const baseDecoded = decodeCanvas(canvas);
-                            if (baseDecoded) {
-                                resolveOnce(baseDecoded);
+                            const decoded = decodeVariants(canvas);
+                            if (decoded) {
+                                resolveOnce(decoded);
                                 return;
-                            }
-
-                            const rotated180 = rotateCanvas(canvas, 180);
-                            if (rotated180) {
-                                const rotatedDecoded = decodeCanvas(rotated180);
-                                if (rotatedDecoded) {
-                                    resolveOnce(rotatedDecoded);
-                                    return;
-                                }
                             }
 
                             // Yield briefly so UI remains responsive on mobile.
@@ -1561,8 +1627,9 @@ function signupLoginApp($persist, initialSignupOpen) {
                 this.scan.idAssessment = assessment;
                 this.scan.isVerified = !!isVerified;
                 const confidenceScore = Number(verification?.confidence_score || 0);
-                this.scan.confidenceLabel = isVerified
-                    ? `${Math.max(0, Math.min(100, confidenceScore))}%`
+                const normalizedConfidence = Math.round(Math.max(0, Math.min(100, confidenceScore)));
+                this.scan.confidenceLabel = normalizedConfidence > 0
+                    ? (isVerified ? `${normalizedConfidence}%` : `${normalizedConfidence}% (low)`)
                     : '—';
 
                 if (!isVerified) {
