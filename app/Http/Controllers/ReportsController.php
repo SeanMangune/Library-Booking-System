@@ -687,16 +687,16 @@ XML;
         Carbon $generatedAt,
     ): string {
         $columnWidths = [
-            16,
-            12,
-            12,
-            24,
-            36,
-            24,
             34,
+            16,
+            14,
+            28,
+            40,
+            34,
+            38,
             12,
             16,
-            22,
+            24,
         ];
 
         $colsXml = '';
@@ -751,7 +751,7 @@ XML;
 
         $currentRow++;
         $appendSectionHeader('Room Breakdown');
-        $sheetRowsXml .= sprintf('<row r="%d" ht="22" customHeight="1">', $currentRow);
+        $sheetRowsXml .= sprintf('<row r="%d" ht="24" customHeight="1">', $currentRow);
         foreach (['Room', 'Total Bookings', 'Approved', 'Pending', 'Capacity Overrides'] as $columnIndex => $header) {
             $cellRef = $this->xlsxColumnLabel($columnIndex + 1) . $currentRow;
             $sheetRowsXml .= $this->xlsxCellXml($cellRef, $header, 1);
@@ -767,7 +767,7 @@ XML;
         } else {
             foreach ($roomBreakdownRows as $rowIndex => $rowValues) {
                 $isAltRow = $rowIndex % 2 === 0;
-                $sheetRowsXml .= sprintf('<row r="%d" ht="22" customHeight="1">', $currentRow);
+                $sheetRowsXml .= sprintf('<row r="%d" ht="30" customHeight="1">', $currentRow);
                 foreach ($rowValues as $columnIndex => $value) {
                     $columnNumber = $columnIndex + 1;
                     $cellRef = $this->xlsxColumnLabel($columnNumber) . $currentRow;
@@ -783,7 +783,7 @@ XML;
 
         $currentRow++;
         $appendSectionHeader('Top Requesters');
-        $sheetRowsXml .= sprintf('<row r="%d" ht="22" customHeight="1">', $currentRow);
+        $sheetRowsXml .= sprintf('<row r="%d" ht="24" customHeight="1">', $currentRow);
         foreach (['Requester', 'Total Bookings'] as $columnIndex => $header) {
             $cellRef = $this->xlsxColumnLabel($columnIndex + 1) . $currentRow;
             $sheetRowsXml .= $this->xlsxCellXml($cellRef, $header, 1);
@@ -799,7 +799,7 @@ XML;
         } else {
             foreach ($topRequesterRows as $rowIndex => $rowValues) {
                 $isAltRow = $rowIndex % 2 === 0;
-                $sheetRowsXml .= sprintf('<row r="%d" ht="22" customHeight="1">', $currentRow);
+                $sheetRowsXml .= sprintf('<row r="%d" ht="30" customHeight="1">', $currentRow);
                 $sheetRowsXml .= $this->xlsxCellXml('A' . $currentRow, (string) ($rowValues[0] ?? ''), $isAltRow ? 7 : 8);
                 $sheetRowsXml .= $this->xlsxCellXml('B' . $currentRow, (string) ($rowValues[1] ?? ''), $isAltRow ? 9 : 10);
                 $sheetRowsXml .= '</row>';
@@ -809,7 +809,7 @@ XML;
 
         $currentRow++;
         $appendSectionHeader('Daily Activity');
-        $sheetRowsXml .= sprintf('<row r="%d" ht="22" customHeight="1">', $currentRow);
+        $sheetRowsXml .= sprintf('<row r="%d" ht="24" customHeight="1">', $currentRow);
         foreach (['Date', 'Total Bookings', 'Approved', 'Pending'] as $columnIndex => $header) {
             $cellRef = $this->xlsxColumnLabel($columnIndex + 1) . $currentRow;
             $sheetRowsXml .= $this->xlsxCellXml($cellRef, $header, 1);
@@ -825,7 +825,7 @@ XML;
         } else {
             foreach ($dailyActivityRows as $rowIndex => $rowValues) {
                 $isAltRow = $rowIndex % 2 === 0;
-                $sheetRowsXml .= sprintf('<row r="%d" ht="22" customHeight="1">', $currentRow);
+                $sheetRowsXml .= sprintf('<row r="%d" ht="24" customHeight="1">', $currentRow);
                 $sheetRowsXml .= $this->xlsxCellXml('A' . $currentRow, (string) ($rowValues[0] ?? ''), $isAltRow ? 4 : 6);
                 $sheetRowsXml .= $this->xlsxCellXml('B' . $currentRow, (string) ($rowValues[1] ?? ''), $isAltRow ? 9 : 10);
                 $sheetRowsXml .= $this->xlsxCellXml('C' . $currentRow, (string) ($rowValues[2] ?? ''), $isAltRow ? 9 : 10);
@@ -854,7 +854,7 @@ XML;
             foreach ($detailedRows as $rowIndex => $rowValues) {
                 $excelRow = $currentRow + $rowIndex;
                 $isAltRow = $rowIndex % 2 === 0;
-                $sheetRowsXml .= sprintf('<row r="%d" ht="22" customHeight="1">', $excelRow);
+                $sheetRowsXml .= sprintf('<row r="%d" ht="30" customHeight="1">', $excelRow);
 
                 foreach ($rowValues as $columnIndex => $value) {
                     $columnNumber = $columnIndex + 1;

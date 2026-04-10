@@ -171,6 +171,34 @@ function filterPastTimeSlots(slots, selectedDate) {
     });
 }
 
+function decorateBookingTimeSlots(selectedDate, availableSlots = []) {
+    const safeAvailableSlots = Array.isArray(availableSlots) ? availableSlots : [];
+    const availableMap = new Map(
+        safeAvailableSlots.map((slot) => [String(slot.value || ''), slot]),
+    );
+
+    const todayStr = todayDateString();
+    const now = new Date();
+    const minimumStartMinutes = (now.getHours() * 60) + now.getMinutes() + 15;
+
+    return BOOKING_TIME_SLOTS.map((slot) => {
+        const availableSlot = availableMap.get(slot.value) || null;
+        const startMinutes = parseTimeToMinutes(slot.start_time);
+        const isPast = selectedDate === todayStr
+            && startMinutes !== null
+            && startMinutes <= minimumStartMinutes;
+        const isSelectable = Boolean(availableSlot) && !isPast;
+
+        return {
+            ...slot,
+            ...(availableSlot || {}),
+            disabled: !isSelectable,
+            is_past: isPast,
+            is_available: isSelectable,
+        };
+    });
+}
+
 function resolveBookingTimeSlot(slotValue) {
     if (slotValue) {
         const match = BOOKING_TIME_SLOTS.find((slot) => slot.value === slotValue);
@@ -720,6 +748,7 @@ export function createRoomCalendarApp(config = {}) {
         hasVerifiedRegistration: Boolean(config.hasVerifiedRegistration),
         verifiedRegistrationName: config.verifiedRegistrationName || '',
         verifiedRegistrationQcidNumber: config.verifiedRegistrationQcidNumber || '',
+        verifiedRegistrationValidUntil: config.verifiedRegistrationValidUntil || '',
         isStaffUser: Boolean(config.isStaffUser),
         rooms: Array.isArray(config.rooms) ? config.rooms : [],
         get bookingTimeSlots() {
@@ -759,6 +788,7 @@ export function createRoomCalendarApp(config = {}) {
                 this.qcIdVerification = {
                     is_valid: true,
                     cardholder_name: config.verifiedRegistrationName || config.userName || '',
+                    valid_until: config.verifiedRegistrationValidUntil || '',
                     confidence_score: 100,
                     source: 'registration',
                 };
@@ -843,6 +873,7 @@ export function createRoomCalendarApp(config = {}) {
                 this.qcIdVerification = {
                     is_valid: true,
                     cardholder_name: this.verifiedRegistrationName || '',
+                    valid_until: this.verifiedRegistrationValidUntil || config.verifiedRegistrationValidUntil || '',
                     confidence_score: 100,
                     source: 'registration',
                 };
@@ -902,11 +933,10 @@ export function createRoomCalendarApp(config = {}) {
                 });
 
                 const dates = Array.isArray(payload?.dates) ? payload.dates : [];
-                const timeSlots = Array.isArray(payload?.time_slots) ? payload.time_slots : [];
+                const rawTimeSlots = Array.isArray(payload?.time_slots) ? payload.time_slots : [];
                 const rooms = Array.isArray(payload?.rooms) ? payload.rooms : [];
 
                 this.bookingDateOptions = dates;
-                this.availableTimeSlots = timeSlots;
                 this.availableRooms = rooms;
 
                 if (!dates.length) {
@@ -926,7 +956,11 @@ export function createRoomCalendarApp(config = {}) {
                     this.bookingForm.date = selectedDate;
                 }
 
-                if (!timeSlots.length) {
+                const timeSlots = decorateBookingTimeSlots(this.bookingForm.date, rawTimeSlots);
+                const selectableTimeSlots = timeSlots.filter((slot) => !slot.disabled);
+                this.availableTimeSlots = timeSlots;
+
+                if (!selectableTimeSlots.length) {
                     this.bookingForm.time_slot = '';
                     this.bookingForm.start_time = '';
                     this.bookingForm.end_time = '';
@@ -935,9 +969,9 @@ export function createRoomCalendarApp(config = {}) {
                     return;
                 }
 
-                const selectedSlot = String(payload?.selected?.time_slot || this.bookingForm.time_slot || timeSlots[0].value || '');
-                if (!timeSlots.some((slot) => slot.value === selectedSlot)) {
-                    this.bookingForm.time_slot = String(timeSlots[0].value || '');
+                const selectedSlot = String(payload?.selected?.time_slot || this.bookingForm.time_slot || selectableTimeSlots[0].value || '');
+                if (!selectableTimeSlots.some((slot) => slot.value === selectedSlot)) {
+                    this.bookingForm.time_slot = String(selectableTimeSlots[0].value || '');
                 } else {
                     this.bookingForm.time_slot = selectedSlot;
                 }
@@ -1211,6 +1245,7 @@ export function createRoomCalendarApp(config = {}) {
                 this.qcIdVerification = {
                     is_valid: true,
                     cardholder_name: this.verifiedRegistrationName || '',
+                    valid_until: this.verifiedRegistrationValidUntil || config.verifiedRegistrationValidUntil || '',
                     confidence_score: 100,
                     source: 'registration',
                 };
@@ -1419,6 +1454,7 @@ export function createDashboardApp(config = {}) {
         bookingsPanelOpen: true,
         hasVerifiedRegistration: Boolean(config.hasVerifiedRegistration),
         verifiedRegistrationName: config.verifiedRegistrationName || '',
+        verifiedRegistrationValidUntil: config.verifiedRegistrationValidUntil || '',
         isStaffUser: Boolean(config.isStaffUser),
         rooms: Array.isArray(config.rooms) ? config.rooms : [],
         get bookingTimeSlots() {
@@ -1854,6 +1890,7 @@ export function createDashboardApp(config = {}) {
                     is_valid: true,
                     cardholder_name: this.verifiedRegistrationName || '',
                     id_number: config.verifiedQcIdNumber || '',
+                    valid_until: this.verifiedRegistrationValidUntil || config.verifiedRegistrationValidUntil || '',
                     confidence_score: 100,
                     source: 'registration',
                 };
@@ -2043,11 +2080,10 @@ export function createDashboardApp(config = {}) {
                 });
 
                 const dates = Array.isArray(payload?.dates) ? payload.dates : [];
-                const timeSlots = Array.isArray(payload?.time_slots) ? payload.time_slots : [];
+                const rawTimeSlots = Array.isArray(payload?.time_slots) ? payload.time_slots : [];
                 const rooms = Array.isArray(payload?.rooms) ? payload.rooms : [];
 
                 this.bookingDateOptions = dates;
-                this.availableTimeSlots = timeSlots;
                 this.availableRooms = rooms;
 
                 if (!dates.length) {
@@ -2067,7 +2103,11 @@ export function createDashboardApp(config = {}) {
                     this.bookingForm.date = selectedDate;
                 }
 
-                if (!timeSlots.length) {
+                const timeSlots = decorateBookingTimeSlots(this.bookingForm.date, rawTimeSlots);
+                const selectableTimeSlots = timeSlots.filter((slot) => !slot.disabled);
+                this.availableTimeSlots = timeSlots;
+
+                if (!selectableTimeSlots.length) {
                     this.bookingForm.time_slot = '';
                     this.bookingForm.start_time = '';
                     this.bookingForm.end_time = '';
@@ -2076,9 +2116,9 @@ export function createDashboardApp(config = {}) {
                     return;
                 }
 
-                const selectedSlot = String(payload?.selected?.time_slot || this.bookingForm.time_slot || timeSlots[0].value || '');
-                if (!timeSlots.some((slot) => slot.value === selectedSlot)) {
-                    this.bookingForm.time_slot = String(timeSlots[0].value || '');
+                const selectedSlot = String(payload?.selected?.time_slot || this.bookingForm.time_slot || selectableTimeSlots[0].value || '');
+                if (!selectableTimeSlots.some((slot) => slot.value === selectedSlot)) {
+                    this.bookingForm.time_slot = String(selectableTimeSlots[0].value || '');
                 } else {
                     this.bookingForm.time_slot = selectedSlot;
                 }
@@ -2769,6 +2809,7 @@ export function createDashboardApp(config = {}) {
                     is_valid: true,
                     cardholder_name: this.verifiedRegistrationName || '',
                     id_number: config.verifiedQcIdNumber || '',
+                    valid_until: this.verifiedRegistrationValidUntil || config.verifiedRegistrationValidUntil || '',
                     confidence_score: 100,
                     source: 'registration',
                 };

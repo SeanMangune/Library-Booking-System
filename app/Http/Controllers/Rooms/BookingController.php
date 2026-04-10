@@ -162,6 +162,10 @@ class BookingController extends Controller
         }
 
         $slotDefinitions = $this->bookingSlotDefinitions();
+        $referenceNow = now((string) config('app.booking_timezone', config('app.timezone', 'Asia/Manila')));
+        $todayDateKey = $referenceNow->toDateString();
+        $minimumStartMinutesToday = ($referenceNow->hour * 60) + $referenceNow->minute + 15;
+
         $dateOptions = [];
         $timeSlotsByDate = [];
         $roomsByDateAndSlot = [];
@@ -176,6 +180,10 @@ class BookingController extends Controller
             $availableSlots = [];
 
             foreach ($slotDefinitions as $slot) {
+                if ($dateKey === $todayDateKey && $slot['start_minutes'] <= $minimumStartMinutesToday) {
+                    continue;
+                }
+
                 $availableRooms = [];
 
                 foreach ($rooms as $room) {
