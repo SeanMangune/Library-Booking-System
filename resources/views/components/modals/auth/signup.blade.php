@@ -55,7 +55,7 @@
                                             </div>
                                             <button type="button"
                                                     @click="scanSignupQcId()"
-                                                    :disabled="scan.isProcessing"
+                                                    :disabled="scan.isProcessing || !scan.file"
                                                     class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
                                                     x-text="scan.isProcessing ? 'Scanning...' : 'Re-read QC ID'"></button>
                                         </div>

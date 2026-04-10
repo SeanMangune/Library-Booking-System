@@ -263,6 +263,8 @@ function signupLoginApp($persist, initialSignupOpen) {
         scan: {
             file: null,
             previewUrl: '',
+            lastInputSource: '',
+            manualScanPending: false,
             isProcessing: false,
             isCapturing: false,
             error: '',
@@ -676,6 +678,8 @@ function signupLoginApp($persist, initialSignupOpen) {
             this.scan.status = '';
             this.scan.idAssessment = '';
             this.scan.confidenceLabel = '';
+            this.scan.lastInputSource = '';
+            this.scan.manualScanPending = false;
             this.scan.isVerified = false;
             this.scan.isQrVerified = null;
             this.scan.qrData = '';
@@ -695,9 +699,14 @@ function signupLoginApp($persist, initialSignupOpen) {
             this.signup.qcid_temp_upload = '';
         },
 
-        prepareSignupScanFile(file) {
+        prepareSignupScanFile(file, options = {}) {
+            const source = String(options?.source || '').toLowerCase() === 'camera' ? 'camera' : 'upload';
+            const autoScan = options?.autoScan === true;
+
             this.scan.file = file;
             this.resetSignupScanData();
+            this.scan.lastInputSource = source;
+            this.scan.manualScanPending = !autoScan;
 
             if (!file) {
                 if (this.scan.previewUrl) {
@@ -728,6 +737,13 @@ function signupLoginApp($persist, initialSignupOpen) {
             }
 
             this.scan.previewUrl = URL.createObjectURL(file);
+
+            if (!autoScan) {
+                this.scan.status = 'Image selected. Click "Re-read QC ID" to start scanning.';
+                this.scan.idAssessment = 'Ready to scan';
+                this.scan.confidenceLabel = '—';
+            }
+
             return true;
         },
 
@@ -1008,7 +1024,10 @@ function signupLoginApp($persist, initialSignupOpen) {
                     type: 'image/jpeg',
                 });
 
-                const ready = this.prepareSignupScanFile(capturedFile);
+                const ready = this.prepareSignupScanFile(capturedFile, {
+                    source: 'camera',
+                    autoScan: true,
+                });
                 if (!ready) {
                     return;
                 }
@@ -1026,12 +1045,102 @@ function signupLoginApp($persist, initialSignupOpen) {
             const file = event.target?.files?.[0] || null;
             this.closeSignupCamera();
 
-            if (!this.prepareSignupScanFile(file)) {
+            if (!this.prepareSignupScanFile(file, {
+                source: 'upload',
+                autoScan: true,
+            })) {
                 return;
             }
 
-            // Auto-start scanning immediately after upload selection.
             this.scanSignupQcId();
+        },
+
+        normalizeSignupOcrText(value) {
+            return String(value || '')
+                .toUpperCase()
+                .replace(/\r/g, '')
+                .replace(/[^A-Z0-9,./\-+\n\s]/g, ' ')
+                .replace(/[ \t]+/g, ' ')
+                .replace(/\n{2,}/g, '\n')
+                .trim();
+        },
+
+        async buildSignupEnhancedCanvas(file) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                const objectUrl = URL.createObjectURL(file);
+
+                img.onload = () => {
+                    try {
+                        const maxEdgeTarget = 2800;
+                        const scale = Math.max(1, maxEdgeTarget / Math.max(img.width, img.height));
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = Math.max(1, Math.round(img.width * scale));
+                        canvas.height = Math.max(1, Math.round(img.height * scale));
+
+                        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                        if (!ctx) {
+                            resolve(null);
+                            return;
+                        }
+
+                        ctx.imageSmoothingEnabled = true;
+                        ctx.imageSmoothingQuality = 'high';
+                        ctx.filter = 'grayscale(100%) contrast(178%) brightness(114%)';
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        ctx.filter = 'none';
+
+                        resolve(canvas);
+                    } finally {
+                        URL.revokeObjectURL(objectUrl);
+                    }
+                };
+
+                img.onerror = () => {
+                    URL.revokeObjectURL(objectUrl);
+                    resolve(null);
+                };
+
+                img.src = objectUrl;
+            });
+        },
+
+        async recognizeSignupCanvasText(canvas, config = {}) {
+            if (!window.Tesseract || typeof window.Tesseract.recognize !== 'function') {
+                return '';
+            }
+
+            try {
+                const result = await window.Tesseract.recognize(canvas, 'eng', {
+                    preserve_interword_spaces: '1',
+                    ...config,
+                });
+
+                return this.normalizeSignupOcrText(result?.data?.text || '');
+            } catch (error) {
+                return '';
+            }
+        },
+
+        async collectSignupClientOcrText(file) {
+            const enhancedCanvas = await this.buildSignupEnhancedCanvas(file);
+            if (!enhancedCanvas) {
+                return '';
+            }
+
+            const fullText = await this.recognizeSignupCanvasText(enhancedCanvas, {
+                tessedit_pageseg_mode: 6,
+            });
+
+            let sparseText = '';
+            if ((fullText || '').replace(/\s+/g, '').length < 90) {
+                sparseText = await this.recognizeSignupCanvasText(enhancedCanvas, {
+                    tessedit_pageseg_mode: 11,
+                });
+            }
+
+            return this.normalizeSignupOcrText([fullText, sparseText].filter(Boolean).join('\n'));
         },
 
         normalizeDate(raw) {
@@ -1550,6 +1659,7 @@ function signupLoginApp($persist, initialSignupOpen) {
             this.scan.error = '';
             this.scan.status = '';
             this.scan.cameraError = '';
+            this.scan.manualScanPending = false;
 
             if (this.scan.cameraOpen) {
                 this.closeSignupCamera();
@@ -1580,6 +1690,20 @@ function signupLoginApp($persist, initialSignupOpen) {
                 // Step 1: Decode QR code from the uploaded image
                 const qrResult = await this.decodeQrFromImage(this.scan.file);
                 this.scan.qrData = qrResult || '';
+
+                // Step 2: Run client OCR preprocessing so server verification
+                // receives richer OCR text instead of relying on image OCR alone.
+                let clientOcrText = '';
+                if (window.Tesseract && typeof window.Tesseract.recognize === 'function') {
+                    this.scan.status = qrResult
+                        ? 'QR detected. Enhancing image and reading text...'
+                        : 'Enhancing image and reading QC ID text...';
+                    clientOcrText = await this.collectSignupClientOcrText(this.scan.file);
+                }
+
+                if (clientOcrText) {
+                    this.signup.ocr_text = clientOcrText;
+                }
 
                 if (qrResult) {
                     this.scan.status = 'QR code found! Verifying with server...';

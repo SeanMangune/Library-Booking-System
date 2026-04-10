@@ -27,8 +27,12 @@ class QcIdVerificationController extends Controller
 
         $clientOcrText = trim((string) ($validated['ocr_text'] ?? ''));
         $ocrSpaceText = '';
+        $isCameraCaptureUpload = false;
 
         if ($request->hasFile('qcid_image')) {
+            $originalName = (string) $request->file('qcid_image')->getClientOriginalName();
+            $isCameraCaptureUpload = preg_match('/^qcid-capture-\d+\.(?:jpe?g|png|webp)$/i', $originalName) === 1;
+
             $apiResult = $ocrSpace->parseImage($request->file('qcid_image'));
             $ocrSpaceText = trim((string) ($apiResult['text'] ?? ''));
         }
@@ -182,7 +186,9 @@ class QcIdVerificationController extends Controller
                 $rejectedType = $verification['rejected_id_type'];
                 $message = "This ID is invalid because it's a {$rejectedType}. Only Quezon City Citizen IDs (QC IDs) are accepted.";
             } elseif ($readableTextLength < 40) {
-                $message = 'The camera capture could not be read clearly. Retake the QC ID photo with better lighting, no glare, and keep the full card inside the frame.';
+                $message = $isCameraCaptureUpload
+                    ? 'The camera capture could not be read clearly. Retake the QC ID photo with better lighting, no glare, and keep the full card inside the frame.'
+                    : 'The uploaded image could not be read clearly. Please use a sharper QC ID image with better lighting and less glare.';
             } elseif ($confidenceScore > 0 && $confidenceScore < 45) {
                 $message = 'QC ID details were detected but not confidently enough. Please retake a sharper photo and ensure the full card text is readable.';
             } else {
