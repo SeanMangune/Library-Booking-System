@@ -298,9 +298,13 @@
                                                 <template x-for="event in day.events.slice(0, 3)" :key="event.id">
                                                     <div class="relative group/event">
                                                                                                                      <div class="text-[10px] px-2 py-1 bg-white border border-gray-100 text-gray-700 rounded-lg shadow-sm truncate transition-all font-medium flex items-center gap-1.5"
-                                                                                                                         @click.stop="isEventInteractive(event, day) && openViewBookingModal(event)"
-                                                                                                                         :class="isEventInteractive(event, day) ? 'cursor-pointer hover:border-rose-400 hover:text-rose-700' : 'cursor-not-allowed opacity-45 grayscale bg-gray-100 text-gray-500 border-gray-200'">
-                                                                <span class="w-1.5 h-1.5 rounded-full" :class="event.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'"></span>
+                                                                                                                         @click.stop="day.isCurrentMonth && !day.isPast && openViewBookingModal(event)"
+                                                                                                                         :class="day.isCurrentMonth && !day.isPast
+                                                                                                                            ? (event.is_owner
+                                                                                                                                ? 'cursor-pointer hover:border-emerald-400 hover:text-emerald-700'
+                                                                                                                                : 'cursor-pointer hover:border-rose-400 hover:text-rose-700')
+                                                                                                                            : 'cursor-not-allowed'">
+                                                                <span class="w-1.5 h-1.5 rounded-full" :class="event.is_owner ? 'bg-emerald-500' : 'bg-rose-500'"></span>
                                                                 <span x-text="formatEventChipTime(event)"></span>
                                                                 <span class="opacity-60">|</span>
                                                                 <span x-text="event.room_name?.split(' ')[1] || event.room_name"></span>
@@ -454,6 +458,7 @@
     'userName' => $verifiedRegistration?->full_name ?? auth()->user()?->name ?? '',
     'userEmail' => auth()->user()?->email ?? '',
     'verifiedQcIdNumber' => $verifiedRegistration?->qcid_number ?? '',
+    'verifiedRegistrationValidUntil' => optional($verifiedRegistration?->valid_until)->format('Y-m-d') ?? '',
     'isStaffUser' => auth()->user()?->isStaff() ?? false,
     'userStatsBookings' => $userStatsBookings ?? [],
     'rooms' => $roomOptions,

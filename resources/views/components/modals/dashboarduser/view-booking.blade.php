@@ -93,8 +93,7 @@
                             </div>
                             <div class="min-w-0">
                                 <p class="text-[10px] text-gray-500 uppercase tracking-wide font-medium">Booked By</p>
-                                <p class="text-sm font-semibold text-gray-900" x-text="viewEvent?.user_name || selectedBooking?.user_name || '—'"></p>
-                                <p class="text-xs text-gray-500" x-text="viewEvent?.user_email || selectedBooking?.user_email || ''"></p>
+                                <p class="text-sm font-semibold text-gray-900" x-text="'****'"></p>
                             </div>
                         </div>
                     </div>

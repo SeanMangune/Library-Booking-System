@@ -19,7 +19,23 @@ class BookingApprovedNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'broadcast'];
+        return ['database', 'broadcast', 'mail'];
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        $roomName = $this->booking->room?->name ?? 'Room';
+        $date = optional($this->booking->date)->format('M d, Y') ?? 'N/A';
+        $time = $this->booking->formatted_time ?: 'N/A';
+
+        return (new MailMessage())
+            ->subject('Booking Approved')
+            ->greeting('Hello ' . ($notifiable->name ?? 'User') . ',')
+            ->line('Your booking request has been approved.')
+            ->line('Room: ' . $roomName)
+            ->line('Date: ' . $date)
+            ->line('Time: ' . $time)
+            ->action('View Reservations', route('reservations.index'));
     }
 
     /**
@@ -50,7 +66,28 @@ class BookingRejectedNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'broadcast'];
+        return ['database', 'broadcast', 'mail'];
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        $roomName = $this->booking->room?->name ?? 'Room';
+        $date = optional($this->booking->date)->format('M d, Y') ?? 'N/A';
+        $time = $this->booking->formatted_time ?: 'N/A';
+
+        $mail = (new MailMessage())
+            ->subject('Booking Rejected')
+            ->greeting('Hello ' . ($notifiable->name ?? 'User') . ',')
+            ->line('Your booking request was not approved.')
+            ->line('Room: ' . $roomName)
+            ->line('Date: ' . $date)
+            ->line('Time: ' . $time);
+
+        if (! empty($this->booking->reason)) {
+            $mail->line('Reason: ' . trim((string) $this->booking->reason));
+        }
+
+        return $mail->action('View Reservations', route('reservations.index'));
     }
 
     /**
@@ -91,7 +128,50 @@ class BookingRescheduledNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'broadcast'];
+        return ['database', 'broadcast', 'mail'];
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        $roomName = $this->booking->room?->name ?? 'Room';
+        $newDate = optional($this->booking->date)->format('M d, Y') ?? 'N/A';
+        $newTime = $this->booking->formatted_time ?: 'N/A';
+
+        $mail = (new MailMessage())
+            ->subject('Booking Rescheduled')
+            ->greeting('Hello ' . ($notifiable->name ?? 'User') . ',')
+            ->line('Your booking was rescheduled.')
+            ->line('New Room: ' . $roomName)
+            ->line('New Date: ' . $newDate)
+            ->line('New Time: ' . $newTime);
+
+        $previousDate = isset($this->previousSchedule['date'])
+            ? optional(\Carbon\Carbon::parse((string) $this->previousSchedule['date']))->format('M d, Y')
+            : null;
+        $previousStart = trim((string) ($this->previousSchedule['start_time'] ?? ''));
+        $previousEnd = trim((string) ($this->previousSchedule['end_time'] ?? ''));
+        $previousRoom = trim((string) ($this->previousSchedule['room_name'] ?? ''));
+
+        if ($previousRoom !== '') {
+            $mail->line('Previous Room: ' . $previousRoom);
+        }
+
+        if (! empty($previousDate)) {
+            $mail->line('Previous Date: ' . $previousDate);
+        }
+
+        if ($previousStart !== '' && $previousEnd !== '') {
+            try {
+                $mail->line('Previous Time: '
+                    . \Carbon\Carbon::parse($previousStart)->format('g:i A')
+                    . ' - '
+                    . \Carbon\Carbon::parse($previousEnd)->format('g:i A'));
+            } catch (\Throwable $exception) {
+                $mail->line('Previous Time: ' . $previousStart . ' - ' . $previousEnd);
+            }
+        }
+
+        return $mail->action('View Reservations', route('reservations.index'));
     }
 
     /**

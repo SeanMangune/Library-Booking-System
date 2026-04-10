@@ -113,13 +113,20 @@
                     Done
                 </button>
                 <template x-if="approvedBooking?.qr_code_url && !qrImageFailed">
-                    <button @click="downloadQr(approvedBooking.qr_code_url, `booking-${approvedBooking.qr_token}.png`)"
-                            :disabled="isDownloading"
-                            class="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all flex items-center gap-2 disabled:opacity-50">
-                        <i x-show="!isDownloading" class="w-5 h-5 fa-icon fa-solid fa-arrow-up-from-bracket text-xl leading-none"></i>
-                        <i x-show="isDownloading" class="animate-spin w-5 h-5 fa-icon fa-solid fa-spinner text-xl leading-none"></i>
-                        <span x-text="isDownloading ? 'Saving...' : 'Download'"></span>
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <select x-model="qrDownloadFormat"
+                                class="px-3 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold text-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                            <option value="png">PNG</option>
+                            <option value="jpeg">JPEG</option>
+                        </select>
+                        <button @click="downloadApprovedQr(approvedBooking)"
+                                :disabled="isDownloading"
+                                class="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all flex items-center gap-2 disabled:opacity-50">
+                            <i x-show="!isDownloading" class="w-5 h-5 fa-icon fa-solid fa-arrow-up-from-bracket text-xl leading-none"></i>
+                            <i x-show="isDownloading" class="animate-spin w-5 h-5 fa-icon fa-solid fa-spinner text-xl leading-none"></i>
+                            <span x-text="isDownloading ? 'Saving...' : 'Download'"></span>
+                        </button>
+                    </div>
                 </template>
             </div>
         </div>

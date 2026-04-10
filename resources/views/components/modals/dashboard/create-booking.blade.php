@@ -194,7 +194,9 @@
                                             class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 disabled:bg-gray-100 disabled:text-gray-400">
                                         <option value="" x-text="!bookingForm.date ? 'Select date first' : 'Select an available time slot'"></option>
                                         <template x-for="slot in bookingTimeSlots" :key="slot.value">
-                                            <option :value="slot.value" x-text="slot.label"></option>
+                                            <option :value="slot.value"
+                                                    :disabled="slot.disabled"
+                                                    x-text="slot.disabled ? `${slot.label} (Unavailable)` : slot.label"></option>
                                         </template>
                                     </select>
                                     <div x-show="isLoadingAvailability" x-cloak class="mt-2 text-xs text-gray-500">
@@ -251,8 +253,10 @@
                                     </label>
                                      <select x-model.number="bookingForm.attendees" required
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                                        <template x-for="option in attendeeOptions" :key="`dashboard-attendees-${option.value}`">
-                                            <option :value="option.value" :disabled="option.disabled" x-text="option.label"></option>
+                                        <template x-for="count in Array.from({ length: 8 }, (_, index) => index + 5)" :key="`attendee-${count}`">
+                                            <option :value="count"
+                                                    :disabled="attendeeInputMax && count > Number(attendeeInputMax)"
+                                                    x-text="attendeeInputMax && count > Number(attendeeInputMax) ? `${count} (Unavailable)` : count"></option>
                                         </template>
                                      </select>
                                      <p x-show="attendeeGuidance" x-cloak class="mt-1 text-xs text-gray-500" x-text="attendeeGuidance"></p>

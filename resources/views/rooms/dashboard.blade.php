@@ -463,6 +463,8 @@
 {!! json_encode([
     'hasVerifiedRegistration' => $hasVerifiedRegistration,
     'verifiedRegistrationName' => $verifiedRegistration?->full_name,
+    'verifiedQcIdNumber' => $verifiedRegistration?->qcid_number ?? '',
+    'verifiedRegistrationValidUntil' => optional($verifiedRegistration?->valid_until)->format('Y-m-d') ?? '',
     'isStaffUser' => auth()->user()?->isStaff() ?? false,
     'rooms' => $roomOptions,
     'defaultDate' => now()->format('Y-m-d'),

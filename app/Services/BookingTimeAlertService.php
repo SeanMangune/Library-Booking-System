@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Booking;
 use App\Models\User;
 use App\Notifications\BookingTimeAlertNotification;
+use Illuminate\Broadcasting\BroadcastException;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
@@ -48,13 +50,7 @@ class BookingTimeAlertService
                 continue;
             }
 
-            Notification::sendNow($user, new BookingTimeAlertNotification(
-                $booking,
-                $payload['title'],
-                $payload['message'],
-                $payload['url'],
-                $payload['alert_key'],
-            ));
+            $this->sendAlertNotification($user, $booking, $payload);
         }
     }
 
@@ -92,14 +88,46 @@ class BookingTimeAlertService
                     continue;
                 }
 
-                Notification::sendNow($staff, new BookingTimeAlertNotification(
-                    $booking,
-                    $payload['title'],
-                    $payload['message'],
-                    $payload['url'],
-                    $payload['alert_key'],
-                ));
+                $this->sendAlertNotification($staff, $booking, $payload);
             }
+        }
+    }
+
+    /**
+     * @param array<string, string> $payload
+     */
+    private function sendAlertNotification(User $recipient, Booking $booking, array $payload): void
+    {
+        $notification = new BookingTimeAlertNotification(
+            $booking,
+            $payload['title'],
+            $payload['message'],
+            $payload['url'],
+            $payload['alert_key'],
+        );
+
+        try {
+            Notification::sendNow($recipient, $notification);
+        } catch (BroadcastException $exception) {
+            Log::warning('Booking time alert broadcast failed; continuing with database-only notification.', [
+                'user_id' => $recipient->id,
+                'booking_id' => $booking->id,
+                'alert_key' => $payload['alert_key'],
+                'error' => $exception->getMessage(),
+            ]);
+
+            if ($this->bookingAlertExists($recipient, $payload['alert_key'])) {
+                return;
+            }
+
+            Notification::sendNow($recipient, $notification, ['database']);
+        } catch (\Throwable $exception) {
+            Log::warning('Booking time alert notification failed unexpectedly.', [
+                'user_id' => $recipient->id,
+                'booking_id' => $booking->id,
+                'alert_key' => $payload['alert_key'],
+                'error' => $exception->getMessage(),
+            ]);
         }
     }
 

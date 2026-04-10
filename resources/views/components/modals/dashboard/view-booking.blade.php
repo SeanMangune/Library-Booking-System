@@ -137,6 +137,31 @@
                                                   }"></span>
                                             <span x-text="((selectedBooking.booking_status || '').toLowerCase() === 'valid' || (selectedBooking.booking_status || '').toLowerCase() === 'active') ? 'Active' : ((selectedBooking.booking_status || 'upcoming').charAt(0).toUpperCase() + (selectedBooking.booking_status || 'upcoming').slice(1))"></span>
                                         </span>
+
+                                        <template x-if="selectedBooking?.qr_token || selectedBooking?.qr_code_encrypted">
+                                            <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
+                                                <button type="button"
+                                                   @click="window.smartspaceQrDownload(
+                                                       selectedBooking.qr_code_url || `/bookings/qr/${selectedBooking.qr_token || selectedBooking.qr_code_encrypted}?format=png`,
+                                                       `booking-${selectedBooking.booking_code || selectedBooking.qr_token || selectedBooking.id || 'qr'}`,
+                                                       'png'
+                                                   )"
+                                                   class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-colors">
+                                                    <i class="fa-solid fa-download"></i>
+                                                    PNG
+                                                </button>
+                                                <button type="button"
+                                                   @click="window.smartspaceQrDownload(
+                                                       selectedBooking.qr_code_url || `/bookings/qr/${selectedBooking.qr_token || selectedBooking.qr_code_encrypted}?format=png`,
+                                                       `booking-${selectedBooking.booking_code || selectedBooking.qr_token || selectedBooking.id || 'qr'}`,
+                                                       'jpeg'
+                                                   )"
+                                                   class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-700 text-white text-xs font-semibold hover:bg-slate-600 transition-colors">
+                                                    <i class="fa-solid fa-download"></i>
+                                                    JPEG
+                                                </button>
+                                            </div>
+                                        </template>
                                     </div>
                                 </div>
                             </template>
