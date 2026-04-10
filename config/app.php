@@ -77,7 +77,7 @@ return [
     |
     */
 
-    'booking_timezone' => env('BOOKING_TIMEZONE', env('APP_TIMEZONE', 'Asia/Manila')),
+    'booking_timezone' => env('BOOKING_TIMEZONE', 'Asia/Manila'),
 
     /*
     |--------------------------------------------------------------------------

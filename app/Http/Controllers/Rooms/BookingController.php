@@ -887,10 +887,10 @@ class BookingController extends Controller
 
         $bookingStartAt = Carbon::parse(
             $booking->date->format('Y-m-d') . ' ' . Carbon::parse((string) $booking->start_time)->format('H:i:s'),
-            config('app.timezone', 'Asia/Manila')
+            config('app.booking_timezone', 'Asia/Manila')
         );
 
-        if (now(config('app.timezone', 'Asia/Manila'))->greaterThanOrEqualTo($bookingStartAt)) {
+        if (now(config('app.booking_timezone', 'Asia/Manila'))->greaterThanOrEqualTo($bookingStartAt)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Cancellation is unavailable once the booking time has started.',

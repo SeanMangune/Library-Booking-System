@@ -168,8 +168,8 @@
                             </span>
                         </td>
                         @php
-                            $bookingStartAt = \Carbon\Carbon::parse($booking->date->format('Y-m-d') . ' ' . $booking->start_time, config('app.timezone', 'Asia/Manila'));
-                            $canCancelBooking = $booking->status === 'approved' && $bookingStartAt->gt(now(config('app.timezone', 'Asia/Manila')));
+                            $bookingStartAt = \Carbon\Carbon::parse($booking->date->format('Y-m-d') . ' ' . $booking->start_time, config('app.booking_timezone', 'Asia/Manila'));
+                            $canCancelBooking = $booking->status === 'approved' && $bookingStartAt->gt(now(config('app.booking_timezone', 'Asia/Manila')));
                             $viewData = [
                                 'id' => $booking->id,
                                 'title' => $booking->title,
