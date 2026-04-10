@@ -115,8 +115,8 @@ Route::middleware('auth')->group(function () {
 // Public QR image endpoint used in approval emails and booking modals
 Route::get('/bookings/qr/{token}', [BookingController::class, 'qrImage'])->name('bookings.qr');
 
-// Admin-only access (keeps the existing system behavior)
-Route::middleware(['auth', 'role:admin'])->group(function () {
+// Staff-only access (admin + librarian; students remain blocked)
+Route::middleware(['auth', 'role:admin,librarian'])->group(function () {
     // Settings
     Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::put('/settings/preferences', [SettingsController::class, 'updatePreferences'])->name('settings.preferences.update');
@@ -175,7 +175,7 @@ Route::middleware('auth')->get('/rooms/manage', function (Request $request) {
     return redirect()->route('rooms.index', $request->query());
 });
 
-Route::middleware('auth')->get('/rooms/approvals', function (Request $request) {
+Route::middleware(['auth', 'role:admin,librarian'])->get('/rooms/approvals', function (Request $request) {
     return redirect()->route('approvals.index', $request->query());
 });
 
