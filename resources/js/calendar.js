@@ -201,34 +201,6 @@ function decorateBookingTimeSlots(selectedDate, availableSlots = []) {
     });
 }
 
-function decorateBookingTimeSlots(selectedDate, availableSlots = []) {
-    const safeAvailableSlots = Array.isArray(availableSlots) ? availableSlots : [];
-    const availableMap = new Map(
-        safeAvailableSlots.map((slot) => [String(slot.value || ''), slot]),
-    );
-
-    const todayStr = todayDateString();
-    const now = new Date();
-    const minimumStartMinutes = (now.getHours() * 60) + now.getMinutes() + 15;
-
-    return BOOKING_TIME_SLOTS.map((slot) => {
-        const availableSlot = availableMap.get(slot.value) || null;
-        const startMinutes = parseTimeToMinutes(slot.start_time);
-        const isPast = selectedDate === todayStr
-            && startMinutes !== null
-            && startMinutes <= minimumStartMinutes;
-        const isSelectable = Boolean(availableSlot) && !isPast;
-
-        return {
-            ...slot,
-            ...(availableSlot || {}),
-            disabled: !isSelectable,
-            is_past: isPast,
-            is_available: isSelectable,
-        };
-    });
-}
-
 function resolveBookingTimeSlot(slotValue) {
     if (slotValue) {
         const match = BOOKING_TIME_SLOTS.find((slot) => slot.value === slotValue);
@@ -1173,9 +1145,6 @@ export function createRoomCalendarApp(config = {}) {
                 } else {
                     this.bookingForm.date = selectedDate;
                 }
-
-                const timeSlots = filterPastTimeSlots(rawTimeSlots, this.bookingForm.date);
-                this.availableTimeSlots = timeSlots;
 
                 const timeSlots = decorateBookingTimeSlots(this.bookingForm.date, rawTimeSlots);
                 const selectableTimeSlots = timeSlots.filter((slot) => !slot.disabled);
@@ -2542,9 +2511,6 @@ export function createDashboardApp(config = {}) {
                 } else {
                     this.bookingForm.date = selectedDate;
                 }
-
-                const timeSlots = filterPastTimeSlots(rawTimeSlots, this.bookingForm.date);
-                this.availableTimeSlots = timeSlots;
 
                 const timeSlots = decorateBookingTimeSlots(this.bookingForm.date, rawTimeSlots);
                 const selectableTimeSlots = timeSlots.filter((slot) => !slot.disabled);
