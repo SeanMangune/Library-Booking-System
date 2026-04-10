@@ -36,6 +36,9 @@
 @php
     $currentUser = auth()->user();
     $canViewAllReservations = $currentUser?->isAdmin() || $currentUser?->isSuperAdmin();
+    $reservationsIndexRoute = $canViewAllReservations
+        ? route('reservations.admin')
+        : route('reservations.user');
 @endphp
 <div x-data="reservationsApp()">
     <!-- Header -->
@@ -57,7 +60,7 @@
 
     <!-- Filters -->
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
-        <form method="GET" action="{{ route('reservations.index') }}" class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <form method="GET" action="{{ $reservationsIndexRoute }}" class="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select name="status" onchange="this.form.submit()"
@@ -120,7 +123,7 @@
             <table class="w-full">
                 <thead class="bg-gray-50 border-b border-gray-200">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Room / Location</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Room</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Purpose</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date & Time</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Attendees</th>
@@ -138,7 +141,6 @@
                                 </div>
                                 <div>
                                     <p class="font-medium text-gray-900">{{ $booking->room->name }}</p>
-                                    <p class="text-sm text-gray-500">{{ $booking->room->location ?? 'No location' }}</p>
                                 </div>
                             </div>
                         </td>
@@ -166,11 +168,12 @@
                             </span>
                         </td>
                         @php
+                            $bookingStartAt = \Carbon\Carbon::parse($booking->date->format('Y-m-d') . ' ' . $booking->start_time, config('app.timezone', 'Asia/Manila'));
+                            $canCancelBooking = $booking->status === 'approved' && $bookingStartAt->gt(now(config('app.timezone', 'Asia/Manila')));
                             $viewData = [
                                 'id' => $booking->id,
                                 'title' => $booking->title,
                                 'room_name' => $booking->room->name,
-                                'room_location' => $booking->room->location,
                                 'date' => $booking->date->format('M d, Y'),
                                 'formatted_date' => $booking->formatted_date,
                                 'formatted_time' => $booking->formatted_time,
@@ -191,8 +194,8 @@
                                         class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="View">
                                     <i class="w-4 h-4 fa-icon fa-solid fa-eye text-base leading-none"></i>
                                 </button>
-                                @if($booking->status === 'approved' && $booking->date >= today())
-                                <button @click="cancelBooking({{ $booking->id }})"
+                                @if($canCancelBooking)
+                                <button @click="openCancelModal({{ $booking->id }})"
                                         class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Cancel">
                                     <i class="w-4 h-4 fa-icon fa-solid fa-xmark text-base leading-none"></i>
                                 </button>
@@ -220,7 +223,6 @@
                     'id' => $booking->id,
                     'title' => $booking->title,
                     'room_name' => $booking->room->name,
-                    'room_location' => $booking->room->location,
                     'date' => $booking->date->format('M d, Y'),
                     'formatted_date' => $booking->formatted_date,
                     'formatted_time' => $booking->formatted_time,
@@ -244,7 +246,6 @@
                         </div>
                         <div class="min-w-0">
                             <p class="font-semibold text-gray-900 truncate">{{ $booking->room->name }}</p>
-                            <p class="text-xs text-gray-500">{{ $booking->room->location ?? '' }}</p>
                         </div>
                     </div>
                     <span class="shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold
@@ -288,6 +289,9 @@
 
     <!-- View Booking Modal -->
     <x-modals.reservations.view-booking />
+
+    <!-- Cancel Booking Modal -->
+    <x-modals.reservations.cancel-booking />
 </div>
 
 @push('scripts')
@@ -296,6 +300,11 @@ function reservationsApp() {
     return {
         showViewModal: false,
         selectedBooking: null,
+        showCancelModal: false,
+        cancelBookingId: null,
+        cancelReason: '',
+        cancelError: '',
+        isCancelling: false,
 
         viewBooking(booking) {
             this.selectedBooking = booking;
@@ -307,39 +316,64 @@ function reservationsApp() {
             this.selectedBooking = null;
         },
 
-        async cancelBooking(id) {
-            const isConfirmed = typeof window.confirmApp === 'function'
-                ? await window.confirmApp('Are you sure you want to cancel this booking?', {
-                    title: 'Cancel booking?',
-                    confirmText: 'Yes, cancel',
-                    cancelText: 'Keep booking',
-                })
-                : false;
+        openCancelModal(id) {
+            this.cancelBookingId = id;
+            this.cancelReason = '';
+            this.cancelError = '';
+            this.showCancelModal = true;
+        },
 
-            if (!isConfirmed) return;
-            
+        closeCancelModal() {
+            this.showCancelModal = false;
+            this.cancelBookingId = null;
+            this.cancelReason = '';
+            this.cancelError = '';
+            this.isCancelling = false;
+        },
+
+        async confirmCancelBooking() {
+            const id = this.cancelBookingId;
+            const reason = String(this.cancelReason || '').trim();
+
+            if (!id) {
+                return;
+            }
+
+            if (!reason) {
+                this.cancelError = 'Cancellation reason is required.';
+                return;
+            }
+
+            this.isCancelling = true;
+            this.cancelError = '';
+
             try {
-                const response = await fetch(`/rooms/room-reservations/${id}/cancel`, {
+                const response = await fetch(`/reservations/${id}/cancel`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                    }
+                    },
+                    body: JSON.stringify({ reason })
                 });
 
-                const data = await response.json();
+                const data = await response.json().catch(() => ({}));
                 
                 if (data.success) {
+                    this.closeCancelModal();
                     window.notifyApp?.('success', data.message || 'Booking cancelled successfully.');
                     window.setTimeout(() => {
                         window.location.reload();
                     }, 850);
                 } else {
-                    window.notifyApp?.('error', data.message || 'Failed to cancel booking');
+                    this.cancelError = data.message || 'Failed to cancel booking.';
                 }
             } catch (error) {
                 console.error('Error:', error);
-                window.notifyApp?.('error', 'An error occurred while cancelling the booking');
+                this.cancelError = 'An error occurred while cancelling the booking.';
+            } finally {
+                this.isCancelling = false;
             }
         }
     }

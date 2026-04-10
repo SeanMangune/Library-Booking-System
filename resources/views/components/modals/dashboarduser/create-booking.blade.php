@@ -51,9 +51,15 @@
                                     </label>
                                     <input type="text" x-model="bookingForm.user_name" required
                                            placeholder="Enter user name..."
+                                           list="book-for-user-options-dashboarduser"
                                            :readonly="hasVerifiedRegistration"
                                            :class="hasVerifiedRegistration ? 'bg-gray-50 text-gray-600 cursor-not-allowed' : ''"
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                    <datalist id="book-for-user-options-dashboarduser">
+                                        <template x-for="match in bookForUserMatches" :key="`dashboarduser-book-user-${match.id}`">
+                                            <option :value="match.name" :label="match.email ? `${match.name} (${match.email})` : match.name"></option>
+                                        </template>
+                                    </datalist>
                                     <template x-if="hasVerifiedRegistration">
                                         <p class="mt-1 text-xs text-emerald-600 flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Auto-filled from verified QC ID</p>
                                     </template>
@@ -120,6 +126,41 @@
                                             </div>
                                         </dl>
                                     </div>
+                                </div>
+
+                                <div x-show="isStaffUser && bookingForm.user_name" class="rounded-xl border border-gray-200 bg-gray-50/80 p-4">
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">
+                                        QC ID Verification
+                                    </label>
+                                    <p class="text-xs text-gray-600 mb-3" x-text="staffQcLookupMessage || 'Type and select the exact user name to load verified QC ID details.'"></p>
+
+                                    <template x-if="qcIdVerification?.source === 'staff_lookup'">
+                                        <div class="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm">
+                                            <div class="flex items-center justify-between gap-3">
+                                                <div>
+                                                    <p class="text-sm font-semibold text-gray-900">Verification snapshot</p>
+                                                    <p class="text-xs text-gray-500">Detected details from the user's verified QC ID registration.</p>
+                                                </div>
+                                                <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-emerald-100 text-emerald-700">
+                                                    QC ID verified
+                                                </span>
+                                            </div>
+                                            <dl class="mt-4 space-y-3 text-sm">
+                                                <div class="flex items-start justify-between gap-4">
+                                                    <dt class="text-gray-500">Cardholder</dt>
+                                                    <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.cardholder_name || '—'"></dd>
+                                                </div>
+                                                <div class="flex items-start justify-between gap-4">
+                                                    <dt class="text-gray-500">ID number</dt>
+                                                    <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.id_number || '—'"></dd>
+                                                </div>
+                                                <div class="flex items-start justify-between gap-4">
+                                                    <dt class="text-gray-500">Valid until</dt>
+                                                    <dd class="text-right font-semibold text-gray-900" x-text="qcIdVerification?.valid_until || '—'"></dd>
+                                                </div>
+                                            </dl>
+                                        </div>
+                                    </template>
                                 </div>
 
                                 <div>
@@ -217,8 +258,12 @@
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
                                         Number of Attendees <span class="text-red-500">*</span>
                                     </label>
-                                     <input type="number" x-model="bookingForm.attendees" min="5" :max="attendeeInputMax || null" required
+                                     <select x-model.number="bookingForm.attendees" required
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                        <template x-for="option in attendeeOptions" :key="`dashboarduser-attendees-${option.value}`">
+                                            <option :value="option.value" :disabled="option.disabled" x-text="option.label"></option>
+                                        </template>
+                                     </select>
                                      <p x-show="attendeeGuidance" x-cloak class="mt-1 text-xs text-gray-500" x-text="attendeeGuidance"></p>
                                 </div>
                             </div>

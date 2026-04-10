@@ -1911,7 +1911,7 @@
                             this.form.ocr_text = extractedText;
                             this.statusMessage = 'Validating QC ID markers...';
 
-                            const response = await fetch('/rooms/qc-id/verify', {
+                            const response = await fetch('{{ route('qcid.verify') }}', {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json',

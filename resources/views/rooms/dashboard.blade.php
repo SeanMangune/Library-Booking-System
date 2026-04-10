@@ -14,10 +14,10 @@
 <div x-data="dashboardApp()" x-init="init()" class="flex flex-col">
     <!-- Main Dashboard Body -->
     <div class="flex-1 min-h-0 overflow-y-auto px-1 group/dashboard">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-8">
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 pb-8">
             
-            <!-- Left Column: Welcome, Stats, Quick Actions (lg:col-span-4) -->
-            <div class="lg:col-span-4 space-y-6">
+            <!-- Left Column: Welcome, Stats, Quick Actions (xl:col-span-4) -->
+            <div class="xl:col-span-4 space-y-6">
                 <!-- Welcome Card -->
                 <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl border border-indigo-400/20 shadow-lg p-6 relative overflow-hidden group/welcome hover:shadow-xl transition-all duration-300 animate-slide-in-up stagger-1">
                     <div class="absolute -right-4 -bottom-4 opacity-20 transform rotate-12 group-hover/welcome:scale-110 transition-transform">
@@ -32,7 +32,7 @@
                             <a href="{{ route('approvals.index') }}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-700 text-xs font-bold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0">
                                 <i class="fa-solid fa-calendar opacity-70"></i> Manage Bookings
                             </a>
-                            <a href="{{ route('reservations.index') }}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-800/50 hover:bg-indigo-800/70 text-white text-xs font-semibold rounded-xl transition-all border border-indigo-500/30 hover:shadow-md">
+                            <a href="{{ route('reservations.admin') }}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-800/50 hover:bg-indigo-800/70 text-white text-xs font-semibold rounded-xl transition-all border border-indigo-500/30 hover:shadow-md">
                                 <i class="fa-solid fa-list opacity-70"></i> All Reservations
                             </a>
                         </div>
@@ -91,11 +91,13 @@
                     </div>
                 </div>
 
+                <div id="admin-calendar-compact-anchor" class="hidden space-y-6"></div>
+
                 <!-- Collaborative Rooms Card -->
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 animate-slide-in-up stagger-3">
                     <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50">
                         <h3 class="font-bold text-gray-900 flex items-center gap-2">
-                           <i class="fa-solid fa-door-open text-indigo-500"></i>
+                                    <i class="fa-solid fa-door-open text-indigo-500"></i>
                            Collaborative Rooms
                         </h3>
                     </div>
@@ -205,7 +207,7 @@
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 animate-slide-in-up stagger-5">
                     <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50">
                         <h3 class="font-bold text-gray-900 flex items-center gap-2">
-                           <i class="fa-solid fa-chart-bar text-indigo-500"></i>
+                                    <i class="fa-solid fa-chart-bar text-indigo-500"></i>
                            Room Utilization
                         </h3>
                     </div>
@@ -275,9 +277,10 @@
                 </div>
                 @endif
             </div>
-            <div id="admin-calendar-section" class="lg:col-span-8 space-y-6">
+            <div id="admin-calendar-section" class="xl:col-span-8 space-y-6">
+                <div id="admin-calendar-origin" class="hidden"></div>
                 <!-- Mini Calendar Subsection -->
-                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all duration-300 animate-slide-in-up stagger-2">
+                <div id="admin-calendar-card" class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all duration-300 animate-slide-in-up stagger-2">
                     <div class="bg-gradient-to-r from-purple-700 to-blue-600 px-6 py-4 grid grid-cols-1 sm:grid-cols-3 items-center gap-4 relative overflow-hidden">
                         <div class="absolute -right-2 -bottom-4 opacity-10 transform -rotate-12 pointer-events-none">
                             <i class="fa-solid fa-calendar-days text-7xl text-white"></i>
@@ -325,26 +328,27 @@
                                 <div class="grid grid-cols-7">
                                     <template x-for="(day, index) in calCells" :key="day.date || index">
                                         <div class="min-h-[110px] sm:min-h-[130px] border-b border-r border-gray-100 p-2 relative group/day transition-all"
-                                             @click="!day.isPast && day.isCurrentMonth && openBookingModalForDay(day)"
+                                             @click="isCalendarDayInteractive(day) && openBookingModalForDay(day)"
                                              :class="{
                                                  'bg-gray-50/50': !day.isCurrentMonth,
-                                                 'bg-teal-50/30': day.isToday,
-                                                 'cursor-pointer hover:bg-teal-50/80 hover:z-10 hover:shadow-lg': day.isCurrentMonth && !day.isPast,
-                                                 'cursor-not-allowed': !day.isCurrentMonth || day.isPast,
-                                                 'opacity-40 grayscale': day.isPast && day.isCurrentMonth,
+                                                 'bg-rose-50/30': day.isToday && !day.isTimeLocked,
+                                                 'bg-gray-100/80': day.isTimeLocked,
+                                                 'cursor-pointer hover:bg-rose-50/80 hover:z-10 hover:shadow-lg': isCalendarDayInteractive(day),
+                                                 'cursor-not-allowed': !isCalendarDayInteractive(day),
+                                                 'opacity-45 grayscale': day.isCurrentMonth && (day.isPast || day.isTimeLocked),
                                              }">
                                             <div class="flex items-center justify-between mb-2">
                                                 <span class="text-xs font-black"
-                                                      :class="day.isToday ? 'bg-teal-600 text-white w-6 h-6 rounded-full flex items-center justify-center -ml-1' : (day.isCurrentMonth ? 'text-gray-600' : 'text-gray-300')"
+                                                      :class="day.isToday && !day.isTimeLocked ? 'bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center -ml-1' : (day.isCurrentMonth ? 'text-gray-600' : 'text-gray-300')"
                                                       x-text="day.day"></span>
                                             </div>
                                             <div class="space-y-1 overflow-hidden">
                                                 <template x-for="event in day.events.slice(0, 3)" :key="event.id">
                                                     <div class="relative group/event">
                                                                                                                      <div class="text-[10px] px-2 py-1 bg-white border border-gray-100 text-gray-700 rounded-lg shadow-sm truncate transition-all font-medium flex items-center gap-1.5"
-                                                                                                                         @click.stop="day.isCurrentMonth && !day.isPast && openViewBookingModal(event)"
-                                                                                                                         :class="day.isCurrentMonth && !day.isPast ? 'cursor-pointer hover:border-teal-400 hover:text-teal-700' : 'cursor-not-allowed'">
-                                                                <span class="w-1.5 h-1.5 rounded-full" :class="event.status === 'approved' ? 'bg-emerald-500' : 'bg-amber-500'"></span>
+                                                                                                                         @click.stop="isEventInteractive(event, day) && openViewBookingModal(event)"
+                                                                                                                         :class="isEventInteractive(event, day) ? 'cursor-pointer hover:border-rose-400 hover:text-rose-700' : 'cursor-not-allowed opacity-45 grayscale bg-gray-100 text-gray-500 border-gray-200'">
+                                                                <span class="w-1.5 h-1.5 rounded-full" :class="event.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'"></span>
                                                                 <span x-text="formatEventChipTime(event)"></span>
                                                                 <span class="opacity-60">|</span>
                                                                 <span x-text="event.room_name?.split(' ')[1] || event.room_name"></span>
@@ -352,9 +356,9 @@
                                                     </div>
                                                 </template>
                                                 <template x-if="day.events.length > 3">
-                                                    <button @click.stop="day.isCurrentMonth && !day.isPast && openDayEventsModal(day)"
-                                                            class="w-full text-[10px] text-teal-600 font-black uppercase text-center py-1 bg-teal-50/50 rounded-lg transition-all"
-                                                            :class="day.isCurrentMonth && !day.isPast ? 'cursor-pointer hover:bg-teal-100' : 'cursor-not-allowed'"
+                                                    <button @click.stop="isCalendarDayInteractive(day) && openDayEventsModal(day)"
+                                                            class="w-full text-[10px] text-rose-600 font-black uppercase text-center py-1 bg-rose-50/50 rounded-lg transition-all"
+                                                            :class="isCalendarDayInteractive(day) ? 'cursor-pointer hover:bg-rose-100' : 'cursor-not-allowed'"
                                                             x-text="'+' + (day.events.length - 3) + ' more'"></button>
                                                 </template>
                                             </div>
@@ -466,12 +470,50 @@
     'monthDataUrl' => route('calendar.month'),
     'eventsUrl' => route('calendar.events'),
     'availabilityUrl' => route('calendar.availability'),
+    'staffUserLookupUrl' => route('rooms.users.search'),
     'verifyQcIdUrl' => route('qcid.verify'),
     'storeBookingUrl' => route('reservations.store'),
 ]) !!}
 </script>
 <script>
 window.dashboardCalendarConfig = JSON.parse(document.getElementById('dashboard-calendar-config').textContent);
+
+(function setupAdminCalendarResponsivePlacement() {
+    const compactMediaQuery = window.matchMedia('(max-width: 1279px)');
+
+    const moveCalendarCard = () => {
+        const calendarCard = document.getElementById('admin-calendar-card');
+        const compactAnchor = document.getElementById('admin-calendar-compact-anchor');
+        const originAnchor = document.getElementById('admin-calendar-origin');
+
+        if (!calendarCard || !compactAnchor || !originAnchor) {
+            return;
+        }
+
+        if (compactMediaQuery.matches) {
+            compactAnchor.classList.remove('hidden');
+            if (calendarCard.parentElement !== compactAnchor) {
+                compactAnchor.appendChild(calendarCard);
+            }
+            return;
+        }
+
+        compactAnchor.classList.add('hidden');
+        if (calendarCard.parentElement !== originAnchor.parentElement || calendarCard.previousElementSibling !== originAnchor) {
+            originAnchor.after(calendarCard);
+        }
+    };
+
+    moveCalendarCard();
+
+    if (typeof compactMediaQuery.addEventListener === 'function') {
+        compactMediaQuery.addEventListener('change', moveCalendarCard);
+    } else if (typeof compactMediaQuery.addListener === 'function') {
+        compactMediaQuery.addListener(moveCalendarCard);
+    }
+
+    window.addEventListener('orientationchange', moveCalendarCard);
+})();
 </script>
 @endpush
 @endsection

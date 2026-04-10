@@ -162,6 +162,53 @@ body.ss-loader-active {
     animation: ss-loader-logo-cycle 1.55s cubic-bezier(0.25, 0.9, 0.24, 1) infinite;
 }
 
+#ss-page-loader .ss-loader-logo {
+    transform: scale(1) !important;
+    animation: none !important;
+}
+
+.ss-loader-led-track,
+.ss-loader-led-track-soft {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 999px;
+    pointer-events: none;
+}
+
+.ss-loader-led-track {
+    width: 142px;
+    height: 142px;
+    background: repeating-conic-gradient(
+        from -6deg,
+        rgba(59, 130, 246, 0.96) 0deg 7deg,
+        rgba(99, 102, 241, 0.96) 7deg 11deg,
+        rgba(147, 197, 253, 0.16) 11deg 17deg,
+        transparent 17deg 22deg
+    );
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 8px), #000 calc(100% - 7px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 8px), #000 calc(100% - 7px));
+    filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.45));
+    animation: ss-loader-led-spin 1.8s linear infinite, ss-loader-led-pulse 1.6s ease-in-out infinite;
+}
+
+.ss-loader-led-track-soft {
+    width: 164px;
+    height: 164px;
+    background: repeating-conic-gradient(
+        from 180deg,
+        rgba(56, 189, 248, 0.45) 0deg 10deg,
+        rgba(56, 189, 248, 0.08) 10deg 21deg,
+        transparent 21deg 30deg
+    );
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 12px), #000 calc(100% - 11px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 12px), #000 calc(100% - 11px));
+    filter: blur(0.7px) drop-shadow(0 0 14px rgba(99, 102, 241, 0.35));
+    opacity: 0.76;
+    animation: ss-loader-led-spin-reverse 3.1s linear infinite;
+}
+
 .ss-loader-text {
     position: absolute;
     bottom: -32px;
@@ -278,6 +325,36 @@ body.ss-loader-active {
     74% {
         transform: scale(1.02);
         filter: drop-shadow(0 0 16px rgba(var(--ss-loader-primary), 0.48));
+    }
+}
+
+@keyframes ss-loader-led-spin {
+    from {
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+    to {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+}
+
+@keyframes ss-loader-led-spin-reverse {
+    from {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+    to {
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+}
+
+@keyframes ss-loader-led-pulse {
+    0%,
+    100% {
+        opacity: 0.82;
+        filter: drop-shadow(0 0 9px rgba(59, 130, 246, 0.4));
+    }
+    50% {
+        opacity: 1;
+        filter: drop-shadow(0 0 13px rgba(99, 102, 241, 0.6));
     }
 }
 
@@ -568,6 +645,14 @@ body.ss-page-transitioning .login-neon-card {
     .ss-loader-ring-soft {
         animation: ss-loader-soft-spin-fallback 2.5s linear infinite !important;
         opacity: 0.56 !important;
+    }
+
+    .ss-loader-led-track {
+        animation-duration: 2.4s, 2.4s !important;
+    }
+
+    .ss-loader-led-track-soft {
+        animation-duration: 4.2s !important;
     }
 
     .ss-loader-logo {

@@ -126,9 +126,12 @@ function formatRange(startValue, endValue) {
 }
 
 const BOOKING_OPEN_HOUR = 8;
-const BOOKING_CLOSE_HOUR = 19;
-const BOOKING_DATE_RANGE_DAYS = 90;
+const BOOKING_CLOSE_HOUR = 17;
+const BOOKING_DATE_RANGE_DAYS = 7;
 const BOOKING_MIN_ATTENDEES = 5;
+const BOOKING_STANDARD_MAX_ATTENDEES = 10;
+const BOOKING_REQUEST_MAX_ATTENDEES = 12;
+const BOOKING_MIN_LEAD_MINUTES = 15;
 
 function hourToTimeValue(hour) {
     return `${String(hour).padStart(2, '0')}:00`;
@@ -155,19 +158,18 @@ function buildBookingTimeSlots(startHour = BOOKING_OPEN_HOUR, endHour = BOOKING_
 const BOOKING_TIME_SLOTS = buildBookingTimeSlots();
 
 function filterPastTimeSlots(slots, selectedDate) {
-    const todayStr = todayDateString();
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     if (selectedDate !== todayStr) {
         return slots;
     }
 
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
+    const cutoffMinutes = (now.getHours() * 60) + now.getMinutes() + BOOKING_MIN_LEAD_MINUTES;
 
     return slots.filter((slot) => {
         const startMinutes = parseTimeToMinutes(slot.start_time);
         // Allow slot if it starts at least 15 minutes from now
-        return startMinutes !== null && startMinutes > ((currentHour * 60) + currentMinute + 15);
+        return startMinutes !== null && startMinutes >= cutoffMinutes;
     });
 }
 
@@ -218,7 +220,7 @@ function buildBookingDateOptions(daysAhead = BOOKING_DATE_RANGE_DAYS) {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // local midnight
 
-    for (let dayOffset = 0; dayOffset <= daysAhead; dayOffset += 1) {
+    for (let dayOffset = 0; dayOffset < daysAhead; dayOffset += 1) {
         const date = new Date(today);
         date.setDate(today.getDate() + dayOffset);
 
@@ -235,6 +237,111 @@ function buildBookingDateOptions(daysAhead = BOOKING_DATE_RANGE_DAYS) {
     // Remove any past dates (shouldn't be present, but extra safety)
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     return options.filter(opt => opt.value >= todayStr);
+}
+
+function normalizeLookupToken(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+}
+
+function normalizeLookupName(value) {
+    return String(value || '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function findExactBookForUserMatch(users, query) {
+    if (!Array.isArray(users) || !users.length) {
+        return null;
+    }
+
+    const tokenQuery = normalizeLookupToken(query);
+    const normalizedQuery = normalizeLookupName(query);
+
+    if (!tokenQuery && !normalizedQuery) {
+        return null;
+    }
+
+    return users.find((user) => {
+        const tokenCandidates = [user?.name, user?.email, user?.username]
+            .map((candidate) => normalizeLookupToken(candidate));
+
+        if (tokenQuery && tokenCandidates.some((candidate) => candidate === tokenQuery)) {
+            return true;
+        }
+
+        return normalizedQuery && normalizeLookupName(user?.name) === normalizedQuery;
+    }) || null;
+}
+
+function mapStaffLookupVerification(user) {
+    const registration = user?.qcid_registration;
+    if (!registration) {
+        return null;
+    }
+
+    return {
+        is_valid: true,
+        name_matches: true,
+        source: 'staff_lookup',
+        cardholder_name: registration.full_name || user?.name || '',
+        id_number: registration.qcid_number || '',
+        date_issued: registration.date_issued || '',
+        valid_until: registration.valid_until || '',
+        address: registration.address || '',
+    };
+}
+
+async function fetchStaffUserMatches(staffUserLookupUrl, query) {
+    if (!staffUserLookupUrl) {
+        return [];
+    }
+
+    const response = await fetch(buildUrl(staffUserLookupUrl, { q: query }), {
+        headers: {
+            Accept: 'application/json',
+        },
+    });
+
+    if (!response.ok) {
+        throw new Error('Unable to search users right now.');
+    }
+
+    const payload = await response.json();
+    if (Array.isArray(payload)) {
+        return payload;
+    }
+
+    if (Array.isArray(payload?.users)) {
+        return payload.users;
+    }
+
+    return [];
+}
+
+function buildAttendeeOptions(maxAllowed = BOOKING_REQUEST_MAX_ATTENDEES) {
+    const parsedMax = Number(maxAllowed);
+    const normalizedMax = Number.isFinite(parsedMax)
+        ? Math.min(BOOKING_REQUEST_MAX_ATTENDEES, Math.max(BOOKING_MIN_ATTENDEES, parsedMax))
+        : BOOKING_REQUEST_MAX_ATTENDEES;
+
+    const options = [];
+    for (let count = BOOKING_MIN_ATTENDEES; count <= BOOKING_REQUEST_MAX_ATTENDEES; count += 1) {
+        const requestOnly = count > BOOKING_STANDARD_MAX_ATTENDEES;
+
+        options.push({
+            value: count,
+            label: `${count} people${requestOnly ? ' (Request only)' : ''}`,
+            requestOnly,
+            disabled: count > normalizedMax,
+        });
+    }
+
+    return options;
 }
 
 function ensureBookingDateOption(options, dateValue) {
@@ -348,6 +455,69 @@ function parseBookingDate(value) {
     }
 
     return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+}
+
+function formatDateKeyFromDate(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function getCalendarNowContext(reference = new Date()) {
+    const now = reference instanceof Date && !Number.isNaN(reference.getTime())
+        ? reference
+        : new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const currentMinutes = (now.getHours() * 60) + now.getMinutes();
+
+    return {
+        now,
+        today,
+        todayKey: formatDateKeyFromDate(today),
+        currentMinutes,
+        cutoffMinutes: currentMinutes + BOOKING_MIN_LEAD_MINUTES,
+    };
+}
+
+function hasBookableTimeRemainingForDate(dateKey, context = getCalendarNowContext()) {
+    if (!dateKey) {
+        return false;
+    }
+
+    if (dateKey > context.todayKey) {
+        return true;
+    }
+
+    if (dateKey < context.todayKey) {
+        return false;
+    }
+
+    const latestSlotStartMinutes = (BOOKING_CLOSE_HOUR - 1) * 60;
+    return context.cutoffMinutes <= latestSlotStartMinutes;
+}
+
+function isEventPastOrCurrentForDate(event, dateKey, context = getCalendarNowContext()) {
+    if (!dateKey) {
+        return true;
+    }
+
+    if (dateKey < context.todayKey) {
+        return true;
+    }
+
+    if (dateKey > context.todayKey) {
+        return false;
+    }
+
+    const range = extractBookingTimeRange(event);
+    if (!range) {
+        const lifecycle = deriveBookingLifecycleStatus({
+            ...(event || {}),
+            date: dateKey,
+        }, context.now);
+
+        return lifecycle !== 'upcoming';
+    }
+
+    return context.currentMinutes >= range.start;
 }
 
 function extractBookingTimeRange(booking) {
@@ -516,7 +686,7 @@ function buildNearbyAvailableTimeSuggestions(slotValue, events, selectedDate = n
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
         if (selectedDate === `${year}-${month}-${day}`) {
-            currentMinutes = (d.getHours() * 60) + d.getMinutes();
+            currentMinutes = (d.getHours() * 60) + d.getMinutes() + BOOKING_MIN_LEAD_MINUTES;
         }
     }
 
@@ -527,7 +697,7 @@ function buildNearbyAvailableTimeSuggestions(slotValue, events, selectedDate = n
         .filter((slot) => slot.value !== selectedSlot.value)
         .filter((slot) => {
             const slotRange = toBookingRange(slot.start_time, slot.end_time);
-            if (currentMinutes > -1 && slotRange && slotRange.start <= currentMinutes) {
+            if (currentMinutes > -1 && slotRange && slotRange.start < currentMinutes) {
                 return false;
             }
             return !slotConflictsWithRanges(slot.value, approvedRanges);
@@ -690,8 +860,9 @@ function createRoomBookingForm(config, dateOverride = null) {
         start_time: defaultSlot.start_time,
         end_time: defaultSlot.end_time,
         attendees: BOOKING_MIN_ATTENDEES,
+        user_id: '',
         user_name: config.userName || '',
-        user_email: '',
+        user_email: config.userEmail || '',
         description: '',
         qc_id_ocr_text: '',
         qc_id_cardholder_name: config.verifiedRegistrationName || '',
@@ -699,10 +870,11 @@ function createRoomBookingForm(config, dateOverride = null) {
 }
 
 export function createRoomCalendarApp(config = {}) {
-    const eventsUrl = config.eventsUrl || '/rooms/calendar/events';
-    const availabilityUrl = config.availabilityUrl || '/rooms/calendar/availability';
-    const storeBookingUrl = config.storeBookingUrl || '/rooms/room-reservations';
-    const verifyQcIdUrl = config.verifyQcIdUrl || '/rooms/qc-id/verify';
+    const eventsUrl = config.eventsUrl || '/calendar-per-room/events';
+    const availabilityUrl = config.availabilityUrl || '/calendar-per-room/availability';
+    const storeBookingUrl = config.storeBookingUrl || '/reservations';
+    const staffUserLookupUrl = config.staffUserLookupUrl || '/calendar-per-room/users/search';
+    const verifyQcIdUrl = config.verifyQcIdUrl || '/calendar-per-room/qc-id/verify';
 
     return {
         calendar: null,
@@ -743,6 +915,11 @@ export function createRoomCalendarApp(config = {}) {
         isLoadingTimeConflictSuggestions: false,
         pendingWarning: '',
         _lastFetchedEvents: [],
+        bookForUserMatches: [],
+        staffQcLookupMessage: '',
+        _isLookingUpBookForUser: false,
+        _staffLookupDebounceTimer: null,
+        _staffLookupRequestToken: 0,
 
         bookingForm: createRoomBookingForm(config),
 
@@ -781,6 +958,11 @@ export function createRoomCalendarApp(config = {}) {
             });
 
             this.$watch('bookingForm.user_name', (value) => {
+                if (this.isStaffUser) {
+                    this.queueStaffUserLookup(value);
+                    return;
+                }
+
                 if (this.hasVerifiedRegistration) {
                     return;
                 }
@@ -798,9 +980,9 @@ export function createRoomCalendarApp(config = {}) {
             });
 
             this.$watch('bookingForm.room_id', () => {
-                const max = this.attendeeInputMax;
-                if (max && Number(this.bookingForm.attendees) > Number(max)) {
-                    this.bookingForm.attendees = max;
+                const max = this.attendeeInputMax || BOOKING_REQUEST_MAX_ATTENDEES;
+                if (Number(this.bookingForm.attendees) > Number(max)) {
+                    this.bookingForm.attendees = Number(max);
                 }
                 if (Number(this.bookingForm.attendees) < BOOKING_MIN_ATTENDEES) {
                     this.bookingForm.attendees = BOOKING_MIN_ATTENDEES;
@@ -810,8 +992,8 @@ export function createRoomCalendarApp(config = {}) {
             });
 
             this.$watch('bookingForm.attendees', (value) => {
-                const max = this.attendeeInputMax;
-                if (max && Number(value) > Number(max)) {
+                const max = this.attendeeInputMax || BOOKING_REQUEST_MAX_ATTENDEES;
+                if (Number(value) > Number(max)) {
                     this.bookingForm.attendees = Number(max);
                 }
                 if (Number(value) < BOOKING_MIN_ATTENDEES && value !== '' && value !== null) {
@@ -857,32 +1039,40 @@ export function createRoomCalendarApp(config = {}) {
             const room = this.selectedRoomMeta;
 
             if (!room) {
-                return null;
+                return BOOKING_REQUEST_MAX_ATTENDEES;
             }
 
-            return this.isStaffUser ? room.capacity : room.student_limit;
+            const roleLimit = Number(this.isStaffUser ? room.capacity : room.student_limit);
+            if (!Number.isFinite(roleLimit)) {
+                return BOOKING_REQUEST_MAX_ATTENDEES;
+            }
+
+            return Math.min(BOOKING_REQUEST_MAX_ATTENDEES, Math.max(BOOKING_MIN_ATTENDEES, roleLimit));
+        },
+
+        get attendeeOptions() {
+            return buildAttendeeOptions(this.attendeeInputMax);
         },
 
         get attendeeGuidance() {
             const room = this.selectedRoomMeta;
 
             if (!room) {
-                return '';
+                return 'Select 5-10 attendees for regular bookings. 11-12 attendees are request-only.';
             }
 
-            if (!room.is_collaborative) {
-                return `Minimum 5 attendees required. Room capacity: ${room.capacity} attendees.`;
-            }
+            const roomLimit = this.attendeeInputMax;
+            const requestUpperBound = Math.min(BOOKING_REQUEST_MAX_ATTENDEES, roomLimit);
 
             if (this.isStaffUser) {
-                return `Minimum 5 attendees required. Collaborative room capacity: ${room.capacity} attendees.`;
+                return `Select 5-${roomLimit} attendees for this room.`;
             }
 
-            if (room.student_limit > room.standard_limit) {
-                return `Minimum 5 attendees required. Collaborative rooms allow up to ${room.standard_limit} attendees by default. Requests up to ${room.student_limit} attendees need librarian approval.`;
+            if (requestUpperBound > BOOKING_STANDARD_MAX_ATTENDEES) {
+                return `Select 5-${BOOKING_STANDARD_MAX_ATTENDEES} attendees normally. ${BOOKING_STANDARD_MAX_ATTENDEES + 1}-${requestUpperBound} attendees need librarian approval.`;
             }
 
-            return `Minimum 5 attendees required. This collaborative room allows up to ${room.standard_limit} attendees.`;
+            return `Select 5-${roomLimit} attendees for this room.`;
         },
 
         async syncBookingAvailability(resetRoom = false) {
@@ -902,11 +1092,10 @@ export function createRoomCalendarApp(config = {}) {
                 });
 
                 const dates = Array.isArray(payload?.dates) ? payload.dates : [];
-                const timeSlots = Array.isArray(payload?.time_slots) ? payload.time_slots : [];
+                const rawTimeSlots = Array.isArray(payload?.time_slots) ? payload.time_slots : [];
                 const rooms = Array.isArray(payload?.rooms) ? payload.rooms : [];
 
                 this.bookingDateOptions = dates;
-                this.availableTimeSlots = timeSlots;
                 this.availableRooms = rooms;
 
                 if (!dates.length) {
@@ -925,6 +1114,9 @@ export function createRoomCalendarApp(config = {}) {
                 } else {
                     this.bookingForm.date = selectedDate;
                 }
+
+                const timeSlots = filterPastTimeSlots(rawTimeSlots, this.bookingForm.date);
+                this.availableTimeSlots = timeSlots;
 
                 if (!timeSlots.length) {
                     this.bookingForm.time_slot = '';
@@ -970,6 +1162,101 @@ export function createRoomCalendarApp(config = {}) {
             this.timeConflictSuggestions = [];
             this.timeConflictMessage = '';
             this.pendingWarning = '';
+        },
+
+        queueStaffUserLookup(inputValue) {
+            if (!this.isStaffUser) {
+                return;
+            }
+
+            const query = String(inputValue || '').trim();
+
+            if (this._staffLookupDebounceTimer) {
+                window.clearTimeout(this._staffLookupDebounceTimer);
+            }
+
+            if (query.length < 2) {
+                this.bookForUserMatches = [];
+                this.bookingForm.user_id = '';
+                this.bookingForm.user_email = '';
+                this.bookingForm.qc_id_cardholder_name = '';
+
+                if (this.qcIdVerification?.source === 'staff_lookup') {
+                    this.qcIdVerification = null;
+                }
+
+                this.staffQcLookupMessage = query.length === 0
+                    ? ''
+                    : 'Type at least 2 characters to search users.';
+                return;
+            }
+
+            const requestToken = ++this._staffLookupRequestToken;
+            this._staffLookupDebounceTimer = window.setTimeout(async () => {
+                this._isLookingUpBookForUser = true;
+                this.staffQcLookupMessage = 'Searching users...';
+
+                try {
+                    const matches = await fetchStaffUserMatches(staffUserLookupUrl, query);
+                    if (requestToken !== this._staffLookupRequestToken) {
+                        return;
+                    }
+
+                    this.bookForUserMatches = matches;
+
+                    const exactMatch = findExactBookForUserMatch(matches, query);
+                    if (!exactMatch) {
+                        this.bookingForm.user_id = '';
+                        this.bookingForm.user_email = '';
+                        this.bookingForm.qc_id_cardholder_name = '';
+
+                        if (this.qcIdVerification?.source === 'staff_lookup') {
+                            this.qcIdVerification = null;
+                        }
+
+                        this.staffQcLookupMessage = matches.length
+                            ? 'Select the exact user name from suggestions to load QC ID verification.'
+                            : 'No matching user account found.';
+                        return;
+                    }
+
+                    this.bookingForm.user_id = String(exactMatch.id || '');
+                    this.bookingForm.user_email = exactMatch.email || '';
+
+                    const verification = mapStaffLookupVerification(exactMatch);
+                    if (verification) {
+                        this.qcIdVerification = verification;
+                        this.bookingForm.qc_id_cardholder_name = verification.cardholder_name || '';
+                        this.staffQcLookupMessage = 'Verified QC ID found for this user.';
+                    } else {
+                        if (this.qcIdVerification?.source === 'staff_lookup') {
+                            this.qcIdVerification = null;
+                        }
+
+                        this.bookingForm.qc_id_cardholder_name = '';
+                        this.staffQcLookupMessage = 'This user has no verified QC ID registration yet.';
+                    }
+                } catch (error) {
+                    if (requestToken !== this._staffLookupRequestToken) {
+                        return;
+                    }
+
+                    this.bookForUserMatches = [];
+                    this.bookingForm.user_id = '';
+                    this.bookingForm.user_email = '';
+                    this.bookingForm.qc_id_cardholder_name = '';
+
+                    if (this.qcIdVerification?.source === 'staff_lookup') {
+                        this.qcIdVerification = null;
+                    }
+
+                    this.staffQcLookupMessage = error?.message || 'Unable to search users right now.';
+                } finally {
+                    if (requestToken === this._staffLookupRequestToken) {
+                        this._isLookingUpBookForUser = false;
+                    }
+                }
+            }, 250);
         },
 
         async loadNearbyTimeSuggestions() {
@@ -1063,6 +1350,38 @@ export function createRoomCalendarApp(config = {}) {
                 .trim();
         },
 
+        async handleQcIdUpload(event) {
+            const file = event.target?.files?.[0];
+
+            this.qcIdError = '';
+            this.bookingForm.qc_id_ocr_text = '';
+
+            if (!this.isStaffUser) {
+                this.qcIdVerification = null;
+                this.bookingForm.qc_id_cardholder_name = '';
+            }
+
+            if (this.qcIdPreviewUrl) {
+                URL.revokeObjectURL(this.qcIdPreviewUrl);
+                this.qcIdPreviewUrl = '';
+            }
+
+            this.qcIdFile = null;
+
+            if (!file) {
+                return;
+            }
+
+            if (!file.type.startsWith('image/')) {
+                this.qcIdError = 'Please upload an image file for the QC ID.';
+                return;
+            }
+
+            this.qcIdFile = file;
+            this.qcIdPreviewUrl = URL.createObjectURL(file);
+            await this.runQcIdVerification(file);
+        },
+
         async runQcIdVerification(file) {
             this.qcIdIsProcessing = true;
             this.qcIdStatusMessage = 'Scanning ID...';
@@ -1138,12 +1457,29 @@ export function createRoomCalendarApp(config = {}) {
                     },
                 },
                 events: this.fetchEvents.bind(this),
+                eventDidMount(info) {
+                    const mappedBooking = mapEventFromCalendarInfo(self, info);
+                    if (deriveBookingLifecycleStatus(mappedBooking) !== 'upcoming') {
+                        info.el.classList.add('opacity-50', 'grayscale', 'cursor-not-allowed');
+                    }
+                },
                 eventClick(info) {
-                    self.selectedEvent = mapEventFromCalendarInfo(self, info);
+                    const mappedBooking = mapEventFromCalendarInfo(self, info);
+                    if (deriveBookingLifecycleStatus(mappedBooking) !== 'upcoming') {
+                        info.jsEvent?.preventDefault();
+                        return;
+                    }
+
+                    self.selectedEvent = mappedBooking;
                     self.showEventModal = true;
                 },
                 dateClick(info) {
-                    self.openBookingModal(info.dateStr);
+                    const dateKey = String(info.dateStr || '').slice(0, 10);
+                    if (!hasBookableTimeRemainingForDate(dateKey)) {
+                        return;
+                    }
+
+                    self.openBookingModal(dateKey);
                 },
                 datesSet(info) {
                     self.currentView = info.view.type;
@@ -1206,6 +1542,13 @@ export function createRoomCalendarApp(config = {}) {
             }
 
             this.qcIdError = '';
+            this.staffQcLookupMessage = '';
+            this.bookForUserMatches = [];
+
+            if (this._staffLookupDebounceTimer) {
+                window.clearTimeout(this._staffLookupDebounceTimer);
+                this._staffLookupDebounceTimer = null;
+            }
 
             if (this.hasVerifiedRegistration) {
                 this.qcIdVerification = {
@@ -1216,6 +1559,10 @@ export function createRoomCalendarApp(config = {}) {
                 };
             }
 
+            if (this.isStaffUser && String(this.bookingForm.user_name || '').trim() !== '') {
+                this.queueStaffUserLookup(this.bookingForm.user_name);
+            }
+
             this.syncBookingAvailability(true);
             this.showBookingModal = true;
         },
@@ -1223,6 +1570,12 @@ export function createRoomCalendarApp(config = {}) {
         closeBookingModal() {
             this.qcIdError = '';
             this.clearTimeConflictSuggestions();
+
+            if (this._staffLookupDebounceTimer) {
+                window.clearTimeout(this._staffLookupDebounceTimer);
+                this._staffLookupDebounceTimer = null;
+            }
+
             this.showBookingModal = false;
         },
 
@@ -1298,23 +1651,19 @@ export function createRoomCalendarApp(config = {}) {
 
             applyBookingTimeSlot(this.bookingForm, this.bookingForm.time_slot);
 
-            const selectedRoom = this.selectedRoomMeta;
             const requestedAttendees = Number(this.bookingForm.attendees || 0);
             if (requestedAttendees < BOOKING_MIN_ATTENDEES) {
                 showNotification(`At least ${BOOKING_MIN_ATTENDEES} attendees are required for booking.`, 'warning');
                 return;
             }
 
-            const standardLimit = Number(selectedRoom?.standard_limit || 10);
             const requiresLibrarianApproval = Boolean(
-                selectedRoom?.is_collaborative
-                && !this.isStaffUser
-                && requestedAttendees > standardLimit,
+                !this.isStaffUser && requestedAttendees > BOOKING_STANDARD_MAX_ATTENDEES,
             );
 
             if (requiresLibrarianApproval) {
                 showNotification(
-                    `This collaborative-room booking exceeds the ${standardLimit}-attendee limit and will be submitted for librarian approval.`,
+                    `Bookings with ${BOOKING_STANDARD_MAX_ATTENDEES + 1}-${BOOKING_REQUEST_MAX_ATTENDEES} attendees are request-only and will be submitted for librarian approval.`,
                     'warning',
                 );
             }
@@ -1373,6 +1722,7 @@ function createDashboardBookingForm(config, dateOverride = null) {
         start_time: defaultSlot.start_time,
         end_time: defaultSlot.end_time,
         attendees: BOOKING_MIN_ATTENDEES,
+        user_id: '',
         user_name: config.userName || '',
         user_email: config.userEmail || '',
         description: '',
@@ -1382,11 +1732,12 @@ function createDashboardBookingForm(config, dateOverride = null) {
 }
 
 export function createDashboardApp(config = {}) {
-    const eventsUrl = config.eventsUrl || '/rooms/calendar/events';
-    const availabilityUrl = config.availabilityUrl || '/rooms/calendar/availability';
-    const storeBookingUrl = config.storeBookingUrl || '/rooms/room-reservations';
-    const verifyQcIdUrl = config.verifyQcIdUrl || '/rooms/qc-id/verify';
-    const monthDataUrl = config.monthDataUrl || '/rooms/calendar/month';
+    const eventsUrl = config.eventsUrl || '/calendar-per-room/events';
+    const availabilityUrl = config.availabilityUrl || '/calendar-per-room/availability';
+    const storeBookingUrl = config.storeBookingUrl || '/reservations';
+    const staffUserLookupUrl = config.staffUserLookupUrl || '/calendar-per-room/users/search';
+    const verifyQcIdUrl = config.verifyQcIdUrl || '/calendar-per-room/qc-id/verify';
+    const monthDataUrl = config.monthDataUrl || '/calendar-per-room/month';
     const initialCalendarData = config.initialCalendarData && typeof config.initialCalendarData === 'object'
         ? config.initialCalendarData
         : {};
@@ -1442,6 +1793,11 @@ export function createDashboardApp(config = {}) {
         isLoadingTimeConflictSuggestions: false,
         pendingWarning: '',
         _lastFetchedEvents: [],
+        bookForUserMatches: [],
+        staffQcLookupMessage: '',
+        _isLookingUpBookForUser: false,
+        _staffLookupDebounceTimer: null,
+        _staffLookupRequestToken: 0,
         bookingForm: createDashboardBookingForm(config),
 
         viewEvent: null,
@@ -1579,8 +1935,8 @@ export function createDashboardApp(config = {}) {
             const firstDay = new Date(year, month, 1);
             const lastDay = new Date(year, month + 1, 0);
             const startPadding = firstDay.getDay();
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            const nowContext = getCalendarNowContext();
+            const today = nowContext.today;
 
             // Previous month padding
             const prevMonth = new Date(year, month, 0);
@@ -1590,6 +1946,9 @@ export function createDashboardApp(config = {}) {
                     date: null,
                     isCurrentMonth: false,
                     isToday: false,
+                    isPast: true,
+                    isTimeLocked: true,
+                    isDisabled: true,
                     events: [],
                 });
             }
@@ -1598,12 +1957,18 @@ export function createDashboardApp(config = {}) {
             for (let i = 1; i <= lastDay.getDate(); i++) {
                 const date = new Date(year, month, i);
                 const dateStr = this.formatDateKey(date);
+                const isPastDate = date < today;
+                const hasBookableTime = hasBookableTimeRemainingForDate(dateStr, nowContext);
+                const isTimeLocked = !isPastDate && dateStr === nowContext.todayKey && !hasBookableTime;
+
                 cells.push({
                     day: i,
                     date: dateStr,
                     isCurrentMonth: true,
                     isToday: date.getTime() === today.getTime(),
-                    isPast: date < today,
+                    isPast: isPastDate,
+                    isTimeLocked,
+                    isDisabled: isPastDate || isTimeLocked,
                     events: this.sortEventsByStartTime(this.calendarData[dateStr] || []),
                 });
             }
@@ -1616,6 +1981,9 @@ export function createDashboardApp(config = {}) {
                     date: null,
                     isCurrentMonth: false,
                     isToday: false,
+                    isPast: false,
+                    isTimeLocked: true,
+                    isDisabled: true,
                     events: [],
                 });
             }
@@ -1676,6 +2044,36 @@ export function createDashboardApp(config = {}) {
             const fallbackMinutes = parseTimeToMinutes(startLabel);
 
             return fallbackMinutes ?? Number.MAX_SAFE_INTEGER;
+        },
+
+        isCalendarDayInteractive(day) {
+            if (!day?.isCurrentMonth || !day?.date) {
+                return false;
+            }
+
+            return !day.isDisabled;
+        },
+
+        isPastOrCurrentEvent(event, day) {
+            if (!day?.date) {
+                return true;
+            }
+
+            const context = getCalendarNowContext();
+            return isEventPastOrCurrentForDate(event, day.date, context);
+        },
+
+        isEventInteractive(event, day) {
+            return this.isCalendarDayInteractive(day) && !this.isPastOrCurrentEvent(event, day);
+        },
+
+        isListEventInteractive(event) {
+            const dateKey = String(event?.date || '').slice(0, 10);
+            if (!dateKey || !hasBookableTimeRemainingForDate(dateKey)) {
+                return false;
+            }
+
+            return !isEventPastOrCurrentForDate(event, dateKey);
         },
 
         selectCalendarDate(dateStr) {
@@ -1791,6 +2189,11 @@ export function createDashboardApp(config = {}) {
             });
 
             this.$watch('bookingForm.user_name', (value) => {
+                if (this.isStaffUser) {
+                    this.queueStaffUserLookup(value);
+                    return;
+                }
+
                 if (this.hasVerifiedRegistration) {
                     return;
                 }
@@ -1808,9 +2211,9 @@ export function createDashboardApp(config = {}) {
             });
 
             this.$watch('bookingForm.room_id', () => {
-                const max = this.attendeeInputMax;
-                if (max && Number(this.bookingForm.attendees) > Number(max)) {
-                    this.bookingForm.attendees = max;
+                const max = this.attendeeInputMax || BOOKING_REQUEST_MAX_ATTENDEES;
+                if (Number(this.bookingForm.attendees) > Number(max)) {
+                    this.bookingForm.attendees = Number(max);
                 }
                 if (Number(this.bookingForm.attendees) < BOOKING_MIN_ATTENDEES) {
                     this.bookingForm.attendees = BOOKING_MIN_ATTENDEES;
@@ -1820,8 +2223,8 @@ export function createDashboardApp(config = {}) {
             });
 
             this.$watch('bookingForm.attendees', (value) => {
-                const max = this.attendeeInputMax;
-                if (max && Number(value) > Number(max)) {
+                const max = this.attendeeInputMax || BOOKING_REQUEST_MAX_ATTENDEES;
+                if (Number(value) > Number(max)) {
                     this.bookingForm.attendees = Number(max);
                 }
                 if (Number(value) < BOOKING_MIN_ATTENDEES && value !== '' && value !== null) {
@@ -1870,7 +2273,7 @@ export function createDashboardApp(config = {}) {
 
         async refreshCollaborativeRoomStatuses() {
             try {
-                const response = await fetch('/rooms/statuses', {
+                const response = await fetch('/dashboard/statuses', {
                     headers: {
                         Accept: 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
@@ -1998,32 +2401,40 @@ export function createDashboardApp(config = {}) {
             const room = this.selectedRoomMeta;
 
             if (!room) {
-                return null;
+                return BOOKING_REQUEST_MAX_ATTENDEES;
             }
 
-            return this.isStaffUser ? room.capacity : room.student_limit;
+            const roleLimit = Number(this.isStaffUser ? room.capacity : room.student_limit);
+            if (!Number.isFinite(roleLimit)) {
+                return BOOKING_REQUEST_MAX_ATTENDEES;
+            }
+
+            return Math.min(BOOKING_REQUEST_MAX_ATTENDEES, Math.max(BOOKING_MIN_ATTENDEES, roleLimit));
+        },
+
+        get attendeeOptions() {
+            return buildAttendeeOptions(this.attendeeInputMax);
         },
 
         get attendeeGuidance() {
             const room = this.selectedRoomMeta;
 
             if (!room) {
-                return '';
+                return 'Select 5-10 attendees for regular bookings. 11-12 attendees are request-only.';
             }
 
-            if (!room.is_collaborative) {
-                return `Minimum 5 attendees required. Room capacity: ${room.capacity} attendees.`;
-            }
+            const roomLimit = this.attendeeInputMax;
+            const requestUpperBound = Math.min(BOOKING_REQUEST_MAX_ATTENDEES, roomLimit);
 
             if (this.isStaffUser) {
-                return `Minimum 5 attendees required. Collaborative room capacity: ${room.capacity} attendees.`;
+                return `Select 5-${roomLimit} attendees for this room.`;
             }
 
-            if (room.student_limit > room.standard_limit) {
-                return `Minimum 5 attendees required. Collaborative rooms allow up to ${room.standard_limit} attendees by default. Requests up to ${room.student_limit} attendees need librarian approval.`;
+            if (requestUpperBound > BOOKING_STANDARD_MAX_ATTENDEES) {
+                return `Select 5-${BOOKING_STANDARD_MAX_ATTENDEES} attendees normally. ${BOOKING_STANDARD_MAX_ATTENDEES + 1}-${requestUpperBound} attendees need librarian approval.`;
             }
 
-            return `Minimum 5 attendees required. This collaborative room allows up to ${room.standard_limit} attendees.`;
+            return `Select 5-${roomLimit} attendees for this room.`;
         },
 
         async syncBookingAvailability(resetRoom = false) {
@@ -2043,11 +2454,10 @@ export function createDashboardApp(config = {}) {
                 });
 
                 const dates = Array.isArray(payload?.dates) ? payload.dates : [];
-                const timeSlots = Array.isArray(payload?.time_slots) ? payload.time_slots : [];
+                const rawTimeSlots = Array.isArray(payload?.time_slots) ? payload.time_slots : [];
                 const rooms = Array.isArray(payload?.rooms) ? payload.rooms : [];
 
                 this.bookingDateOptions = dates;
-                this.availableTimeSlots = timeSlots;
                 this.availableRooms = rooms;
 
                 if (!dates.length) {
@@ -2066,6 +2476,9 @@ export function createDashboardApp(config = {}) {
                 } else {
                     this.bookingForm.date = selectedDate;
                 }
+
+                const timeSlots = filterPastTimeSlots(rawTimeSlots, this.bookingForm.date);
+                this.availableTimeSlots = timeSlots;
 
                 if (!timeSlots.length) {
                     this.bookingForm.time_slot = '';
@@ -2111,6 +2524,101 @@ export function createDashboardApp(config = {}) {
             this.timeConflictSuggestions = [];
             this.timeConflictMessage = '';
             this.pendingWarning = '';
+        },
+
+        queueStaffUserLookup(inputValue) {
+            if (!this.isStaffUser) {
+                return;
+            }
+
+            const query = String(inputValue || '').trim();
+
+            if (this._staffLookupDebounceTimer) {
+                window.clearTimeout(this._staffLookupDebounceTimer);
+            }
+
+            if (query.length < 2) {
+                this.bookForUserMatches = [];
+                this.bookingForm.user_id = '';
+                this.bookingForm.user_email = '';
+                this.bookingForm.qc_id_cardholder_name = '';
+
+                if (this.qcIdVerification?.source === 'staff_lookup') {
+                    this.qcIdVerification = null;
+                }
+
+                this.staffQcLookupMessage = query.length === 0
+                    ? ''
+                    : 'Type at least 2 characters to search users.';
+                return;
+            }
+
+            const requestToken = ++this._staffLookupRequestToken;
+            this._staffLookupDebounceTimer = window.setTimeout(async () => {
+                this._isLookingUpBookForUser = true;
+                this.staffQcLookupMessage = 'Searching users...';
+
+                try {
+                    const matches = await fetchStaffUserMatches(staffUserLookupUrl, query);
+                    if (requestToken !== this._staffLookupRequestToken) {
+                        return;
+                    }
+
+                    this.bookForUserMatches = matches;
+
+                    const exactMatch = findExactBookForUserMatch(matches, query);
+                    if (!exactMatch) {
+                        this.bookingForm.user_id = '';
+                        this.bookingForm.user_email = '';
+                        this.bookingForm.qc_id_cardholder_name = '';
+
+                        if (this.qcIdVerification?.source === 'staff_lookup') {
+                            this.qcIdVerification = null;
+                        }
+
+                        this.staffQcLookupMessage = matches.length
+                            ? 'Select the exact user name from suggestions to load QC ID verification.'
+                            : 'No matching user account found.';
+                        return;
+                    }
+
+                    this.bookingForm.user_id = String(exactMatch.id || '');
+                    this.bookingForm.user_email = exactMatch.email || '';
+
+                    const verification = mapStaffLookupVerification(exactMatch);
+                    if (verification) {
+                        this.qcIdVerification = verification;
+                        this.bookingForm.qc_id_cardholder_name = verification.cardholder_name || '';
+                        this.staffQcLookupMessage = 'Verified QC ID found for this user.';
+                    } else {
+                        if (this.qcIdVerification?.source === 'staff_lookup') {
+                            this.qcIdVerification = null;
+                        }
+
+                        this.bookingForm.qc_id_cardholder_name = '';
+                        this.staffQcLookupMessage = 'This user has no verified QC ID registration yet.';
+                    }
+                } catch (error) {
+                    if (requestToken !== this._staffLookupRequestToken) {
+                        return;
+                    }
+
+                    this.bookForUserMatches = [];
+                    this.bookingForm.user_id = '';
+                    this.bookingForm.user_email = '';
+                    this.bookingForm.qc_id_cardholder_name = '';
+
+                    if (this.qcIdVerification?.source === 'staff_lookup') {
+                        this.qcIdVerification = null;
+                    }
+
+                    this.staffQcLookupMessage = error?.message || 'Unable to search users right now.';
+                } finally {
+                    if (requestToken === this._staffLookupRequestToken) {
+                        this._isLookingUpBookForUser = false;
+                    }
+                }
+            }, 250);
         },
 
         async loadNearbyTimeSuggestions() {
@@ -2600,11 +3108,28 @@ export function createDashboardApp(config = {}) {
                     },
                 },
                 events: this.fetchDashboardEvents.bind(this),
+                eventDidMount(info) {
+                    const mappedBooking = self.mapDashboardEvent(info);
+                    if (deriveBookingLifecycleStatus(mappedBooking) !== 'upcoming') {
+                        info.el.classList.add('opacity-50', 'grayscale', 'cursor-not-allowed');
+                    }
+                },
                 eventClick(info) {
-                    self.openViewBookingModal(self.mapDashboardEvent(info));
+                    const mappedBooking = self.mapDashboardEvent(info);
+                    if (deriveBookingLifecycleStatus(mappedBooking) !== 'upcoming') {
+                        info.jsEvent?.preventDefault();
+                        return;
+                    }
+
+                    self.openViewBookingModal(mappedBooking);
                 },
                 dateClick(info) {
-                    self.openBookingModal(info.dateStr);
+                    const dateKey = String(info.dateStr || '').slice(0, 10);
+                    if (!hasBookableTimeRemainingForDate(dateKey)) {
+                        return;
+                    }
+
+                    self.openBookingModal(dateKey);
                 },
                 datesSet(info) {
                     if (info.view.type === 'dayGridMonth') {
@@ -2763,6 +3288,13 @@ export function createDashboardApp(config = {}) {
             applyBookingTimeSlot(this.bookingForm, this.bookingForm.time_slot);
 
             this.qcIdError = '';
+            this.staffQcLookupMessage = '';
+            this.bookForUserMatches = [];
+
+            if (this._staffLookupDebounceTimer) {
+                window.clearTimeout(this._staffLookupDebounceTimer);
+                this._staffLookupDebounceTimer = null;
+            }
 
             if (this.hasVerifiedRegistration) {
                 this.qcIdVerification = {
@@ -2781,12 +3313,16 @@ export function createDashboardApp(config = {}) {
                 this.resetQcIdState({ keepPreview: false });
             }
 
+            if (this.isStaffUser && String(this.bookingForm.user_name || '').trim() !== '') {
+                this.queueStaffUserLookup(this.bookingForm.user_name);
+            }
+
             this.syncBookingAvailability(true);
             this.showBookingModal = true;
         },
 
         openBookingModalForDay(day) {
-            if (!day?.isCurrentMonth || !day?.date) {
+            if (!this.isCalendarDayInteractive(day)) {
                 return;
             }
 
@@ -2796,6 +3332,12 @@ export function createDashboardApp(config = {}) {
         closeBookingModal() {
             this.qcIdError = '';
             this.clearTimeConflictSuggestions();
+
+            if (this._staffLookupDebounceTimer) {
+                window.clearTimeout(this._staffLookupDebounceTimer);
+                this._staffLookupDebounceTimer = null;
+            }
+
             this.showBookingModal = false;
         },
 
@@ -2932,23 +3474,19 @@ export function createDashboardApp(config = {}) {
 
             applyBookingTimeSlot(this.bookingForm, this.bookingForm.time_slot);
 
-            const selectedRoom = this.selectedRoomMeta;
             const requestedAttendees = Number(this.bookingForm.attendees || 0);
             if (requestedAttendees < BOOKING_MIN_ATTENDEES) {
                 showNotification(`At least ${BOOKING_MIN_ATTENDEES} attendees are required for booking.`, 'warning');
                 return;
             }
 
-            const standardLimit = Number(selectedRoom?.standard_limit || 10);
             const requiresLibrarianApproval = Boolean(
-                selectedRoom?.is_collaborative
-                && !this.isStaffUser
-                && requestedAttendees > standardLimit,
+                !this.isStaffUser && requestedAttendees > BOOKING_STANDARD_MAX_ATTENDEES,
             );
 
             if (requiresLibrarianApproval) {
                 showNotification(
-                    `This collaborative-room booking exceeds the ${standardLimit}-attendee limit and will be submitted for librarian approval.`,
+                    `Bookings with ${BOOKING_STANDARD_MAX_ATTENDEES + 1}-${BOOKING_REQUEST_MAX_ATTENDEES} attendees are request-only and will be submitted for librarian approval.`,
                     'warning',
                 );
             }

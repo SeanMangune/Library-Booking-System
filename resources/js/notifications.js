@@ -36,8 +36,8 @@ function normalizeUserUrl(url, isStaff) {
     if (isStaff) {
         return value;
     }
-    const blocked = ['/rooms/approvals', '/rooms/manage', '/reports', '/settings', '/api/users/search', '/logout'];
-    return blocked.some((fragment) => value.includes(fragment)) ? '/rooms' : value;
+    const blocked = ['/approvals', '/manage-rooms', '/reports', '/settings', '/api/users/search', '/calendar-per-room/users/search', '/logout'];
+    return blocked.some((fragment) => value.includes(fragment)) ? '/dashboard' : value;
 }
 // Expose the logout route to JS for defensive checks
 window.LaravelLogoutUrl = (typeof window.LaravelLogoutUrl !== 'undefined') ? window.LaravelLogoutUrl : (document.querySelector('form[action][method="POST"]')?.action.includes('/logout') ? document.querySelector('form[action][method="POST"]')?.action : '/logout');
@@ -93,9 +93,7 @@ function initializeRealtimeNotifications() {
 
     const badge = root.querySelector('[data-role="header-notification-badge"]');
     const unreadChip = root.querySelector('[data-role="header-unread-chip"]');
-    const pendingSection = root.querySelector('[data-role="pending-approvals-section"]');
-    const pendingList = root.querySelector('[data-role="pending-approvals-list"]');
-    const unreadList = root.querySelector('[data-role="user-unread-list"]');
+    const combinedList = root.querySelector('[data-role="combined-notification-list"]');
     const markAllReadContainer = root.querySelector('[data-role="mark-all-read-container"]');
     const markAllReadForm = root.querySelector('[data-role="mark-all-read-form"]');
 
@@ -125,38 +123,24 @@ function initializeRealtimeNotifications() {
         }
 
         if (unreadChip) {
-            unreadChip.textContent = `${totalCount} unread`;
+            unreadChip.textContent = `${totalCount} total`;
             unreadChip.classList.toggle('hidden', totalCount <= 0);
         }
 
-        if (pendingSection) {
-            pendingSection.classList.toggle('hidden', !isStaff);
-        }
+        if (combinedList) {
+            const pendingHtml = isStaff
+                ? pendingApprovals.map((item) => buildPendingApprovalItem(item, approvalsUrl))
+                : [];
+            const unreadHtml = unreadNotifications.map((item) => buildUnreadNotificationItem(item, isStaffUser));
+            const combinedHtml = [...pendingHtml, ...unreadHtml];
 
-        if (pendingList && isStaff) {
-            if (pendingApprovals.length > 0) {
-                pendingList.innerHTML = pendingApprovals
-                    .map((item) => buildPendingApprovalItem(item, approvalsUrl))
-                    .join('');
+            if (combinedHtml.length > 0) {
+                combinedList.innerHTML = combinedHtml.join('');
             } else {
-                pendingList.innerHTML = `
-                    <div class="px-4 py-3 border-b border-gray-100">
-                        <p class="text-sm text-gray-500">No pending approvals right now.</p>
-                    </div>
-                `;
-            }
-        }
-
-        if (unreadList) {
-            if (unreadNotifications.length > 0) {
-                unreadList.innerHTML = unreadNotifications
-                    .map((item) => buildUnreadNotificationItem(item, isStaffUser))
-                    .join('');
-            } else {
-                unreadList.innerHTML = `
+                combinedList.innerHTML = `
                     <div class="px-4 py-8 text-center">
                         <i class="w-12 h-12 text-gray-300 mx-auto mb-2 fa-icon fa-solid fa-inbox text-5xl leading-none"></i>
-                        <p class="text-sm text-gray-500">No unread notifications</p>
+                        <p class="text-sm text-gray-500">No notifications</p>
                     </div>
                 `;
             }

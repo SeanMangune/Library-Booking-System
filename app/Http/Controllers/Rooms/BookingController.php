@@ -28,9 +28,17 @@ class BookingController extends Controller
 {
     private const BOOKING_OPEN_HOUR = 8;
 
-    private const BOOKING_CLOSE_HOUR = 19;
+    private const BOOKING_CLOSE_HOUR = 17;
 
-    private const BOOKING_MAX_AVAILABILITY_DAYS = 90;
+    private const BOOKING_MAX_AVAILABILITY_DAYS = 7;
+
+    private const BOOKING_MIN_ATTENDEES = 5;
+
+    private const BOOKING_STANDARD_ATTENDEES = 10;
+
+    private const BOOKING_MAX_ATTENDEES = 12;
+
+    private const BOOKING_MIN_LEAD_MINUTES = 15;
 
     public function index(Request $request)
     {
@@ -88,17 +96,89 @@ class BookingController extends Controller
         return view('rooms.reservations', compact('bookings', 'rooms', 'qcIdRegistration'));
     }
 
+    public function searchUsers(Request $request)
+    {
+        $actingUser = $request->user();
+
+        if (! $actingUser || ! $actingUser->isStaff()) {
+            return response()->json([
+                'users' => [],
+            ], 403);
+        }
+
+        $search = trim((string) $request->query('q', ''));
+        if (strlen($search) < 2) {
+            return response()->json([
+                'users' => [],
+            ]);
+        }
+
+        $users = User::query()
+            ->where('role', User::ROLE_USER)
+            ->where(function ($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('username', 'like', "%{$search}%");
+            })
+            ->with(['qcidRegistration' => function ($query) {
+                $query->where('verification_status', 'verified');
+            }])
+            ->orderBy('name')
+            ->limit(10)
+            ->get();
+
+        $payload = $users->map(function (User $user): array {
+            $registration = $user->qcidRegistration;
+
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'username' => $user->username,
+                'email' => $user->email,
+                'has_verified_qcid' => (bool) $registration,
+                'qcid_registration' => $registration ? [
+                    'full_name' => $registration->full_name,
+                    'qcid_number' => $registration->qcid_number,
+                    'date_issued' => optional($registration->date_issued)->format('Y-m-d'),
+                    'valid_until' => optional($registration->valid_until)->format('Y-m-d'),
+                    'address' => $registration->address,
+                ] : null,
+            ];
+        })->values();
+
+        return response()->json([
+            'users' => $payload,
+        ]);
+    }
+
     public function availability(Request $request)
     {
         $validated = $request->validate([
-            'date' => ['nullable', 'date', 'after_or_equal:today'],
+            'date' => [
+                'nullable',
+                'date',
+                'after_or_equal:today',
+                function ($attribute, $value, $fail) {
+                    try {
+                        $selectedDate = Carbon::parse((string) $value)->startOfDay();
+                        if ($selectedDate->greaterThan($this->bookingWindowEndDate())) {
+                            $fail('Bookings can only be made within the next 7 days.');
+                        }
+                    } catch (\Throwable $e) {
+                        $fail('Please select a valid booking date.');
+                    }
+                },
+            ],
             'time_slot' => ['nullable', 'regex:/^\d{2}:\d{2}-\d{2}:\d{2}$/'],
             'days' => ['nullable', 'integer', 'min:1', 'max:' . self::BOOKING_MAX_AVAILABILITY_DAYS],
         ]);
 
         $days = (int) ($validated['days'] ?? self::BOOKING_MAX_AVAILABILITY_DAYS);
         $startDate = Carbon::today();
-        $endDate = Carbon::today()->copy()->addDays($days);
+        $endDate = Carbon::today()->copy()->addDays(max($days - 1, 0));
+        $todayKey = Carbon::today()->toDateString();
+        $leadTimeCutoff = now()->addMinutes(self::BOOKING_MIN_LEAD_MINUTES);
+        $leadTimeCutoffMinutes = ($leadTimeCutoff->hour * 60) + $leadTimeCutoff->minute;
 
         $rooms = Room::query()
             ->visible()
@@ -166,7 +246,7 @@ class BookingController extends Controller
         $timeSlotsByDate = [];
         $roomsByDateAndSlot = [];
 
-        for ($offset = 0; $offset <= $days; $offset += 1) {
+        for ($offset = 0; $offset < $days; $offset += 1) {
             $date = $startDate->copy()->addDays($offset);
             if ($date->dayOfWeek === Carbon::SUNDAY) {
                 continue;
@@ -176,6 +256,10 @@ class BookingController extends Controller
             $availableSlots = [];
 
             foreach ($slotDefinitions as $slot) {
+                if ($dateKey === $todayKey && $slot['start_minutes'] < $leadTimeCutoffMinutes) {
+                    continue;
+                }
+
                 $availableRooms = [];
 
                 foreach ($rooms as $room) {
@@ -273,33 +357,62 @@ class BookingController extends Controller
                 'date',
                 'after_or_equal:today',
                 function ($attribute, $value, $fail) {
-                    if (date('N', strtotime($value)) == 7) {
+                    try {
+                        $selectedDate = Carbon::parse((string) $value)->startOfDay();
+                    } catch (\Throwable $e) {
+                        $fail('Please select a valid booking date.');
+                        return;
+                    }
+
+                    if ((int) $selectedDate->dayOfWeek === Carbon::SUNDAY) {
                         $fail('Bookings are not allowed on Sundays.');
+                    }
+
+                    if ($selectedDate->greaterThan($this->bookingWindowEndDate())) {
+                        $fail('Bookings can only be made within the next 7 days.');
                     }
                 },
             ],
             'start_time' => [
                 'required',
                 function ($attribute, $value, $fail) use ($request) {
-                    $selectedDate = $request->input('date');
-                    if ($selectedDate === date('Y-m-d')) {
-                        $now = now();
-                        $startTime = Carbon::parse($value);
-                        if ($startTime->lt($now->addMinutes(15))) {
-                            $fail('The selected time slot must be at least 15 minutes in the future.');
-                        }
+                    $selectedDate = trim((string) $request->input('date', ''));
+                    if ($selectedDate === '') {
+                        return;
+                    }
+
+                    if ($selectedDate !== now()->toDateString()) {
+                        return;
+                    }
+
+                    try {
+                        $selectedStart = Carbon::parse($selectedDate . ' ' . (string) $value);
+                    } catch (\Throwable $e) {
+                        $fail('Please select a valid booking time slot.');
+                        return;
+                    }
+
+                    if ($selectedStart->lt(now()->addMinutes(self::BOOKING_MIN_LEAD_MINUTES))) {
+                        $fail('The selected time slot must be at least 15 minutes in the future.');
                     }
                 },
             ],
             'end_time' => 'required|after:start_time',
-            'attendees' => 'required|integer|min:5',
-            'user_id' => 'nullable|exists:bookings,id',
+            'attendees' => 'required|integer|min:' . self::BOOKING_MIN_ATTENDEES . '|max:' . self::BOOKING_MAX_ATTENDEES,
+            'user_id' => 'nullable|exists:users,id',
             'user_name' => 'nullable|string|max:255',
             'user_email' => 'nullable|email|max:255',
             'description' => 'nullable|string',
             'qc_id_ocr_text' => ($requiresBookingOcr ? 'required' : 'nullable') . '|string|min:20|max:12000',
             'qc_id_cardholder_name' => 'nullable|string|max:255',
         ]);
+
+        if (! $this->isAllowedBookingSlot((string) $validated['start_time'], (string) $validated['end_time'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selected time slot is no longer allowed. Choose one of the available hourly slots from 8:00 AM to 5:00 PM.',
+            ], 422);
+        }
 
         $room = Room::findOrFail($validated['room_id']);
 
@@ -335,18 +448,37 @@ class BookingController extends Controller
             ], 422);
         }
 
-        $requiresCapacityPermission = $room->requiresCapacityPermissionFor($requestedAttendees, $actingUser);
+        $requiresLargeGroupRequest = ! $isStaffUser && $requestedAttendees > self::BOOKING_STANDARD_ATTENDEES;
+        $requiresCapacityPermission = $room->requiresCapacityPermissionFor($requestedAttendees, $actingUser) || $requiresLargeGroupRequest;
+
+        $bookedForUser = null;
+        if ($isStaffUser && ! empty($validated['user_id'])) {
+            $bookedForUser = User::query()
+                ->whereKey((int) $validated['user_id'])
+                ->where('role', User::ROLE_USER)
+                ->first();
+
+            if (! $bookedForUser) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The selected user could not be found for this booking.',
+                ], 422);
+            }
+        }
 
         if ($isStaffUser) {
             $qcIdVerification = [
                 'is_valid' => true,
                 'name_matches' => true,
                 'source' => 'staff_bypass',
-                'cardholder_name' => $validated['user_name'] ?? $actingUser->name,
+                'cardholder_name' => $validated['user_name'] ?? $bookedForUser?->name ?? $actingUser?->name,
             ];
 
-            $validated['user_name'] = $validated['user_name'] ?: $actingUser->name;
-            $validated['user_email'] = $validated['user_email'] ?: $actingUser->email;
+            $validated['user_name'] = $validated['user_name'] ?: $bookedForUser?->name ?: $actingUser?->name;
+            $validated['user_email'] = $validated['user_email'] ?: $bookedForUser?->email;
+            if (! empty($bookedForUser)) {
+                $validated['user_id'] = $bookedForUser->id;
+            }
         } elseif ($verifiedRegistration) {
             $qcIdVerification = [
                 'is_valid' => true,
@@ -389,12 +521,17 @@ class BookingController extends Controller
         unset($validated['qc_id_ocr_text'], $validated['qc_id_cardholder_name']);
 
         if ($actingUser) {
-            $validated['user_id'] = $validated['user_id'] ?? $actingUser->id;
-            $validated['user_email'] = $validated['user_email'] ?: $actingUser->email;
-            $validated['user_name'] = $validated['user_name'] ?: $actingUser->name;
+            if ($isStaffUser) {
+                $validated['user_id'] = $validated['user_id'] ?? $actingUser->id;
+                $validated['user_name'] = $validated['user_name'] ?: $actingUser->name;
+            } else {
+                $validated['user_id'] = $validated['user_id'] ?? $actingUser->id;
+                $validated['user_email'] = $validated['user_email'] ?: $actingUser->email;
+                $validated['user_name'] = $validated['user_name'] ?: $actingUser->name;
+            }
         }
 
-        if (! filled($validated['user_email']) && $actingUser) {
+        if (! filled($validated['user_email']) && $actingUser && ! $isStaffUser) {
             $validated['user_email'] = $actingUser->email;
             $validated['user_id'] = $actingUser->id;
         }
@@ -486,7 +623,7 @@ class BookingController extends Controller
         $successMessage = $isStaffUser 
             ? 'Booking confirmed successfully' 
             : ($requiresCapacityPermission
-                ? 'Booking submitted for librarian approval because collaborative room bookings above 10 attendees require permission.'
+                ? 'Booking submitted for librarian approval. Requests with 11-12 attendees need staff approval.'
                 : ($room->requires_approval
                     ? 'Booking submitted for approval'
                     : 'Booking confirmed successfully'));
@@ -516,14 +653,64 @@ class BookingController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'room_id' => 'required|exists:rooms,id',
-            'date' => 'required|date|after_or_equal:today',
-            'start_time' => 'required',
+            'date' => [
+                'required',
+                'date',
+                'after_or_equal:today',
+                function ($attribute, $value, $fail) {
+                    try {
+                        $selectedDate = Carbon::parse((string) $value)->startOfDay();
+                    } catch (\Throwable $e) {
+                        $fail('Please select a valid booking date.');
+                        return;
+                    }
+
+                    if ((int) $selectedDate->dayOfWeek === Carbon::SUNDAY) {
+                        $fail('Bookings are not allowed on Sundays.');
+                    }
+
+                    if ($selectedDate->greaterThan($this->bookingWindowEndDate())) {
+                        $fail('Bookings can only be made within the next 7 days.');
+                    }
+                },
+            ],
+            'start_time' => [
+                'required',
+                function ($attribute, $value, $fail) use ($request) {
+                    $selectedDate = trim((string) $request->input('date', ''));
+                    if ($selectedDate === '') {
+                        return;
+                    }
+
+                    if ($selectedDate !== now()->toDateString()) {
+                        return;
+                    }
+
+                    try {
+                        $selectedStart = Carbon::parse($selectedDate . ' ' . (string) $value);
+                    } catch (\Throwable $e) {
+                        $fail('Please select a valid booking time slot.');
+                        return;
+                    }
+
+                    if ($selectedStart->lt(now()->addMinutes(self::BOOKING_MIN_LEAD_MINUTES))) {
+                        $fail('The selected time slot must be at least 15 minutes in the future.');
+                    }
+                },
+            ],
             'end_time' => 'required|after:start_time',
-            'attendees' => 'required|integer|min:5',
+            'attendees' => 'required|integer|min:' . self::BOOKING_MIN_ATTENDEES . '|max:' . self::BOOKING_MAX_ATTENDEES,
             'user_name' => 'required|string|max:255',
             'user_email' => 'required|email|max:255',
             'description' => 'nullable|string',
         ]);
+
+        if (! $this->isAllowedBookingSlot((string) $validated['start_time'], (string) $validated['end_time'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selected time slot is no longer allowed. Choose one of the available hourly slots from 8:00 AM to 5:00 PM.',
+            ], 422);
+        }
 
         $booking->loadMissing('room', 'user');
 
@@ -683,8 +870,34 @@ class BookingController extends Controller
             ], 403);
         }
 
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:3', 'max:1000'],
+        ]);
+
+        if ($booking->status !== 'approved') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only approved bookings can be cancelled.',
+            ], 422);
+        }
+
+        $bookingStartAt = Carbon::parse(
+            $booking->date->format('Y-m-d') . ' ' . Carbon::parse((string) $booking->start_time)->format('H:i:s'),
+            config('app.timezone', 'Asia/Manila')
+        );
+
+        if (now(config('app.timezone', 'Asia/Manila'))->greaterThanOrEqualTo($bookingStartAt)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cancellation is unavailable once the booking time has started.',
+            ], 422);
+        }
+
         $booking->loadMissing('room');
-        $booking->update(['status' => 'cancelled']);
+        $booking->update([
+            'status' => 'cancelled',
+            'reason' => trim((string) $validated['reason']),
+        ]);
 
         // Determine who cancelled: admin or the user themselves
         $cancelledBy = ($canManageAll && !$isOwner) ? 'admin' : 'user';
@@ -984,6 +1197,31 @@ class BookingController extends Controller
         $booking->syncBookingStatus();
 
         return view('rooms.verify', ['booking' => $booking, 'token' => $token]);
+    }
+
+    private function bookingWindowEndDate(): Carbon
+    {
+        return Carbon::today()->addDays(self::BOOKING_MAX_AVAILABILITY_DAYS - 1)->endOfDay();
+    }
+
+    private function isAllowedBookingSlot(string $startTime, string $endTime): bool
+    {
+        $startMinutes = $this->timeStringToMinutes($startTime);
+        $endMinutes = $this->timeStringToMinutes($endTime);
+
+        if ($startMinutes === null || $endMinutes === null) {
+            return false;
+        }
+
+        if (($endMinutes - $startMinutes) !== 60) {
+            return false;
+        }
+
+        $openingMinutes = self::BOOKING_OPEN_HOUR * 60;
+        $closingMinutes = self::BOOKING_CLOSE_HOUR * 60;
+
+        return $startMinutes >= $openingMinutes
+            && $endMinutes <= $closingMinutes;
     }
 
     /**

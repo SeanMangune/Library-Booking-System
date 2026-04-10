@@ -165,9 +165,6 @@
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-3 flex-wrap mb-2">
                             <h3 class="text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{{ $booking->room->name }}</h3>
-                            @if($booking->room->location)
-                            <span class="text-sm font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-lg">{{ $booking->room->location }}</span>
-                            @endif
                         </div>
                         
                         <div class="flex flex-wrap gap-2 mb-3">
@@ -179,11 +176,6 @@
                             @if($booking->exceedsCapacity())
                             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-black uppercase bg-purple-50 text-purple-700 border border-purple-200">
                                 <i class="fa-solid fa-users"></i> Over Capacity
-                            </span>
-                            @endif
-                            @if($booking->requiresCapacityPermission())
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-black uppercase bg-blue-50 text-blue-700 border border-blue-200">
-                                <i class="fa-solid fa-shield-halved"></i> Capacity Exception
                             </span>
                             @endif
                         </div>

@@ -3,13 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
-use App\Models\User;
 use App\Services\BookingTimeAlertService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
-use Carbon\Carbon;
 
 class NotificationController extends Controller
 {
@@ -118,11 +116,12 @@ class NotificationController extends Controller
         }
 
         $staffOnlyFragments = [
-            '/rooms/approvals',
-            '/rooms/manage',
+            '/approvals',
+            '/manage-rooms',
             '/reports',
             '/settings',
             '/api/users/search',
+            '/calendar-per-room/users/search',
         ];
 
         foreach ($staffOnlyFragments as $fragment) {

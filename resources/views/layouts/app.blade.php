@@ -304,7 +304,7 @@
                 return $value;
             }
 
-            foreach (['/rooms/approvals', '/rooms/manage', '/reports', '/settings', '/api/users/search', '/logout'] as $fragment) {
+            foreach (['/approvals', '/manage-rooms', '/reports', '/settings', '/api/users/search', '/calendar-per-room/users/search', '/logout'] as $fragment) {
                 if (str_contains($value, $fragment)) {
                     return route('dashboard');
                 }
@@ -315,6 +315,20 @@
         $identityBadgeLabel = $isStaff
             ? 'Librarian'
             : ($currentUser?->classificationLabel() ?? 'Student');
+        $sidebarShellGradient = 'bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900';
+        $sidebarHeaderGradient = 'bg-gradient-to-r from-indigo-900/50 to-transparent';
+        $brandSubtitleTone = 'text-indigo-300';
+        $headerNotificationGradient = 'bg-gradient-to-r from-indigo-600 to-indigo-700';
+        $headerActionTone = 'text-indigo-600 hover:text-indigo-700';
+        $avatarGradient = 'bg-gradient-to-br from-indigo-500 to-purple-600';
+        $identityBadgeClasses = 'bg-indigo-50 text-indigo-700';
+        $identityCaptionTone = 'text-indigo-600';
+        $mobileNavBorderClass = 'border-indigo-100';
+        $mobileNavActiveClasses = 'bg-indigo-600 text-white shadow-md';
+        $mobileNavInactiveClasses = 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-700';
+        $reservationsRoute = ($currentUser?->isAdmin() || $currentUser?->isSuperAdmin())
+            ? route('reservations.admin')
+            : route('reservations.user');
         $initials = $currentUser
             ? collect(preg_split('/\s+/', trim($currentUser->name)))->filter()->take(2)->map(fn ($p) => mb_strtoupper(mb_substr($p, 0, 1)))->implode('')
             : 'U';
@@ -387,7 +401,7 @@
         },
     }" x-init="initSidebarMode()" class="min-h-screen flex">
         <!-- Sidebar -->
-        <aside class="sidebar-shell fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 transform shadow-xl"
+        <aside class="sidebar-shell fixed inset-y-0 left-0 z-50 {{ $sidebarShellGradient }} transform shadow-xl"
                @mouseenter="handleSidebarMouseEnter()"
                @mouseleave="handleSidebarMouseLeave()"
                :class="canHoverSidebar && !sidebarHoverExpand ? 'sidebar-collapsed' : ''"
@@ -397,7 +411,7 @@
                        ? { width: '16rem', transform: 'translateX(0)' }
                        : { width: '16rem', transform: 'translateX(-100%)' })">
             <!-- Logo -->
-            <div class="sidebar-header flex items-center justify-between h-20 px-4 border-b border-white/10 bg-gradient-to-r from-indigo-900/50 to-transparent">
+            <div class="sidebar-header flex items-center justify-between h-20 px-4 border-b border-white/10 {{ $sidebarHeaderGradient }}">
                 <a href="{{ route('dashboard') }}" class="flex items-center gap-3 no-underline">
                     <div class="relative h-12 w-12 flex items-center justify-center">
                         <span class="absolute inset-0 rounded-full bg-indigo-400/25 blur-md"></span>
@@ -405,7 +419,7 @@
                     </div>
                     <div class="sidebar-brand">
                         <span class="text-white font-bold text-lg tracking-tight">SmartSpace</span>
-                        <p class="text-indigo-300 text-xs">Reservation System</p>
+                        <p class="{{ $brandSubtitleTone }} text-xs">Reservation System</p>
                     </div>
                 </a>
                 <button @click="sidebarOpen = false" x-show="!canHoverSidebar" x-cloak class="text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors">
@@ -451,7 +465,7 @@
                     </a>
                 @endif
 
-                <a href="{{ route('reservations.index') }}" 
+                <a href="{{ $reservationsRoute }}" 
                    title="Reservations"
                    class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-indigo-200 hover:text-white transition-all duration-200 mb-1 {{ request()->routeIs('reservations.*') ? 'active' : '' }}">
                     <i class="w-5 h-5 fa-icon fa-solid fa-file text-xl leading-none"></i>
@@ -469,7 +483,7 @@
                     <button @click="$dispatch('open-master-qr')"
                            title="Master QR"
                            class="sidebar-link w-full flex items-center justify-start gap-3 px-4 py-3 rounded-lg text-indigo-200 hover:text-white transition-all duration-200 mb-1">
-                        <i class="w-5 h-5 fa-icon fa-solid fa-qrcode text-xl leading-none w-5 text-center"></i>
+                        <i class="w-5 h-5 fa-icon fa-solid fa-qrcode text-xl leading-none text-center"></i>
                         <span class="sidebar-text">Master QR</span>
                     </button>
                 @endif
@@ -520,61 +534,55 @@
                                  x-transition:leave-end="opacity-0 scale-95"
                                  :style="(() => { const r = $refs.notifBtn?.getBoundingClientRect(); if (!r) return {}; const isMobile = window.innerWidth <= 640; if (isMobile) { return { position: 'fixed', top: (r.bottom + 8) + 'px', left: '50%', transform: 'translateX(-50%)' }; } return { position: 'fixed', top: (r.bottom + 8) + 'px', right: Math.max(8, window.innerWidth - r.right) + 'px' }; })()"
                                  class="w-80 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50">
-                                <div class="bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-3">
+                                <div class="{{ $headerNotificationGradient }} px-4 py-3">
                                     <div class="flex items-center justify-between">
                                         <h3 class="text-white font-semibold">Notifications</h3>
                                         <span data-role="header-unread-chip"
-                                              class="bg-white/20 text-white text-xs px-2 py-1 rounded-full {{ $headerNotificationCount > 0 ? '' : 'hidden' }}">{{ $headerNotificationCount }} unread</span>
+                                              class="bg-white/20 text-white text-xs px-2 py-1 rounded-full {{ $headerNotificationCount > 0 ? '' : 'hidden' }}">{{ $headerNotificationCount }} total</span>
                                     </div>
                                 </div>
 
-                                <div class="max-h-80 overflow-y-auto">
+                                @php
+                                    $hasCombinedNotifications = ($isStaff && $recentPendingApprovals->isNotEmpty()) || $userUnreadNotifications->isNotEmpty();
+                                @endphp
+
+                                <div class="max-h-80 overflow-y-auto" data-role="combined-notification-list">
                                     @if($isStaff)
-                                        <div data-role="pending-approvals-section">
-                                            <div class="px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50 border-b border-gray-100">Pending Approvals</div>
-                                            <div data-role="pending-approvals-list">
-                                                @forelse($recentPendingApprovals as $notif)
-                                                <a href="{{ route('approvals.index') }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
-                                                    <div class="flex items-start gap-3">
-                                                        <div class="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
-                                                            <i class="w-5 h-5 text-amber-600 fa-icon fa-solid fa-clock text-xl leading-none"></i>
-                                                        </div>
-                                                        <div class="flex-1 min-w-0">
-                                                            <p class="text-sm font-medium text-gray-900 truncate">{{ $notif->room->name ?? 'Room' }}</p>
-                                                            <p class="text-xs text-gray-500">{{ $notif->user_name }} requested booking</p>
-                                                            <p class="text-xs text-gray-400 mt-1">{{ $notif->created_at->diffForHumans() }}</p>
-                                                        </div>
-                                                    </div>
-                                                </a>
-                                                @empty
-                                                <div class="px-4 py-3 border-b border-gray-100">
-                                                    <p class="text-sm text-gray-500">No pending approvals right now.</p>
+                                        @foreach($recentPendingApprovals as $notif)
+                                        <a href="{{ route('approvals.index') }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
+                                            <div class="flex items-start gap-3">
+                                                <div class="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
+                                                    <i class="w-5 h-5 text-amber-600 fa-icon fa-solid fa-clock text-xl leading-none"></i>
                                                 </div>
-                                                @endforelse
+                                                <div class="flex-1 min-w-0">
+                                                    <p class="text-sm font-medium text-gray-900 truncate">{{ $notif->room->name ?? 'Room' }}</p>
+                                                    <p class="text-xs text-gray-500">{{ $notif->user_name }} requested booking</p>
+                                                    <p class="text-xs text-gray-400 mt-1">{{ $notif->created_at->diffForHumans() }}</p>
+                                                </div>
                                             </div>
-                                        </div>
+                                        </a>
+                                        @endforeach
                                     @endif
 
-                                    <div class="px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50 border-b border-gray-100">Your Unread</div>
-                                    <div data-role="user-unread-list">
-                                        @forelse($userUnreadNotifications as $notification)
-                                        <a href="{{ $safeNotificationUrl($notification->data['url'] ?? '#') }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
-                                            <p class="text-sm font-medium text-gray-900">{{ $notification->data['title'] ?? 'Notification' }}</p>
-                                            <p class="text-xs text-gray-600 mt-1">{{ $notification->data['message'] ?? '' }}</p>
-                                            <p class="text-xs text-gray-400 mt-1">{{ $notification->created_at->diffForHumans() }}</p>
-                                        </a>
-                                        @empty
-                                        <div class="px-4 py-8 text-center">
-                                            <i class="w-12 h-12 text-gray-300 mx-auto mb-2 fa-icon fa-solid fa-inbox text-5xl leading-none"></i>
-                                            <p class="text-sm text-gray-500">No unread notifications</p>
-                                        </div>
-                                        @endforelse
+                                    @foreach($userUnreadNotifications as $notification)
+                                    <a href="{{ $safeNotificationUrl($notification->data['url'] ?? '#') }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
+                                        <p class="text-sm font-medium text-gray-900">{{ $notification->data['title'] ?? 'Notification' }}</p>
+                                        <p class="text-xs text-gray-600 mt-1">{{ $notification->data['message'] ?? '' }}</p>
+                                        <p class="text-xs text-gray-400 mt-1">{{ $notification->created_at->diffForHumans() }}</p>
+                                    </a>
+                                    @endforeach
+
+                                    @unless($hasCombinedNotifications)
+                                    <div class="px-4 py-8 text-center">
+                                        <i class="w-12 h-12 text-gray-300 mx-auto mb-2 fa-icon fa-solid fa-inbox text-5xl leading-none"></i>
+                                        <p class="text-sm text-gray-500">No notifications</p>
                                     </div>
+                                    @endunless
                                 </div>
 
                                 <div class="bg-gray-50 px-4 py-3 flex items-center justify-between gap-2">
                                     @if($isStaff)
-                                    <a href="{{ route('approvals.index') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-700">Pending approvals</a>
+                                    <a href="{{ route('approvals.index') }}" class="text-sm font-medium {{ $headerActionTone }}">Pending approvals</a>
                                     @else
                                     <span class="text-sm text-gray-500">Up to date</span>
                                     @endif
@@ -582,7 +590,7 @@
                                     <div data-role="mark-all-read-container" class="{{ $userUnreadCount > 0 ? '' : 'hidden' }}">
                                         <form method="POST" action="{{ route('notifications.mark-all-read') }}" data-role="mark-all-read-form">
                                             @csrf
-                                            <button type="submit" class="text-sm font-medium text-indigo-600 hover:text-indigo-700">Mark all as read</button>
+                                            <button type="submit" class="text-sm font-medium {{ $headerActionTone }}">Mark all as read</button>
                                         </form>
                                     </div>
                                 </div>
@@ -592,13 +600,13 @@
                         <!-- User Menu -->
                         <div x-data="{ open: false, logoutOpen: false }" class="relative">
                             <button @click="open = !open" class="flex items-center gap-3 text-sm font-medium text-gray-700 hover:text-gray-900 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-                                <div class="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold shadow-md">
+                                <div class="w-9 h-9 {{ $avatarGradient }} rounded-full flex items-center justify-center text-white font-bold shadow-md">
                                     {{ $initials }}
                                 </div>
                                 <div class="hidden sm:block text-left">
                                     <p class="font-semibold text-gray-800" title="{{ $currentUser?->name }}">{{ Str::limit($currentUser?->name, 14) }}</p>
                                     <div class="flex items-center gap-1.5">
-                                        <span class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">{{ $identityBadgeLabel }}</span>
+                                        <span class="inline-flex items-center rounded-full {{ $identityBadgeClasses }} px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">{{ $identityBadgeLabel }}</span>
                                         <span class="text-xs text-gray-500">{{ $currentUser?->roleLabel() ?? 'User' }}</span>
                                     </div>
                                 </div>
@@ -615,7 +623,7 @@
                                 <div class="px-4 py-3 border-b border-gray-100">
                                     <p class="text-sm font-semibold text-gray-800">{{ $currentUser?->name }}</p>
                                     <p class="text-xs text-gray-500 break-all">{{ $currentUser?->email }}</p>
-                                    <p class="mt-1 text-[11px] font-semibold uppercase tracking-wide text-indigo-600">{{ $identityBadgeLabel }}</p>
+                                    <p class="mt-1 text-[11px] font-semibold uppercase tracking-wide {{ $identityCaptionTone }}">{{ $identityBadgeLabel }}</p>
                                 </div>
                                 <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                                     <i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-user text-base leading-none"></i>
@@ -652,35 +660,35 @@
         </div>
 
         <!-- Mobile Bottom Navigation -->
-        <nav class="mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-indigo-100 bg-white/90 shadow-[0_-12px_28px_-20px_rgba(30,41,59,0.65)] sm:hidden">
+        <nav class="mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t {{ $mobileNavBorderClass }} bg-white/90 shadow-[0_-12px_28px_-20px_rgba(30,41,59,0.65)] sm:hidden">
             <div class="grid grid-cols-5 gap-1 px-2 pt-2">
                 <a href="{{ route('dashboard') }}"
-                   class="flex flex-col items-center justify-center rounded-xl px-1.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] transition-all {{ request()->routeIs('dashboard') ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-700' }}">
+                   class="flex flex-col items-center justify-center rounded-xl px-1.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] transition-all {{ request()->routeIs('dashboard') ? $mobileNavActiveClasses : $mobileNavInactiveClasses }}">
                     <i class="fa-solid fa-house text-sm"></i>
                     <span class="mt-1 leading-none">Home</span>
                 </a>
 
-                <a href="{{ route('reservations.index') }}"
-                   class="flex flex-col items-center justify-center rounded-xl px-1.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] transition-all {{ request()->routeIs('reservations.*') ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-700' }}">
+                <a href="{{ $reservationsRoute }}"
+                   class="flex flex-col items-center justify-center rounded-xl px-1.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] transition-all {{ request()->routeIs('reservations.*') ? $mobileNavActiveClasses : $mobileNavInactiveClasses }}">
                     <i class="fa-solid fa-file-lines text-sm"></i>
                     <span class="mt-1 leading-none">Reserve</span>
                 </a>
 
                 <a href="{{ route('calendar.index') }}"
-                   class="flex flex-col items-center justify-center rounded-xl px-1.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] transition-all {{ request()->routeIs('calendar.*') ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-700' }}">
+                   class="flex flex-col items-center justify-center rounded-xl px-1.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] transition-all {{ request()->routeIs('calendar.*') ? $mobileNavActiveClasses : $mobileNavInactiveClasses }}">
                     <i class="fa-solid fa-calendar-days text-sm"></i>
                     <span class="mt-1 leading-none">Calendar</span>
                 </a>
 
                 @if($isStaff)
                     <a href="{{ route('approvals.index') }}"
-                       class="flex flex-col items-center justify-center rounded-xl px-1.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] transition-all {{ request()->routeIs('approvals.*') ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-700' }}">
+                       class="flex flex-col items-center justify-center rounded-xl px-1.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] transition-all {{ request()->routeIs('approvals.*') ? $mobileNavActiveClasses : $mobileNavInactiveClasses }}">
                         <i class="fa-solid fa-circle-check text-sm"></i>
                         <span class="mt-1 leading-none">Approve</span>
                     </a>
                 @else
                     <a href="{{ route('profile.edit') }}"
-                       class="flex flex-col items-center justify-center rounded-xl px-1.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] transition-all {{ request()->routeIs('profile.*') ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-700' }}">
+                       class="flex flex-col items-center justify-center rounded-xl px-1.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] transition-all {{ request()->routeIs('profile.*') ? $mobileNavActiveClasses : $mobileNavInactiveClasses }}">
                         <i class="fa-solid fa-user text-sm"></i>
                         <span class="mt-1 leading-none">Profile</span>
                     </a>
@@ -688,7 +696,7 @@
 
                 <button type="button"
                         @click="sidebarOpen = true"
-                        class="flex flex-col items-center justify-center rounded-xl px-1.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-600 transition-all hover:bg-indigo-50 hover:text-indigo-700">
+                        class="flex flex-col items-center justify-center rounded-xl px-1.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] {{ $mobileNavInactiveClasses }} transition-all">
                     <i class="fa-solid fa-bars text-sm"></i>
                     <span class="mt-1 leading-none">Menu</span>
                 </button>

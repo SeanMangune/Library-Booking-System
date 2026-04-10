@@ -38,10 +38,10 @@
 @endphp
 <div x-data="dashboardApp()" x-init="init()" class="flex flex-col xl:h-[calc(100dvh-9rem)] xl:overflow-hidden">
     <div class="flex-1 min-h-0 overflow-y-auto px-1 group/dashboard">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-8">
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 pb-8">
 
-            <!-- Left Column: Welcome, Stats, Verification (lg:col-span-4) -->
-            <div class="lg:col-span-4 space-y-6">
+            <!-- Left Column: Welcome, Stats, Verification (xl:col-span-4) -->
+            <div class="xl:col-span-4 space-y-6">
                 <!-- Welcome Card -->
                 <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl border border-indigo-500/20 shadow-lg p-6 relative overflow-hidden group/welcome hover:shadow-xl transition-all duration-300 animate-slide-in-up stagger-1">
                     <div class="absolute -right-4 -bottom-4 opacity-20 transform rotate-12 group-hover/welcome:scale-110 transition-transform">
@@ -57,9 +57,9 @@
                                 <i class="fa-solid fa-lightbulb text-indigo-200"></i> Quick Tips
                             </h3>
                             <ul class="space-y-1.5 text-indigo-100 text-xs leading-relaxed">
-                                <li class="flex items-start gap-2"><i class="fa-solid fa-check mt-0.5 opacity-80"></i> Book up to 14 days ahead</li>
+                                <li class="flex items-start gap-2"><i class="fa-solid fa-check mt-0.5 opacity-80"></i> Book up to the next 7 days</li>
                                 <li class="flex items-start gap-2"><i class="fa-solid fa-check mt-0.5 opacity-80"></i> Approved bookings generate a QR code for seamless check-in</li>
-                                <li class="flex items-start gap-2"><i class="fa-solid fa-check mt-0.5 opacity-80"></i> Cancellations must be made at least 2 hours before your scheduled slot</li>
+                                <li class="flex items-start gap-2"><i class="fa-solid fa-check mt-0.5 opacity-80"></i> Cancellations are only allowed before the booking start time</li>
                             </ul>
                         </div>
 
@@ -67,7 +67,7 @@
                             <button @click="openBookingModal()" class="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-700 text-xs font-bold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0">
                                 <i class="fa-solid fa-plus opacity-70"></i> New Booking
                             </button>
-                            <a href="{{ route('reservations.index') }}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-800/40 hover:bg-indigo-800/60 text-white text-xs font-semibold rounded-xl transition-all border border-indigo-400/30 hover:shadow-md">
+                            <a href="{{ route('reservations.user') }}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-800/40 hover:bg-indigo-800/60 text-white text-xs font-semibold rounded-xl transition-all border border-indigo-400/30 hover:shadow-md">
                                 <i class="fa-solid fa-list opacity-70"></i> My Reservations
                             </a>
                         </div>
@@ -122,6 +122,8 @@
                     </div>
                 </div>
 
+                <div id="user-calendar-compact-anchor" class="hidden space-y-6"></div>
+
                 <!-- Verification Status Card -->
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
                     <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
@@ -174,7 +176,7 @@
                             <i class="fa-solid fa-bolt text-amber-500"></i>
                             Upcoming Bookings
                         </h3>
-                        <a href="{{ route('reservations.index') }}" class="text-xs font-semibold text-teal-600 hover:text-teal-700 transition-colors">
+                        <a href="{{ route('reservations.user') }}" class="text-xs font-semibold text-teal-600 hover:text-teal-700 transition-colors">
                             View All &rarr;
                         </a>
                     </div>
@@ -226,10 +228,11 @@
                 </div>
             </div>
 
-            <!-- Right Column: Calendar & Bookings (lg:col-span-8) -->
-            <div class="lg:col-span-8 space-y-6">
+            <!-- Right Column: Calendar & Bookings (xl:col-span-8) -->
+            <div class="xl:col-span-8 space-y-6">
+                <div id="user-calendar-origin" class="hidden"></div>
                 <!-- Calendar -->
-                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all duration-300">
+                <div id="user-calendar-card" class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all duration-300">
                     <div class="bg-gradient-to-r from-purple-700 to-blue-600 px-6 py-4 grid grid-cols-1 sm:grid-cols-3 items-center gap-4 relative overflow-hidden">
                         <div class="absolute -right-2 -bottom-4 opacity-10 transform -rotate-12 pointer-events-none">
                             <i class="fa-solid fa-calendar-days text-7xl text-white"></i>
@@ -277,26 +280,27 @@
                                 <div class="grid grid-cols-7">
                                     <template x-for="(day, index) in calCells" :key="day.date || index">
                                         <div class="min-h-[110px] sm:min-h-[130px] border-b border-r border-gray-100 p-2 relative group/day transition-all"
-                                             @click="!day.isPast && day.isCurrentMonth && openBookingModalForDay(day)"
+                                             @click="isCalendarDayInteractive(day) && openBookingModalForDay(day)"
                                              :class="{
                                                  'bg-gray-50/50': !day.isCurrentMonth,
-                                                 'bg-teal-50/30': day.isToday,
-                                                 'cursor-pointer hover:bg-teal-50/80 hover:z-10 hover:shadow-lg': day.isCurrentMonth && !day.isPast,
-                                                 'cursor-not-allowed': !day.isCurrentMonth || day.isPast,
-                                                 'opacity-40 grayscale': day.isPast && day.isCurrentMonth,
+                                                 'bg-rose-50/30': day.isToday && !day.isTimeLocked,
+                                                 'bg-gray-100/80': day.isTimeLocked,
+                                                 'cursor-pointer hover:bg-rose-50/80 hover:z-10 hover:shadow-lg': isCalendarDayInteractive(day),
+                                                 'cursor-not-allowed': !isCalendarDayInteractive(day),
+                                                 'opacity-45 grayscale': day.isCurrentMonth && (day.isPast || day.isTimeLocked),
                                              }">
                                             <div class="flex items-center justify-between mb-2">
                                                 <span class="text-xs font-black"
-                                                      :class="day.isToday ? 'bg-teal-600 text-white w-6 h-6 rounded-full flex items-center justify-center -ml-1' : (day.isCurrentMonth ? 'text-gray-600' : 'text-gray-300')"
+                                                      :class="day.isToday && !day.isTimeLocked ? 'bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center -ml-1' : (day.isCurrentMonth ? 'text-gray-600' : 'text-gray-300')"
                                                       x-text="day.day"></span>
                                             </div>
                                             <div class="space-y-1 overflow-hidden">
                                                 <template x-for="event in day.events.slice(0, 3)" :key="event.id">
                                                     <div class="relative group/event">
                                                                                                                      <div class="text-[10px] px-2 py-1 bg-white border border-gray-100 text-gray-700 rounded-lg shadow-sm truncate transition-all font-medium flex items-center gap-1.5"
-                                                                                                                         @click.stop="day.isCurrentMonth && !day.isPast && openViewBookingModal(event)"
-                                                                                                                         :class="day.isCurrentMonth && !day.isPast ? 'cursor-pointer hover:border-teal-400 hover:text-teal-700' : 'cursor-not-allowed'">
-                                                                <span class="w-1.5 h-1.5 rounded-full" :class="event.is_owner ? 'bg-emerald-500' : 'bg-rose-500'"></span>
+                                                                                                                         @click.stop="isEventInteractive(event, day) && openViewBookingModal(event)"
+                                                                                                                         :class="isEventInteractive(event, day) ? 'cursor-pointer hover:border-rose-400 hover:text-rose-700' : 'cursor-not-allowed opacity-45 grayscale bg-gray-100 text-gray-500 border-gray-200'">
+                                                                <span class="w-1.5 h-1.5 rounded-full" :class="event.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'"></span>
                                                                 <span x-text="formatEventChipTime(event)"></span>
                                                                 <span class="opacity-60">|</span>
                                                                 <span x-text="event.room_name?.split(' ')[1] || event.room_name"></span>
@@ -304,9 +308,9 @@
                                                     </div>
                                                 </template>
                                                 <template x-if="day.events.length > 3">
-                                                    <button @click.stop="day.isCurrentMonth && !day.isPast && openDayEventsModal(day)"
-                                                        class="text-[9px] w-full text-left font-bold text-teal-600 px-1 py-0.5 rounded transition-colors"
-                                                        :class="day.isCurrentMonth && !day.isPast ? 'cursor-pointer hover:text-teal-800 hover:underline' : 'cursor-not-allowed'"
+                                                    <button @click.stop="isCalendarDayInteractive(day) && openDayEventsModal(day)"
+                                                        class="text-[9px] w-full text-left font-bold text-rose-600 px-1 py-0.5 rounded transition-colors"
+                                                        :class="isCalendarDayInteractive(day) ? 'cursor-pointer hover:text-rose-800 hover:underline' : 'cursor-not-allowed'"
                                                         x-text="'+ ' + (day.events.length - 3) + ' more'"></button>
                                                 </template>
                                             </div>
@@ -319,15 +323,16 @@
                         <!-- List View -->
                         <div x-show="calendarView === 'listWeek'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" class="space-y-3">
                             <template x-for="(event, idx) in listEvents" :key="idx">
-                                <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl border border-gray-100 bg-gray-50/40 hover:bg-white hover:shadow-sm hover:-translate-y-0.5 transition-all cursor-pointer group"
-                                     @click="openViewBookingModal(event)">
+                                  <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl border border-gray-100 bg-gray-50/40 transition-all group"
+                                      :class="isListEventInteractive(event) ? 'cursor-pointer hover:bg-white hover:shadow-sm hover:-translate-y-0.5' : 'cursor-not-allowed opacity-45 grayscale'"
+                                      @click="isListEventInteractive(event) && openViewBookingModal(event)">
                                     <div class="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                                        <div class="text-center shrink-0 w-12 h-12 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center group-hover:border-teal-300 group-hover:bg-teal-50 transition-colors">
-                                            <p class="text-[9px] font-bold text-teal-600 uppercase" x-text="new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', {weekday: 'short'})"></p>
-                                            <p class="text-lg font-black text-gray-900 group-hover:text-teal-700" x-text="new Date(event.date + 'T00:00:00').getDate()"></p>
+                                        <div class="text-center shrink-0 w-12 h-12 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center group-hover:border-rose-300 group-hover:bg-rose-50 transition-colors">
+                                            <p class="text-[9px] font-bold text-rose-600 uppercase" x-text="new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', {weekday: 'short'})"></p>
+                                            <p class="text-lg font-black text-gray-900 group-hover:text-rose-700" x-text="new Date(event.date + 'T00:00:00').getDate()"></p>
                                         </div>
                                         <div class="flex-1 min-w-0">
-                                            <p class="text-sm font-bold text-gray-900 group-hover:text-teal-700 transition-colors truncate" x-text="event.room_name"></p>
+                                            <p class="text-sm font-bold text-gray-900 group-hover:text-rose-700 transition-colors truncate" x-text="event.room_name"></p>
                                             <div class="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 mt-0.5 text-xs text-gray-500">
                                                 <span class="flex items-center gap-1 font-medium truncate"><i class="fa-regular fa-clock"></i> <span x-text="event.formatted_time || ''"></span></span>
                                                 <span class="hidden sm:inline opacity-50">&bull;</span>
@@ -337,7 +342,7 @@
                                     </div>
                                                                         <span class="self-start sm:self-center shrink-0 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-colors border ml-15 sm:ml-0"
                                                                                     :class="event.is_owner
-                                                                                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200 group-hover:bg-emerald-600 group-hover:text-white group-hover:border-emerald-600'
+                                                                                        ? 'bg-red-100 text-red-700 border-red-200 group-hover:bg-red-600 group-hover:text-white group-hover:border-red-600'
                                                                                         : 'bg-rose-100 text-rose-700 border-rose-200 group-hover:bg-rose-600 group-hover:text-white group-hover:border-rose-600'"
                                                                                     x-text="event.is_owner ? 'My Booking' : 'Occupied'"></span>
                                 </div>
@@ -457,12 +462,50 @@
     'monthDataUrl' => route('calendar.month'),
     'eventsUrl' => route('calendar.events'),
     'availabilityUrl' => route('calendar.availability'),
+    'staffUserLookupUrl' => route('rooms.users.search'),
     'verifyQcIdUrl' => route('qcid.verify'),
     'storeBookingUrl' => route('reservations.store'),
 ]) !!}
 </script>
 <script>
 window.dashboardCalendarConfig = JSON.parse(document.getElementById('dashboard-calendar-config').textContent);
+
+(function setupUserCalendarResponsivePlacement() {
+    const compactMediaQuery = window.matchMedia('(max-width: 1279px)');
+
+    const moveCalendarCard = () => {
+        const calendarCard = document.getElementById('user-calendar-card');
+        const compactAnchor = document.getElementById('user-calendar-compact-anchor');
+        const originAnchor = document.getElementById('user-calendar-origin');
+
+        if (!calendarCard || !compactAnchor || !originAnchor) {
+            return;
+        }
+
+        if (compactMediaQuery.matches) {
+            compactAnchor.classList.remove('hidden');
+            if (calendarCard.parentElement !== compactAnchor) {
+                compactAnchor.appendChild(calendarCard);
+            }
+            return;
+        }
+
+        compactAnchor.classList.add('hidden');
+        if (calendarCard.parentElement !== originAnchor.parentElement || calendarCard.previousElementSibling !== originAnchor) {
+            originAnchor.after(calendarCard);
+        }
+    };
+
+    moveCalendarCard();
+
+    if (typeof compactMediaQuery.addEventListener === 'function') {
+        compactMediaQuery.addEventListener('change', moveCalendarCard);
+    } else if (typeof compactMediaQuery.addListener === 'function') {
+        compactMediaQuery.addListener(moveCalendarCard);
+    }
+
+    window.addEventListener('orientationchange', moveCalendarCard);
+})();
 </script>
 @endpush
 @endsection

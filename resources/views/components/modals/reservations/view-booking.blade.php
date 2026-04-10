@@ -45,7 +45,6 @@
                         <div class="p-4 bg-gray-50 rounded-xl">
                             <p class="text-xs font-medium text-gray-500 mb-1">Room</p>
                             <p class="font-semibold text-gray-900 truncate" x-text="selectedBooking?.room_name"></p>
-                            <p class="text-sm text-gray-500 truncate" x-text="selectedBooking?.room_location || 'No location'"></p>
                         </div>
                         <div class="p-4 bg-gray-50 rounded-xl">
                             <p class="text-xs font-medium text-gray-500 mb-1">Date & Time</p>

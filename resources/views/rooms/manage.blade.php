@@ -384,7 +384,7 @@ function roomManagement() {
                     status_end_at: endValue,
                 });
 
-                const response = await fetch(`/rooms/manage/${this.editingRoomId}/affected-bookings?${params.toString()}`, {
+                const response = await fetch(`/manage-rooms/${this.editingRoomId}/affected-bookings?${params.toString()}`, {
                     headers: {
                         'Accept': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
@@ -472,8 +472,8 @@ function roomManagement() {
                 }
 
                 const url = this.isEditing
-                    ? `/rooms/manage/${this.editingRoomId}`
-                    : '/rooms/manage';
+                    ? `/manage-rooms/${this.editingRoomId}`
+                    : '/manage-rooms';
                 const method = this.isEditing ? 'PUT' : 'POST';
 
                 const response = await fetch(url, {
@@ -523,7 +523,7 @@ function roomManagement() {
 
             this.isDeleting = true;
             try {
-                const response = await fetch(`/rooms/manage/${this.deleteRoom.id}`, {
+                const response = await fetch(`/manage-rooms/${this.deleteRoom.id}`, {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
