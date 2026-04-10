@@ -37,6 +37,17 @@ export function createApprovalDetailsModalState() {
         isLoading: false,
         actionType: null,
         rejectionReason: '',
+        approvalsReloadTimer: null,
+
+        queueApprovalsReload(delayMs = 1200) {
+            if (this.approvalsReloadTimer) {
+                return;
+            }
+
+            this.approvalsReloadTimer = window.setTimeout(() => {
+                window.location.reload();
+            }, delayMs);
+        },
 
         openApprovalModal(booking) {
             this.selectedBooking = booking;
@@ -100,6 +111,7 @@ export function createApprovalDetailsModalState() {
                 this.qrImageFailed = false;
                 this.showModal = false;
                 this.showSuccessModal = true;
+                this.queueApprovalsReload(1500);
             } catch (error) {
                 console.error('Error:', error);
                 window.notifyApp?.('error', error?.message || 'An error occurred while approving the booking');
@@ -149,6 +161,7 @@ export function createApprovalDetailsModalState() {
                 this.showModal = false;
                 this.showRejectModal = true;
                 this.rejectionReason = '';
+                this.queueApprovalsReload();
             } catch (error) {
                 console.error('Error:', error);
                 window.notifyApp?.('error', error?.message || 'An error occurred while rejecting the booking');
