@@ -70,7 +70,7 @@ export function createApprovalDetailsModalState() {
             this.actionType = 'approve';
 
             try {
-                const response = await fetch(`/approvals/${this.selectedBooking.id}/approve`, {
+                const response = await fetch(`/rooms/approvals/${this.selectedBooking.id}/approve`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -136,7 +136,7 @@ export function createApprovalDetailsModalState() {
             this.actionType = 'reject';
 
             try {
-                const response = await fetch(`/approvals/${this.selectedBooking.id}/reject`, {
+                const response = await fetch(`/rooms/approvals/${this.selectedBooking.id}/reject`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

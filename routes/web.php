@@ -142,9 +142,16 @@ Route::middleware(['auth', 'role:admin,librarian'])->group(function () {
     Route::delete('/all-reservations/{booking}', [BookingController::class, 'destroy'])->name('reservations.destroy');
 
     // Approvals
-    Route::get('/approvals', [BookingController::class, 'approvals'])->name('approvals.index');
-    Route::post('/approvals/{booking}/approve', [BookingController::class, 'approve'])->name('approvals.approve');
-    Route::post('/approvals/{booking}/reject', [BookingController::class, 'reject'])->name('approvals.reject');
+    Route::get('/rooms/approvals', [BookingController::class, 'approvals'])->name('approvals.index');
+    Route::post('/rooms/approvals/{booking}/approve', [BookingController::class, 'approve'])->name('approvals.approve');
+    Route::post('/rooms/approvals/{booking}/reject', [BookingController::class, 'reject'])->name('approvals.reject');
+
+    // URL aliases (keep both addresses working in production)
+    Route::get('/approvals', function (Request $request) {
+        return redirect()->route('approvals.index', $request->query());
+    });
+    Route::post('/approvals/{booking}/approve', [BookingController::class, 'approve']);
+    Route::post('/approvals/{booking}/reject', [BookingController::class, 'reject']);
 
     // API endpoints for dashboard
     Route::get('/api/users/search', function(\Illuminate\Http\Request $request) {
@@ -173,10 +180,6 @@ Route::middleware('auth')->get('/rooms/room-reservations', function (Request $re
 
 Route::middleware('auth')->get('/rooms/manage', function (Request $request) {
     return redirect()->route('rooms.index', $request->query());
-});
-
-Route::middleware(['auth', 'role:admin,librarian'])->get('/rooms/approvals', function (Request $request) {
-    return redirect()->route('approvals.index', $request->query());
 });
 
 // Public verification page for scanned QR tokens
