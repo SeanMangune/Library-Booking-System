@@ -63,32 +63,57 @@ class BookingApprovedMail extends Mailable
             return [];
         }
 
-        $qrData = $this->buildQrPng($token);
-        if ($qrData === null) {
+        $qrAttachment = $this->buildQrAttachment($token);
+        if ($qrAttachment === null) {
             return [];
         }
 
         $safeCode = preg_replace('/[^A-Za-z0-9_-]+/', '-', (string) ($this->booking->booking_code ?? $this->booking->id));
-        $filename = 'booking-qr-' . trim((string) $safeCode, '-') . '.svg';
+        $filename = 'booking-qr-' . trim((string) $safeCode, '-') . '.' . $qrAttachment['extension'];
 
         return [
-            Attachment::fromData(fn () => $qrData, $filename)
-                ->withMime('image/svg+xml'),
+            Attachment::fromData(fn () => $qrAttachment['content'], $filename)
+                ->withMime($qrAttachment['mime']),
         ];
     }
 
-    private function buildQrPng(string $token): ?string
+    /**
+     * @return array{content: string, mime: string, extension: string}|null
+     */
+    private function buildQrAttachment(string $token): ?array
     {
         try {
             $verifyUrl = url('/verify?token=' . $token);
-            $result = (new Builder())->build(
+
+            try {
+                $pngResult = (new Builder())->build(
+                    writer: new \Endroid\QrCode\Writer\PngWriter(),
+                    data: $verifyUrl,
+                    size: 480,
+                    margin: 10
+                );
+
+                return [
+                    'content' => $pngResult->getString(),
+                    'mime' => 'image/png',
+                    'extension' => 'png',
+                ];
+            } catch (Throwable $inner) {
+                // Fall through to SVG for environments where PNG writer is unavailable.
+            }
+
+            $svgResult = (new Builder())->build(
                 writer: new \Endroid\QrCode\Writer\SvgWriter(),
                 data: $verifyUrl,
                 size: 480,
                 margin: 10
             );
 
-            return $result->getString();
+            return [
+                'content' => $svgResult->getString(),
+                'mime' => 'image/svg+xml',
+                'extension' => 'svg',
+            ];
         } catch (Throwable $exception) {
             return null;
         }

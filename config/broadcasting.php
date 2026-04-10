@@ -1,5 +1,27 @@
 <?php
 
+$defaultBroadcastConnection = env('BROADCAST_CONNECTION', 'null');
+
+if ($defaultBroadcastConnection === 'reverb') {
+    $missingReverbCredentials = blank(env('REVERB_APP_ID'))
+        || blank(env('REVERB_APP_KEY'))
+        || blank(env('REVERB_APP_SECRET'));
+
+    if ($missingReverbCredentials) {
+        $defaultBroadcastConnection = 'null';
+    }
+}
+
+if ($defaultBroadcastConnection === 'pusher') {
+    $missingPusherCredentials = blank(env('PUSHER_APP_ID'))
+        || blank(env('PUSHER_APP_KEY'))
+        || blank(env('PUSHER_APP_SECRET'));
+
+    if ($missingPusherCredentials) {
+        $defaultBroadcastConnection = 'null';
+    }
+}
+
 return [
 
     /*
@@ -15,7 +37,7 @@ return [
     |
     */
 
-    'default' => env('BROADCAST_CONNECTION', 'null'),
+    'default' => $defaultBroadcastConnection,
 
     /*
     |--------------------------------------------------------------------------

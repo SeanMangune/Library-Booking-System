@@ -21,7 +21,35 @@ class BookingTimeAlertNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'broadcast'];
+        $channels = ['database'];
+
+        if ($this->shouldBroadcast()) {
+            $channels[] = 'broadcast';
+        }
+
+        return $channels;
+    }
+
+    private function shouldBroadcast(): bool
+    {
+        $defaultConnection = (string) config('broadcasting.default', 'null');
+        if ($defaultConnection === '' || $defaultConnection === 'null') {
+            return false;
+        }
+
+        if ($defaultConnection === 'reverb') {
+            return filled(config('broadcasting.connections.reverb.app_id'))
+                && filled(config('broadcasting.connections.reverb.key'))
+                && filled(config('broadcasting.connections.reverb.secret'));
+        }
+
+        if ($defaultConnection === 'pusher') {
+            return filled(config('broadcasting.connections.pusher.app_id'))
+                && filled(config('broadcasting.connections.pusher.key'))
+                && filled(config('broadcasting.connections.pusher.secret'));
+        }
+
+        return true;
     }
 
     public function toArray(object $notifiable): array

@@ -739,34 +739,22 @@ class BookingController extends Controller
             // swallow - QR service is optional
         }
 
-        // Prepare response payload and include an inline Endroid PNG (base64) so the
-        // frontend can render the QR immediately without a second request.
+        // Prepare response payload with stable QR endpoints for display + download.
         $fresh = $booking->fresh()->load('room');
-        $qrDataUri = null;
-
-        if ($booking->qr_token) {
-            try {
-                $verifyUrl = url('/verify?token=' . $booking->qr_token);
-                $builder = new \Endroid\QrCode\Builder\Builder();
-                $result = $builder->build(
-                    writer: new \Endroid\QrCode\Writer\SvgWriter(),
-                    data: $verifyUrl,
-                    size: 480,
-                    margin: 10
-                );
-
-                $svg = $result->getString();
-                $qrDataUri = 'data:image/svg+xml;base64,' . base64_encode($svg);
-            } catch (\Throwable $e) {
-                // fallback: leave qrDataUri null (frontend can still use qr_code_url)
-                $qrDataUri = null;
-            }
-        }
-
         $payload = $fresh->toArray();
-        // Prefer inline PNG data (Endroid) when available, otherwise use stored/public URL
-        $payload['qr_code_data'] = $qrDataUri;
-        $payload['qr_code_url'] = $qrDataUri ?? $fresh->getAttribute('qr_code_url') ?? null;
+        $qrToken = (string) ($fresh->qr_token ?? '');
+        $qrDisplayUrl = $qrToken !== ''
+            ? url('/bookings/qr/' . $qrToken . '?format=png')
+            : null;
+
+        $payload['qr_code_data'] = null;
+        $payload['qr_code_url'] = $qrDisplayUrl ?? $fresh->getAttribute('qr_code_url') ?? null;
+        $payload['qr_download_png_url'] = $qrToken !== ''
+            ? url('/bookings/qr/' . $qrToken . '?format=png&download=1')
+            : null;
+        $payload['qr_download_jpeg_url'] = $qrToken !== ''
+            ? url('/bookings/qr/' . $qrToken . '?format=jpeg&download=1')
+            : null;
         $payload['approval_status'] = $fresh->status;
         $payload['qr_status'] = $fresh->booking_status;
     // Always add plain QR code payload for frontend to use in QR code URL
@@ -883,53 +871,28 @@ class BookingController extends Controller
      */
     public function qrImage(Request $request, string $token)
     {
-        // Use the QR payload (token) as plain text
         $decrypted = $token;
-        $format = strtolower((string) $request->query('format', 'svg'));
-        $usePng = $format === 'png';
+        $format = strtolower((string) $request->query('format', 'png'));
+        $download = $request->boolean('download');
 
-        $renderQr = function (string $payload) use ($usePng): array {
-            $builder = new \Endroid\QrCode\Builder\Builder();
-
-            if ($usePng) {
-                try {
-                    $png = $builder->build(
-                        writer: new \Endroid\QrCode\Writer\PngWriter(),
-                        data: $payload,
-                        size: 480,
-                        margin: 10
-                    );
-
-                    return [
-                        'content' => $png->getString(),
-                        'content_type' => 'image/png',
-                    ];
-                } catch (\Throwable $e) {
-                    // Fall back to SVG if PNG generation is unavailable.
-                }
-            }
-
-            $svg = $builder->build(
-                writer: new \Endroid\QrCode\Writer\SvgWriter(),
-                data: $payload,
-                size: 480,
-                margin: 10
-            );
-
-            return [
-                'content' => $svg->getString(),
-                'content_type' => 'image/svg+xml',
-            ];
-        };
+        if (! in_array($format, ['png', 'jpeg', 'jpg', 'svg'], true)) {
+            $format = 'png';
+        }
 
         if ($decrypted === 'smartspace-master-token') {
             try {
-                $result = $renderQr(url('/verify?token=smartspace-master-token'));
+                $result = $this->renderQrBinary(url('/verify?token=smartspace-master-token'), $format);
 
-                return response($result['content'], 200, [
+                $headers = [
                     'Content-Type' => $result['content_type'],
                     'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
-                ]);
+                ];
+
+                if ($download) {
+                    $headers['Content-Disposition'] = 'attachment; filename="smartspace-master-qr.' . $result['extension'] . '"';
+                }
+
+                return response($result['content'], 200, $headers);
             } catch (\Throwable $e) {
                 return response('QR generation unavailable', 500);
             }
@@ -953,15 +916,112 @@ class BookingController extends Controller
                 ? url('/verify?token=' . $booking->qr_token)
                 : ($booking->booking_code ?? $decrypted);
 
-            $result = $renderQr($payload);
+            $result = $this->renderQrBinary($payload, $format);
 
-            return response($result['content'], 200, [
+            $headers = [
                 'Content-Type' => $result['content_type'],
                 'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
-            ]);
+            ];
+
+            if ($download) {
+                $base = (string) ($booking->booking_code ?: $booking->id ?: 'booking');
+                $safeBase = preg_replace('/[^A-Za-z0-9_-]+/', '-', $base);
+                $headers['Content-Disposition'] = 'attachment; filename="booking-qr-' . trim((string) $safeBase, '-') . '.' . $result['extension'] . '"';
+            }
+
+            return response($result['content'], 200, $headers);
         } catch (\Throwable $e) {
             return response('QR generation unavailable', 500);
         }
+    }
+
+    /**
+     * @return array{content: string, content_type: string, extension: string}
+     */
+    private function renderQrBinary(string $payload, string $format): array
+    {
+        $builder = new \Endroid\QrCode\Builder\Builder();
+        $wantsRaster = in_array($format, ['png', 'jpeg', 'jpg'], true);
+        $pngBinary = null;
+
+        if ($wantsRaster) {
+            try {
+                $png = $builder->build(
+                    writer: new \Endroid\QrCode\Writer\PngWriter(),
+                    data: $payload,
+                    size: 480,
+                    margin: 10
+                );
+
+                $pngBinary = $png->getString();
+            } catch (\Throwable $e) {
+                $pngBinary = null;
+            }
+
+            if ($pngBinary !== null && in_array($format, ['jpeg', 'jpg'], true)) {
+                $jpegBinary = $this->convertPngToJpegBinary($pngBinary);
+
+                if ($jpegBinary !== null) {
+                    return [
+                        'content' => $jpegBinary,
+                        'content_type' => 'image/jpeg',
+                        'extension' => 'jpg',
+                    ];
+                }
+            }
+
+            if ($pngBinary !== null) {
+                return [
+                    'content' => $pngBinary,
+                    'content_type' => 'image/png',
+                    'extension' => 'png',
+                ];
+            }
+        }
+
+        $svg = $builder->build(
+            writer: new \Endroid\QrCode\Writer\SvgWriter(),
+            data: $payload,
+            size: 480,
+            margin: 10
+        );
+
+        return [
+            'content' => $svg->getString(),
+            'content_type' => 'image/svg+xml',
+            'extension' => 'svg',
+        ];
+    }
+
+    private function convertPngToJpegBinary(string $pngBinary): ?string
+    {
+        if (! function_exists('imagecreatefromstring') || ! function_exists('imagejpeg')) {
+            return null;
+        }
+
+        $image = @imagecreatefromstring($pngBinary);
+        if (! $image) {
+            return null;
+        }
+
+        $canvas = imagecreatetruecolor(imagesx($image), imagesy($image));
+        if (! $canvas) {
+            imagedestroy($image);
+            return null;
+        }
+
+        $white = imagecolorallocate($canvas, 255, 255, 255);
+        imagefill($canvas, 0, 0, $white);
+        imagecopy($canvas, $image, 0, 0, 0, 0, imagesx($image), imagesy($image));
+
+        ob_start();
+        imagejpeg($canvas, null, 92);
+        $jpegBinary = ob_get_clean();
+
+        imagedestroy($canvas);
+        imagedestroy($image);
+
+        return is_string($jpegBinary) ? $jpegBinary : null;
     }
 
     /**

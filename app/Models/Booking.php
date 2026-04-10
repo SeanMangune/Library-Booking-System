@@ -129,7 +129,7 @@ class Booking extends Model
     {
         // Primary: token-based dynamic QR (served by controller using Endroid)
         if ($this->qr_token) {
-            return url('/bookings/qr/' . $this->qr_token);
+            return url('/bookings/qr/' . $this->qr_token . '?format=png');
         }
 
         // Only token-based dynamic QR images are supported in the schema

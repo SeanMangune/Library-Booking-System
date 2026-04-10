@@ -29,7 +29,13 @@
                 Print Report
             </a>
 
-            <form method="GET" action="{{ route('reports.index') }}" class="flex items-center gap-2 rounded-xl border border-gray-200 bg-white p-1.5 shadow-sm">
+            <form method="GET"
+                  action="{{ route('reports.index') }}"
+                  target="reports-export-frame"
+                  data-no-loader
+                  data-no-transition
+                  class="flex items-center gap-2 rounded-xl border border-gray-200 bg-white p-1.5 shadow-sm"
+                  id="reports-export-form">
                 @foreach($filters as $filterKey => $filterValue)
                     @if($filterValue !== '')
                         <input type="hidden" name="{{ $filterKey }}" value="{{ $filterValue }}">
@@ -37,15 +43,16 @@
                 @endforeach
 
                 <select name="export" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                    <option value="csv">CSV (.csv)</option>
-                    <option value="xlsx">Excel (.xlsx)</option>
+                    <option value="xlsx">Excel (formatted workbook, recommended)</option>
+                    <option value="csv">CSV (plain data)</option>
                 </select>
 
                 <button type="submit" class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-all hover:shadow-lg">
                     <i class="w-4 h-4 fa-icon fa-solid fa-download text-base leading-none"></i>
-                    Download
+                    Export Data
                 </button>
             </form>
+            <iframe name="reports-export-frame" class="hidden" aria-hidden="true" tabindex="-1" title="Reports export download target"></iframe>
         </div>
     </div>
 
@@ -373,6 +380,7 @@
 <script>
 (() => {
     const form = document.getElementById('reports-filter-form');
+    const exportForm = document.getElementById('reports-export-form');
     const fromInput = document.getElementById('date-from-input');
     const toInput = document.getElementById('date-to-input');
     const rangeSelect = document.getElementById('date-range-select');
@@ -383,6 +391,24 @@
     let lastScrollY = window.scrollY;
 
     if (!form || !fromInput || !toInput || !rangeSelect) return;
+
+    if (exportForm) {
+        exportForm.addEventListener('submit', () => {
+            const submitButton = exportForm.querySelector('button[type="submit"]');
+            if (!(submitButton instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            const originalText = submitButton.textContent;
+            submitButton.disabled = true;
+            submitButton.textContent = 'Preparing...';
+
+            window.setTimeout(() => {
+                submitButton.disabled = false;
+                submitButton.textContent = originalText;
+            }, 1800);
+        });
+    }
 
     /* ── Flatpickr Calendar Date Pickers ── */
     const fpConfig = {
