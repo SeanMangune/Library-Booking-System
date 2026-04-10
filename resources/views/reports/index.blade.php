@@ -21,20 +21,31 @@
             </div>
         </div>
         <div class="flex items-center gap-3 print:hidden">
-            <button type="button"
-                    onclick="window.print()"
-                    class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold transition-all hover:shadow-sm">
+            <a href="{{ route('reports.index', array_filter(array_merge($filters, ['print' => 1]))) }}"
+               target="_blank"
+               rel="noopener"
+               class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold transition-all hover:shadow-sm">
                 <i class="w-4 h-4 fa-icon fa-solid fa-print text-base leading-none"></i>
                 Print Report
-            </button>
-
-            <a href="{{ route('reports.index', array_filter(array_merge($filters, ['export' => 'csv']))) }}"
-                    data-no-transition
-                    download="booking-report.csv"
-               class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-all hover:shadow-lg hover:-translate-y-0.5">
-                <i class="w-4 h-4 fa-icon fa-solid fa-download text-base leading-none"></i>
-                Download CSV
             </a>
+
+            <form method="GET" action="{{ route('reports.index') }}" class="flex items-center gap-2 rounded-xl border border-gray-200 bg-white p-1.5 shadow-sm">
+                @foreach($filters as $filterKey => $filterValue)
+                    @if($filterValue !== '')
+                        <input type="hidden" name="{{ $filterKey }}" value="{{ $filterValue }}">
+                    @endif
+                @endforeach
+
+                <select name="export" class="px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="csv">CSV (.csv)</option>
+                    <option value="xlsx">Excel (.xlsx)</option>
+                </select>
+
+                <button type="submit" class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-all hover:shadow-lg">
+                    <i class="w-4 h-4 fa-icon fa-solid fa-download text-base leading-none"></i>
+                    Download
+                </button>
+            </form>
         </div>
     </div>
 

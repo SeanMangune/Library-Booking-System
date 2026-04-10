@@ -102,18 +102,24 @@
                     <div class="p-4 space-y-3">
                         @foreach($collaborativeRooms as $room)
                             @php
-                                if ($room->isUnderMaintenanceForDashboard()) {
+                                $dashboardStatus = $room->dashboardStatus();
+                                $roomBookings = $collabRoomBookings->where('room_id', $room->id)->values();
+                                $todayBookingsForRoom = $roomBookings->filter(fn ($booking) => $booking->date->isToday())->values();
+                                $upcomingBookingsForRoom = $roomBookings->filter(fn ($booking) => !$booking->date->isToday() && $booking->date->isAfter(today()))->values();
+                                $roomBookingCount = $roomBookings->count();
+
+                                if ($dashboardStatus === 'closed') {
+                                    $statusLabel = 'Closed';
+                                    $rowBorderClasses = 'border-slate-200';
+                                    $badgeClasses = 'bg-slate-200 text-slate-700';
+                                    $progressClasses = 'from-slate-400 via-slate-500 to-slate-600';
+                                    $statusPercent = 20;
+                                } elseif ($dashboardStatus === 'maintenance') {
                                     $statusLabel = 'Under Maintenance';
                                     $rowBorderClasses = 'border-amber-100';
                                     $badgeClasses = 'bg-amber-100 text-amber-700';
                                     $progressClasses = 'from-amber-400 via-orange-400 to-amber-500';
                                     $statusPercent = 45;
-                                } elseif ($room->isOccupiedForDashboard()) {
-                                    $statusLabel = 'Occupied';
-                                    $rowBorderClasses = 'border-rose-100';
-                                    $badgeClasses = 'bg-rose-100 text-rose-700';
-                                    $progressClasses = 'from-rose-400 via-rose-500 to-red-500';
-                                    $statusPercent = 70;
                                 } else {
                                     $statusLabel = 'Available';
                                     $rowBorderClasses = 'border-emerald-100';
@@ -121,9 +127,26 @@
                                     $progressClasses = 'from-emerald-400 via-teal-500 to-emerald-500';
                                     $statusPercent = 100;
                                 }
+
+                                $roomPayload = [
+                                    'id' => $room->id,
+                                    'name' => $room->name,
+                                    'location' => $room->location,
+                                    'capacity' => $room->capacity,
+                                    'description' => $room->description,
+                                    'status' => $room->status,
+                                    'effective_status' => $room->effective_status,
+                                    'dashboard_status' => $dashboardStatus,
+                                    'status_start_at' => $room->status_start_at?->toIso8601String(),
+                                    'status_end_at' => $room->status_end_at?->toIso8601String(),
+                                ];
                             @endphp
-                            <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border transition-all duration-300 {{ $rowBorderClasses }}"
-                                 data-collab-room-id="{{ $room->id }}">
+                            <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border transition-all duration-300 cursor-pointer hover:shadow-sm hover:-translate-y-0.5 {{ $rowBorderClasses }}"
+                                 data-collab-room-id="{{ $room->id }}"
+                                 @click="openRoomModal({{ json_encode($roomPayload) }}, {{ $roomBookingCount }}, {{ json_encode($todayBookingsForRoom) }}, {{ json_encode($upcomingBookingsForRoom) }})"
+                                 @keydown.enter.prevent="openRoomModal({{ json_encode($roomPayload) }}, {{ $roomBookingCount }}, {{ json_encode($todayBookingsForRoom) }}, {{ json_encode($upcomingBookingsForRoom) }})"
+                                 role="button"
+                                 tabindex="0">
                                 <div class="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0 border border-gray-100">
                                     <i class="fa-solid fa-door-open text-gray-400"></i>
                                 </div>
@@ -140,6 +163,7 @@
                                              style="width: {{ $statusPercent }}%"
                                              data-collab-room-progress></div>
                                     </div>
+                                    <p class="mt-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Click to view room details</p>
                                 </div>
                             </div>
                         @endforeach

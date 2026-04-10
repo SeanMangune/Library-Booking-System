@@ -1451,13 +1451,124 @@ export function createDashboardApp(config = {}) {
         selectedRoomCount: 0,
         selectedRoomBookings: [],
         selectedRoomUpcomingBookings: [],
+        collaborativeRoomStatuses: {},
         
         openRoomModal(room, count, bookings = [], upcomingBookings = []) {
-            this.selectedRoom = room;
+            const roomId = String(room?.id || '');
+            const liveStatus = roomId !== '' ? this.collaborativeRoomStatuses[roomId] : null;
+
+            this.selectedRoom = {
+                ...(room || {}),
+                dashboard_status: this.normalizeCollaborativeRoomStatus(
+                    liveStatus
+                    || room?.dashboard_status
+                    || room?.effective_status
+                    || room?.status,
+                ),
+            };
             this.selectedRoomCount = count || 0;
             this.selectedRoomBookings = bookings;
             this.selectedRoomUpcomingBookings = upcomingBookings;
             this.showRoomModal = true;
+        },
+
+        normalizeCollaborativeRoomStatus(status) {
+            const normalized = String(status || '').toLowerCase();
+
+            if (normalized === 'maintenance' || normalized === 'closed') {
+                return normalized;
+            }
+
+            if (normalized === 'occupied' || normalized === 'operational' || normalized === 'available') {
+                return 'available';
+            }
+
+            return 'available';
+        },
+
+        roomStatusCode(room) {
+            if (!room || typeof room !== 'object') {
+                return 'available';
+            }
+
+            return this.normalizeCollaborativeRoomStatus(
+                room.dashboard_status || room.effective_status || room.status,
+            );
+        },
+
+        formatRoomStatusLabel(room) {
+            const status = this.roomStatusCode(room);
+
+            if (status === 'maintenance') {
+                return 'Maintenance';
+            }
+
+            if (status === 'closed') {
+                return 'Closed';
+            }
+
+            return 'Available';
+        },
+
+        roomStatusTone(room) {
+            const status = this.roomStatusCode(room);
+
+            if (status === 'maintenance') {
+                return 'text-amber-600';
+            }
+
+            if (status === 'closed') {
+                return 'text-slate-600';
+            }
+
+            return 'text-emerald-600';
+        },
+
+        roomStatusBadgeClasses(room) {
+            const status = this.roomStatusCode(room);
+
+            if (status === 'maintenance') {
+                return 'bg-amber-100 text-amber-700';
+            }
+
+            if (status === 'closed') {
+                return 'bg-slate-200 text-slate-700';
+            }
+
+            return 'bg-emerald-100 text-emerald-700';
+        },
+
+        roomStatusDescription(room) {
+            const status = this.roomStatusCode(room);
+
+            if (status === 'maintenance') {
+                return 'Room is temporarily unavailable while maintenance work is ongoing.';
+            }
+
+            if (status === 'closed') {
+                return 'Room is currently closed and cannot accept reservations.';
+            }
+
+            return 'Room is open and ready for reservations.';
+        },
+
+        formatDateTimeLabel(value) {
+            if (!value) {
+                return 'N/A';
+            }
+
+            const parsed = new Date(value);
+            if (Number.isNaN(parsed.getTime())) {
+                return 'N/A';
+            }
+
+            return parsed.toLocaleString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+            });
         },
 
         // Flat cell array for user dashboard calendar grid (used by dashboard-user.blade.php)
@@ -1784,8 +1895,10 @@ export function createDashboardApp(config = {}) {
         applyCollaborativeRoomStatusUpdates(rooms) {
             const statusMap = {};
             rooms.forEach((room) => {
-                statusMap[String(room.id)] = String(room.status || '').toLowerCase();
+                statusMap[String(room.id)] = this.normalizeCollaborativeRoomStatus(room.status);
             });
+
+            this.collaborativeRoomStatuses = statusMap;
 
             document.querySelectorAll('[data-collab-room-id]').forEach((card) => {
                 const roomId = card.dataset.collabRoomId;
@@ -1803,24 +1916,24 @@ export function createDashboardApp(config = {}) {
 
                 const label = status === 'maintenance'
                     ? 'Under Maintenance'
-                    : status === 'occupied'
-                        ? 'Occupied'
+                    : status === 'closed'
+                        ? 'Closed'
                         : 'Available';
 
                 badge.textContent = label;
                 badge.dataset.collabRoomStatus = label;
 
-                badge.classList.remove('bg-amber-100', 'text-amber-700', 'bg-rose-100', 'text-rose-700', 'bg-emerald-100', 'text-emerald-700');
-                card.classList.remove('border-amber-100', 'border-rose-100', 'border-emerald-100');
+                badge.classList.remove('bg-amber-100', 'text-amber-700', 'bg-slate-200', 'text-slate-700', 'bg-emerald-100', 'text-emerald-700');
+                card.classList.remove('border-amber-100', 'border-slate-200', 'border-emerald-100');
 
                 if (progressBar) {
                     progressBar.classList.remove(
                         'from-amber-400',
                         'via-orange-400',
                         'to-amber-500',
-                        'from-rose-400',
-                        'via-rose-500',
-                        'to-red-500',
+                        'from-slate-400',
+                        'via-slate-500',
+                        'to-slate-600',
                         'from-emerald-400',
                         'via-teal-500',
                         'to-emerald-500',
@@ -1834,12 +1947,12 @@ export function createDashboardApp(config = {}) {
                         progressBar.classList.add('from-amber-400', 'via-orange-400', 'to-amber-500');
                         progressBar.style.width = '45%';
                     }
-                } else if (status === 'occupied') {
-                    badge.classList.add('bg-rose-100', 'text-rose-700');
-                    card.classList.add('border-rose-100');
+                } else if (status === 'closed') {
+                    badge.classList.add('bg-slate-200', 'text-slate-700');
+                    card.classList.add('border-slate-200');
                     if (progressBar) {
-                        progressBar.classList.add('from-rose-400', 'via-rose-500', 'to-red-500');
-                        progressBar.style.width = '70%';
+                        progressBar.classList.add('from-slate-400', 'via-slate-500', 'to-slate-600');
+                        progressBar.style.width = '20%';
                     }
                 } else {
                     badge.classList.add('bg-emerald-100', 'text-emerald-700');
@@ -1848,6 +1961,13 @@ export function createDashboardApp(config = {}) {
                         progressBar.classList.add('from-emerald-400', 'via-teal-500', 'to-emerald-500');
                         progressBar.style.width = '100%';
                     }
+                }
+
+                if (this.selectedRoom && String(this.selectedRoom.id) === roomId) {
+                    this.selectedRoom = {
+                        ...this.selectedRoom,
+                        dashboard_status: status,
+                    };
                 }
             });
         },

@@ -70,28 +70,12 @@ class Room extends Model
 
     public function dashboardStatus(): string
     {
+        if ($this->effectiveStatus() === 'closed') {
+            return 'closed';
+        }
+
         if ($this->effectiveStatus() === 'maintenance') {
             return 'maintenance';
-        }
-
-        if ($this->relationLoaded('bookings')) {
-            if ($this->bookings->contains('room_status', 'maintenance')) {
-                return 'maintenance';
-            }
-
-            if ($this->bookings->contains('room_status', 'occupied')) {
-                return 'occupied';
-            }
-
-            return 'available';
-        }
-
-        if ($this->bookings()->where('room_status', 'maintenance')->exists()) {
-            return 'maintenance';
-        }
-
-        if ($this->bookings()->where('room_status', 'occupied')->exists()) {
-            return 'occupied';
         }
 
         return 'available';

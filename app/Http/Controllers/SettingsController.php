@@ -98,6 +98,9 @@ class SettingsController extends Controller
             'username' => $validated['username'],
             'email' => $validated['email'],
             'role' => $validated['role'],
+            'classification' => $validated['role'] === User::ROLE_ADMIN
+                ? User::CLASSIFICATION_ADMIN
+                : User::CLASSIFICATION_FACULTY,
             'password' => $validated['password'],
         ]);
 

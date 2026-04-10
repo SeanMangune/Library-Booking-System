@@ -104,6 +104,14 @@ class User extends Authenticatable
 
     public function classification(): string
     {
+        if ($this->role === self::ROLE_ADMIN) {
+            return self::CLASSIFICATION_ADMIN;
+        }
+
+        if ($this->role === self::ROLE_LIBRARIAN) {
+            return self::CLASSIFICATION_FACULTY;
+        }
+
         $classification = strtolower(trim((string) ($this->classification ?? '')));
 
         if (in_array($classification, [self::CLASSIFICATION_STUDENT, self::CLASSIFICATION_FACULTY, self::CLASSIFICATION_ADMIN], true)) {

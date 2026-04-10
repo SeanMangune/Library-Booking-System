@@ -41,11 +41,30 @@
                     </div>
                     <div class="bg-gray-50 border border-gray-100 rounded-xl p-3 flex flex-col items-center justify-center">
                         <span class="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1">Status</span>
-                        <div class="flex items-center gap-1.5" :class="selectedRoom?.is_operational ? 'text-emerald-600' : 'text-rose-600'">
+                        <div class="flex items-center gap-1.5" :class="roomStatusTone(selectedRoom)">
                             <i class="fa-solid fa-circle text-[10px] animate-pulse"></i>
-                            <span class="font-bold text-sm tracking-wide" x-text="selectedRoom?.is_operational ? 'Active' : 'Offline'"></span>
+                            <span class="font-bold text-sm tracking-wide" x-text="formatRoomStatusLabel(selectedRoom)"></span>
                         </div>
                     </div>
+                </div>
+
+                <div class="mb-6 rounded-xl border border-gray-100 bg-slate-50/70 p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Room State</span>
+                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider"
+                              :class="roomStatusBadgeClasses(selectedRoom)"
+                              x-text="formatRoomStatusLabel(selectedRoom)"></span>
+                    </div>
+                    <p class="mt-2 text-xs font-semibold text-slate-600" x-text="roomStatusDescription(selectedRoom)"></p>
+                    <template x-if="roomStatusCode(selectedRoom) === 'maintenance' && (selectedRoom?.status_start_at || selectedRoom?.status_end_at)">
+                        <p class="mt-2 text-[11px] font-semibold text-amber-700">
+                            Maintenance window:
+                            <span x-text="formatDateTimeLabel(selectedRoom?.status_start_at) + ' to ' + formatDateTimeLabel(selectedRoom?.status_end_at)"></span>
+                        </p>
+                    </template>
+                    <template x-if="selectedRoom?.description">
+                        <p class="mt-2 text-[11px] text-slate-500" x-text="selectedRoom.description"></p>
+                    </template>
                 </div>
 
                 <div class="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 mb-2 flex flex-col gap-3">
