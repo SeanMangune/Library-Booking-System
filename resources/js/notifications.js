@@ -257,6 +257,12 @@ function initializeRealtimeNotifications() {
         });
     }
 
+    window.addEventListener('app:notifications-refresh', () => {
+        refreshStateSafe().catch(() => {
+            // Ignore refresh failures when triggered by external events.
+        });
+    });
+
     startPolling();
 
     refreshStateSafe().catch(() => {

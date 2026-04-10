@@ -492,6 +492,9 @@ function roomManagement() {
                     window.notifyApp?.('success', data.message || 'Room saved successfully.');
                     this.closeModal();
 
+                    window.dispatchEvent(new CustomEvent('app:room-status-updated'));
+                    window.dispatchEvent(new CustomEvent('app:notifications-refresh'));
+
                     if (affectedBookings.length > 0) {
                         this.openAffectedBookingsModal(data);
                         return;
