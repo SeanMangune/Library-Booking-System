@@ -599,7 +599,6 @@
                                     <p class="font-semibold text-gray-800" title="{{ $currentUser?->name }}">{{ Str::limit($currentUser?->name, 14) }}</p>
                                     <div class="flex items-center gap-1.5">
                                         <span class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">{{ $identityBadgeLabel }}</span>
-                                        <span class="text-xs text-gray-500">{{ $currentUser?->roleLabel() ?? 'User' }}</span>
                                     </div>
                                 </div>
                                 <i class="w-4 h-4 text-gray-400 hidden sm:block fa-icon fa-solid fa-chevron-down text-base leading-none"></i>

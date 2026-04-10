@@ -494,11 +494,15 @@ class ReportsController extends Controller
             $zip->addFromString('xl/workbook.xml', $this->xlsxWorkbookXml());
             $zip->addFromString('xl/_rels/workbook.xml.rels', $this->xlsxWorkbookRelsXml());
             $zip->addFromString('xl/styles.xml', $this->xlsxStylesXml());
-            $zip->addFromString('xl/worksheets/sheet1.xml', $this->xlsxSummaryWorksheetXml($filterSummary, $summaryStats, $generatedAt));
-            $zip->addFromString('xl/worksheets/sheet2.xml', $this->xlsxRoomBreakdownWorksheetXml($roomBreakdownRows, $generatedAt));
-            $zip->addFromString('xl/worksheets/sheet3.xml', $this->xlsxTopRequestersWorksheetXml($topRequesterRows, $generatedAt));
-            $zip->addFromString('xl/worksheets/sheet4.xml', $this->xlsxDailyActivityWorksheetXml($dailyActivityRows, $generatedAt));
-            $zip->addFromString('xl/worksheets/sheet5.xml', $this->xlsxBookingsWorksheetXml($rows, $generatedAt));
+            $zip->addFromString('xl/worksheets/sheet1.xml', $this->xlsxSummaryWorksheetXml(
+                $filterSummary,
+                $summaryStats,
+                $roomBreakdownRows,
+                $topRequesterRows,
+                $dailyActivityRows,
+                $rows,
+                $generatedAt,
+            ));
             $zip->close();
 
             $stream = fopen($tempFile, 'rb');
@@ -522,10 +526,6 @@ class ReportsController extends Controller
     <Default Extension="xml" ContentType="application/xml"/>
     <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
     <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-    <Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-    <Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-    <Override PartName="/xl/worksheets/sheet4.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-    <Override PartName="/xl/worksheets/sheet5.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
     <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
 </Types>
 XML;
@@ -547,11 +547,7 @@ XML;
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
     <sheets>
-        <sheet name="Summary" sheetId="1" r:id="rId1"/>
-        <sheet name="Room Breakdown" sheetId="2" r:id="rId2"/>
-        <sheet name="Top Requesters" sheetId="3" r:id="rId3"/>
-        <sheet name="Daily Activity" sheetId="4" r:id="rId4"/>
-        <sheet name="Detailed Bookings" sheetId="5" r:id="rId5"/>
+        <sheet name="Detailed Reports" sheetId="1" r:id="rId1"/>
     </sheets>
 </workbook>
 XML;
@@ -563,11 +559,7 @@ XML;
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
     <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-    <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>
-    <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/>
-    <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet4.xml"/>
-    <Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet5.xml"/>
-    <Relationship Id="rId6" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+    <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>
 XML;
     }
@@ -685,11 +677,26 @@ XML;
 XML;
     }
 
-    private function xlsxSummaryWorksheetXml(array $filterSummary, array $summaryStats, Carbon $generatedAt): string
-    {
+    private function xlsxSummaryWorksheetXml(
+        array $filterSummary,
+        array $summaryStats,
+        array $roomBreakdownRows,
+        array $topRequesterRows,
+        array $dailyActivityRows,
+        array $detailedRows,
+        Carbon $generatedAt,
+    ): string {
         $columnWidths = [
-            30,
-            44,
+            16,
+            12,
+            12,
+            24,
+            36,
+            24,
+            34,
+            12,
+            16,
+            22,
         ];
 
         $colsXml = '';
@@ -700,25 +707,30 @@ XML;
 
         $sheetRowsXml = '';
         $currentRow = 1;
+        $lastColumn = $this->xlsxColumnLabel(count(self::EXPORT_HEADERS));
+        $mergeRefs = [];
 
-        $sheetRowsXml .= sprintf('<row r="%d" ht="24" customHeight="1">', $currentRow);
+        $appendSectionHeader = function (string $title) use (&$sheetRowsXml, &$currentRow, &$mergeRefs, $lastColumn): void {
+            $sheetRowsXml .= sprintf('<row r="%d">', $currentRow);
+            $sheetRowsXml .= $this->xlsxCellXml('A' . $currentRow, $title, 2);
+            $sheetRowsXml .= '</row>';
+            $mergeRefs[] = sprintf('A%d:%s%d', $currentRow, $lastColumn, $currentRow);
+            $currentRow++;
+        };
+
+        $sheetRowsXml .= '<row r="1" ht="26" customHeight="1">';
         $sheetRowsXml .= $this->xlsxCellXml('A1', 'SmartSpace Detailed Reports', 5);
         $sheetRowsXml .= '</row>';
+        $mergeRefs[] = 'A1:' . $lastColumn . '1';
         $currentRow++;
 
-        $sheetRowsXml .= sprintf('<row r="%d">', $currentRow);
-        $sheetRowsXml .= $this->xlsxCellXml('A2', 'Generated At', 3);
-        $sheetRowsXml .= $this->xlsxCellXml('B2', $generatedAt->copy()->format('M d, Y g:i A'), 6);
+        $sheetRowsXml .= sprintf('<row r="%d" ht="20" customHeight="1">', $currentRow);
+        $sheetRowsXml .= $this->xlsxCellXml('A' . $currentRow, 'Generated At', 3);
+        $sheetRowsXml .= $this->xlsxCellXml('B' . $currentRow, $generatedAt->copy()->format('M d, Y g:i A'), 6);
         $sheetRowsXml .= '</row>';
-
         $currentRow += 2;
-        $filterHeaderRow = $currentRow;
 
-        $sheetRowsXml .= sprintf('<row r="%d">', $filterHeaderRow);
-        $sheetRowsXml .= $this->xlsxCellXml('A' . $filterHeaderRow, 'Applied Filters', 2);
-        $sheetRowsXml .= '</row>';
-        $currentRow++;
-
+        $appendSectionHeader('Applied Filters');
         foreach ($filterSummary as $label => $value) {
             $sheetRowsXml .= sprintf('<row r="%d">', $currentRow);
             $sheetRowsXml .= $this->xlsxCellXml('A' . $currentRow, (string) $label, 3);
@@ -728,13 +740,7 @@ XML;
         }
 
         $currentRow++;
-        $summaryHeaderRow = $currentRow;
-
-        $sheetRowsXml .= sprintf('<row r="%d">', $summaryHeaderRow);
-        $sheetRowsXml .= $this->xlsxCellXml('A' . $summaryHeaderRow, 'Booking Summary', 2);
-        $sheetRowsXml .= '</row>';
-        $currentRow++;
-
+        $appendSectionHeader('Booking Summary');
         foreach ($summaryStats as $label => $value) {
             $sheetRowsXml .= sprintf('<row r="%d">', $currentRow);
             $sheetRowsXml .= $this->xlsxCellXml('A' . $currentRow, (string) $label, 3);
@@ -744,50 +750,166 @@ XML;
         }
 
         $currentRow++;
-        $sectionsHeaderRow = $currentRow;
-
-        $sheetRowsXml .= sprintf('<row r="%d">', $sectionsHeaderRow);
-        $sheetRowsXml .= $this->xlsxCellXml('A' . $sectionsHeaderRow, 'Included Sections', 2);
+        $appendSectionHeader('Room Breakdown');
+        $sheetRowsXml .= sprintf('<row r="%d" ht="22" customHeight="1">', $currentRow);
+        foreach (['Room', 'Total Bookings', 'Approved', 'Pending', 'Capacity Overrides'] as $columnIndex => $header) {
+            $cellRef = $this->xlsxColumnLabel($columnIndex + 1) . $currentRow;
+            $sheetRowsXml .= $this->xlsxCellXml($cellRef, $header, 1);
+        }
         $sheetRowsXml .= '</row>';
         $currentRow++;
 
-        $sections = [
-            ['Room Breakdown', 'Sheet: Room Breakdown'],
-            ['Top Requesters', 'Sheet: Top Requesters'],
-            ['Daily Activity', 'Sheet: Daily Activity'],
-            ['Detailed List', 'Sheet: Detailed Bookings'],
-        ];
-
-        foreach ($sections as [$label, $value]) {
+        if ($roomBreakdownRows === []) {
             $sheetRowsXml .= sprintf('<row r="%d">', $currentRow);
-            $sheetRowsXml .= $this->xlsxCellXml('A' . $currentRow, (string) $label, 3);
-            $sheetRowsXml .= $this->xlsxCellXml('B' . $currentRow, (string) $value, 6);
+            $sheetRowsXml .= $this->xlsxCellXml('A' . $currentRow, 'No room breakdown data for selected filters.', 3);
             $sheetRowsXml .= '</row>';
             $currentRow++;
+        } else {
+            foreach ($roomBreakdownRows as $rowIndex => $rowValues) {
+                $isAltRow = $rowIndex % 2 === 0;
+                $sheetRowsXml .= sprintf('<row r="%d" ht="22" customHeight="1">', $currentRow);
+                foreach ($rowValues as $columnIndex => $value) {
+                    $columnNumber = $columnIndex + 1;
+                    $cellRef = $this->xlsxColumnLabel($columnNumber) . $currentRow;
+                    $styleId = $columnNumber === 1
+                        ? ($isAltRow ? 7 : 8)
+                        : ($isAltRow ? 9 : 10);
+                    $sheetRowsXml .= $this->xlsxCellXml($cellRef, (string) $value, $styleId);
+                }
+                $sheetRowsXml .= '</row>';
+                $currentRow++;
+            }
+        }
+
+        $currentRow++;
+        $appendSectionHeader('Top Requesters');
+        $sheetRowsXml .= sprintf('<row r="%d" ht="22" customHeight="1">', $currentRow);
+        foreach (['Requester', 'Total Bookings'] as $columnIndex => $header) {
+            $cellRef = $this->xlsxColumnLabel($columnIndex + 1) . $currentRow;
+            $sheetRowsXml .= $this->xlsxCellXml($cellRef, $header, 1);
+        }
+        $sheetRowsXml .= '</row>';
+        $currentRow++;
+
+        if ($topRequesterRows === []) {
+            $sheetRowsXml .= sprintf('<row r="%d">', $currentRow);
+            $sheetRowsXml .= $this->xlsxCellXml('A' . $currentRow, 'No requester data for selected filters.', 3);
+            $sheetRowsXml .= '</row>';
+            $currentRow++;
+        } else {
+            foreach ($topRequesterRows as $rowIndex => $rowValues) {
+                $isAltRow = $rowIndex % 2 === 0;
+                $sheetRowsXml .= sprintf('<row r="%d" ht="22" customHeight="1">', $currentRow);
+                $sheetRowsXml .= $this->xlsxCellXml('A' . $currentRow, (string) ($rowValues[0] ?? ''), $isAltRow ? 7 : 8);
+                $sheetRowsXml .= $this->xlsxCellXml('B' . $currentRow, (string) ($rowValues[1] ?? ''), $isAltRow ? 9 : 10);
+                $sheetRowsXml .= '</row>';
+                $currentRow++;
+            }
+        }
+
+        $currentRow++;
+        $appendSectionHeader('Daily Activity');
+        $sheetRowsXml .= sprintf('<row r="%d" ht="22" customHeight="1">', $currentRow);
+        foreach (['Date', 'Total Bookings', 'Approved', 'Pending'] as $columnIndex => $header) {
+            $cellRef = $this->xlsxColumnLabel($columnIndex + 1) . $currentRow;
+            $sheetRowsXml .= $this->xlsxCellXml($cellRef, $header, 1);
+        }
+        $sheetRowsXml .= '</row>';
+        $currentRow++;
+
+        if ($dailyActivityRows === []) {
+            $sheetRowsXml .= sprintf('<row r="%d">', $currentRow);
+            $sheetRowsXml .= $this->xlsxCellXml('A' . $currentRow, 'No daily activity data for selected filters.', 3);
+            $sheetRowsXml .= '</row>';
+            $currentRow++;
+        } else {
+            foreach ($dailyActivityRows as $rowIndex => $rowValues) {
+                $isAltRow = $rowIndex % 2 === 0;
+                $sheetRowsXml .= sprintf('<row r="%d" ht="22" customHeight="1">', $currentRow);
+                $sheetRowsXml .= $this->xlsxCellXml('A' . $currentRow, (string) ($rowValues[0] ?? ''), $isAltRow ? 4 : 6);
+                $sheetRowsXml .= $this->xlsxCellXml('B' . $currentRow, (string) ($rowValues[1] ?? ''), $isAltRow ? 9 : 10);
+                $sheetRowsXml .= $this->xlsxCellXml('C' . $currentRow, (string) ($rowValues[2] ?? ''), $isAltRow ? 9 : 10);
+                $sheetRowsXml .= $this->xlsxCellXml('D' . $currentRow, (string) ($rowValues[3] ?? ''), $isAltRow ? 9 : 10);
+                $sheetRowsXml .= '</row>';
+                $currentRow++;
+            }
+        }
+
+        $currentRow++;
+        $appendSectionHeader('Detailed List');
+        $detailedHeaderRow = $currentRow;
+        $sheetRowsXml .= sprintf('<row r="%d" ht="24" customHeight="1">', $detailedHeaderRow);
+        foreach (self::EXPORT_HEADERS as $columnIndex => $header) {
+            $cellRef = $this->xlsxColumnLabel($columnIndex + 1) . $detailedHeaderRow;
+            $sheetRowsXml .= $this->xlsxCellXml($cellRef, (string) $header, 1);
+        }
+        $sheetRowsXml .= '</row>';
+        $currentRow++;
+
+        if ($detailedRows === []) {
+            $sheetRowsXml .= sprintf('<row r="%d">', $currentRow);
+            $sheetRowsXml .= $this->xlsxCellXml('A' . $currentRow, 'No detailed booking records for selected filters.', 3);
+            $sheetRowsXml .= '</row>';
+        } else {
+            foreach ($detailedRows as $rowIndex => $rowValues) {
+                $excelRow = $currentRow + $rowIndex;
+                $isAltRow = $rowIndex % 2 === 0;
+                $sheetRowsXml .= sprintf('<row r="%d" ht="22" customHeight="1">', $excelRow);
+
+                foreach ($rowValues as $columnIndex => $value) {
+                    $columnNumber = $columnIndex + 1;
+                    $cellRef = $this->xlsxColumnLabel($columnNumber) . $excelRow;
+                    $styleId = $isAltRow ? 4 : 6;
+
+                    if (in_array($columnNumber, [4, 5, 6, 7, 10], true)) {
+                        $styleId = $isAltRow ? 7 : 8;
+                    } elseif ($columnNumber === 8) {
+                        $styleId = $isAltRow ? 9 : 10;
+                    } elseif ($columnNumber === 9) {
+                        $normalizedStatus = strtolower(trim((string) $value));
+                        $styleId = match ($normalizedStatus) {
+                            'approved' => 11,
+                            'pending' => 12,
+                            'rejected' => 13,
+                            'cancelled' => 14,
+                            default => 15,
+                        };
+                    }
+
+                    $sheetRowsXml .= $this->xlsxCellXml($cellRef, (string) $value, $styleId);
+                }
+
+                $sheetRowsXml .= '</row>';
+            }
+        }
+
+        $mergeCellsXml = '';
+        if ($mergeRefs !== []) {
+            $mergeCellsXml .= sprintf('<mergeCells count="%d">', count($mergeRefs));
+            foreach ($mergeRefs as $mergeRef) {
+                $mergeCellsXml .= sprintf('<mergeCell ref="%s"/>', $mergeRef);
+            }
+            $mergeCellsXml .= '</mergeCells>';
         }
 
         return sprintf(
             '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-            . '<sheetViews><sheetView workbookViewId="0"/></sheetViews>'
-            . '<sheetFormatPr defaultRowHeight="18"/>'
+            . '<sheetViews><sheetView workbookViewId="0"><pane ySplit="%d" topLeftCell="A%d" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+            . '<sheetFormatPr defaultRowHeight="20"/>'
             . '<cols>%s</cols>'
             . '<sheetData>%s</sheetData>'
-            . '<mergeCells count="4">'
-            . '<mergeCell ref="A1:B1"/>'
-            . '<mergeCell ref="A%d:B%d"/>'
-            . '<mergeCell ref="A%d:B%d"/>'
-            . '<mergeCell ref="A%d:B%d"/>'
-            . '</mergeCells>'
+            . '%s'
+            . '<autoFilter ref="A%d:%s%d"/>'
             . '</worksheet>',
+            $detailedHeaderRow,
+            $detailedHeaderRow + 1,
             $colsXml,
             $sheetRowsXml,
-            $filterHeaderRow,
-            $filterHeaderRow,
-            $summaryHeaderRow,
-            $summaryHeaderRow,
-            $sectionsHeaderRow,
-            $sectionsHeaderRow,
+            $mergeCellsXml,
+            $detailedHeaderRow,
+            $lastColumn,
+            $detailedHeaderRow,
         );
     }
 

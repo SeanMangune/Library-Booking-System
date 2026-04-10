@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Booking;
 use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class BookingTimeAlertNotification extends Notification
@@ -21,13 +22,22 @@ class BookingTimeAlertNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        $channels = ['database'];
+        $channels = ['database', 'mail'];
 
         if ($this->shouldBroadcast()) {
             $channels[] = 'broadcast';
         }
 
         return $channels;
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        return (new MailMessage())
+            ->subject($this->title)
+            ->greeting('Hello ' . ($notifiable->name ?? 'User') . ',')
+            ->line($this->message)
+            ->action('Open Booking Details', $this->url);
     }
 
     private function shouldBroadcast(): bool
