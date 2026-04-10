@@ -37,7 +37,7 @@ class RoomDashboardController extends Controller
 
     private function adminDashboard($request, $user, $today, $twoWeeksAhead, $calendarData, $rooms, string $classification)
     {
-        $collabRoomBookings = Booking::with('room')
+        $collabRoomBookings = Booking::with('room', 'user')
             ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
             ->where('status', 'approved')
             ->whereBetween('date', [$today, $twoWeeksAhead])
@@ -203,7 +203,7 @@ class RoomDashboardController extends Controller
         $qcIdRegistration = QcIdRegistration::where('user_id', $user->id)->first();
         $isVerified = $qcIdRegistration !== null && $qcIdRegistration->verification_status === 'verified';
 
-        $collabRoomBookings = Booking::with('room')
+        $collabRoomBookings = Booking::with('room', 'user')
             ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
             ->where('status', 'approved')
             ->whereBetween('date', [$today, $twoWeeksAhead])
@@ -249,7 +249,7 @@ class RoomDashboardController extends Controller
         $startOfMonth = Carbon::createFromDate($year, $month, 1)->startOfMonth();
         $endOfMonth = Carbon::createFromDate($year, $month, 1)->endOfMonth();
 
-        $bookings = Booking::with('room')
+        $bookings = Booking::with('room', 'user')
             ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
             ->whereBetween('date', [$startOfMonth, $endOfMonth])
             ->where('status', 'approved')
@@ -271,6 +271,7 @@ class RoomDashboardController extends Controller
                     'formatted_date' => $booking->formatted_date,
                     'user_name' => $canViewAll ? $booking->user_name : 'Occupied',
                     'user_email' => $canViewAll ? $booking->user_email : null,
+                    'user_campus' => $canViewAll ? ($booking->user?->campus ?? null) : null,
                     'attendees' => $booking->attendees,
                     'status' => $booking->status,
                     'booking_status' => $booking->booking_status ?? $booking->determineBookingStatus(),

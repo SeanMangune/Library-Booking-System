@@ -2,6 +2,38 @@ function csrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.content || '';
 }
 
+async function postJsonWithFallback(urls, body) {
+    const uniqueUrls = [...new Set((urls || []).filter(Boolean))];
+    let lastResponse = null;
+    let lastData = null;
+
+    for (const url of uniqueUrls) {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+            body: JSON.stringify(body || {}),
+        });
+
+        const contentType = response.headers.get('content-type') || '';
+        const data = contentType.includes('application/json')
+            ? await response.json()
+            : null;
+
+        if ((response.status === 404 || response.status === 405) && url !== uniqueUrls[uniqueUrls.length - 1]) {
+            lastResponse = response;
+            lastData = data;
+            continue;
+        }
+
+        return { response, data };
+    }
+
+    return { response: lastResponse, data: lastData };
+}
+
 function removeBookingCardFromPendingList(bookingId) {
     if (!bookingId) {
         return;
@@ -66,23 +98,24 @@ export function createApprovalDetailsModalState() {
                 return;
             }
 
+            const reason = String(this.rejectionReason || '').trim();
+            if (!reason) {
+                window.notifyApp?.('error', 'An approval note is required.');
+                return;
+            }
+
             this.isLoading = true;
             this.actionType = 'approve';
 
             try {
-                const response = await fetch(`/rooms/approvals/${this.selectedBooking.id}/approve`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken(),
-                    },
-                    body: JSON.stringify({}),
+                const { response, data } = await postJsonWithFallback([
+                    this.selectedBooking?.approve_url,
+                    `/rooms/approvals/${this.selectedBooking.id}/approve`,
+                    `/approvals/${this.selectedBooking.id}/approve`,
+                    `/bookings/${this.selectedBooking.id}/approve`,
+                ], {
+                    reason,
                 });
-
-                const contentType = response.headers.get('content-type') || '';
-                const data = contentType.includes('application/json')
-                    ? await response.json()
-                    : null;
 
                 if (!response.ok || !data?.success) {
                     const fallbackMessage = response.status
@@ -109,6 +142,7 @@ export function createApprovalDetailsModalState() {
                 this.approvedBooking = booking;
                 removeBookingCardFromPendingList(this.selectedBooking.id);
                 this.qrImageFailed = false;
+                this.rejectionReason = '';
                 this.showModal = false;
                 this.showSuccessModal = true;
                 this.queueApprovalsReload(1500);
@@ -128,7 +162,7 @@ export function createApprovalDetailsModalState() {
 
             const reason = String(this.rejectionReason || '').trim();
             if (!reason) {
-                window.notifyApp?.('error', 'A rejection reason is required.');
+                window.notifyApp?.('error', 'A rejection note is required.');
                 return;
             }
 
@@ -136,19 +170,14 @@ export function createApprovalDetailsModalState() {
             this.actionType = 'reject';
 
             try {
-                const response = await fetch(`/rooms/approvals/${this.selectedBooking.id}/reject`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken(),
-                    },
-                    body: JSON.stringify({ reason }),
+                const { response, data } = await postJsonWithFallback([
+                    this.selectedBooking?.reject_url,
+                    `/rooms/approvals/${this.selectedBooking.id}/reject`,
+                    `/approvals/${this.selectedBooking.id}/reject`,
+                    `/bookings/${this.selectedBooking.id}/reject`,
+                ], {
+                    reason,
                 });
-
-                const contentType = response.headers.get('content-type') || '';
-                const data = contentType.includes('application/json')
-                    ? await response.json()
-                    : null;
 
                 if (!response.ok || !data?.success) {
                     const fallbackMessage = response.status

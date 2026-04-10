@@ -287,11 +287,12 @@
                                                  'bg-gray-100/80': day.isTimeLocked,
                                                  'cursor-pointer hover:bg-rose-50/80 hover:z-10 hover:shadow-lg': isCalendarDayInteractive(day),
                                                  'cursor-not-allowed': !isCalendarDayInteractive(day),
-                                                 'opacity-45 grayscale': day.isCurrentMonth && (day.isPast || day.isTimeLocked),
+                                                 'opacity-45 grayscale': day.isCurrentMonth && (day.isPast || day.isTimeLocked) && !day.isToday,
+                                                 'opacity-45': day.isCurrentMonth && day.isToday && day.isTimeLocked,
                                              }">
                                             <div class="flex items-center justify-between mb-2">
                                                 <span class="text-xs font-black"
-                                                      :class="day.isToday && !day.isTimeLocked ? 'bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center -ml-1' : (day.isCurrentMonth ? 'text-gray-600' : 'text-gray-300')"
+                                                      :class="day.isToday ? 'bg-purple-700 text-white w-6 h-6 rounded-full flex items-center justify-center -ml-1' : (day.isCurrentMonth ? 'text-gray-600' : 'text-gray-300')"
                                                       x-text="day.day"></span>
                                             </div>
                                             <div class="space-y-1 overflow-hidden">

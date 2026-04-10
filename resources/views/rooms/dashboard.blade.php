@@ -194,7 +194,13 @@
                             </div>
                             <div class="flex-1 min-w-0">
                                 <h4 class="text-sm font-semibold text-gray-900 truncate">{{ $booking->room->name ?? 'Room' }}</h4>
-                                <p class="text-xs text-gray-500 truncate">{{ $booking->user_name }} &bull; {{ $booking->date->format('M j') }} &bull; {{ $booking->formatted_time }}</p>
+                                <p class="text-xs text-gray-500 truncate">
+                                    {{ $booking->user_name }}
+                                    @if($booking->user?->campus)
+                                        <span class="font-semibold text-indigo-600">&bull; {{ $booking->user->campus }}</span>
+                                    @endif
+                                    &bull; {{ $booking->date->format('M j') }} &bull; {{ $booking->formatted_time }}
+                                </p>
                             </div>
                             <span class="shrink-0 px-2 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 uppercase">Pending</span>
                         </div>
@@ -268,7 +274,12 @@
                             @endif
                             <div class="flex-1 min-w-0">
                                 <h4 class="text-sm font-bold text-gray-900 truncate group-hover/qr:text-indigo-700 transition-colors">{{ $qrBooking->room->name }}</h4>
-                                <p class="text-xs text-gray-500">{{ $qrBooking->formatted_time }} &bull; {{ $qrBooking->user_name }}</p>
+                                <p class="text-xs text-gray-500">
+                                    {{ $qrBooking->formatted_time }} &bull; {{ $qrBooking->user_name }}
+                                    @if($qrBooking->user?->campus)
+                                        <span class="font-semibold text-indigo-600">&bull; {{ $qrBooking->user->campus }}</span>
+                                    @endif
+                                </p>
                             </div>
                             <i class="fa-solid fa-chevron-right text-gray-300 group-hover/qr:text-indigo-400 text-xs transition-colors"></i>
                         </div>
@@ -335,11 +346,12 @@
                                                  'bg-gray-100/80': day.isTimeLocked,
                                                  'cursor-pointer hover:bg-rose-50/80 hover:z-10 hover:shadow-lg': isCalendarDayInteractive(day),
                                                  'cursor-not-allowed': !isCalendarDayInteractive(day),
-                                                 'opacity-45 grayscale': day.isCurrentMonth && (day.isPast || day.isTimeLocked),
+                                                 'opacity-45 grayscale': day.isCurrentMonth && (day.isPast || day.isTimeLocked) && !day.isToday,
+                                                 'opacity-45': day.isCurrentMonth && day.isToday && day.isTimeLocked,
                                              }">
                                             <div class="flex items-center justify-between mb-2">
                                                 <span class="text-xs font-black"
-                                                      :class="day.isToday && !day.isTimeLocked ? 'bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center -ml-1' : (day.isCurrentMonth ? 'text-gray-600' : 'text-gray-300')"
+                                                      :class="day.isToday ? 'bg-purple-700 text-white w-6 h-6 rounded-full flex items-center justify-center -ml-1' : (day.isCurrentMonth ? 'text-gray-600' : 'text-gray-300')"
                                                       x-text="day.day"></span>
                                             </div>
                                             <div class="space-y-1 overflow-hidden">

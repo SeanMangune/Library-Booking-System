@@ -926,11 +926,15 @@ class BookingController extends Controller
     {
         $booking->loadMissing('room', 'user');
 
-        $approvalReason = trim((string) $request->get('reason'));
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:3', 'max:1000'],
+        ]);
+
+        $approvalReason = trim((string) $validated['reason']);
 
         $booking->update([
             'status' => 'approved',
-            'reason' => $approvalReason !== '' ? $approvalReason : null,
+            'reason' => $approvalReason,
         ]);
 
         // --- Ensure a unique qr_token exists for this booking ---
@@ -1062,7 +1066,7 @@ class BookingController extends Controller
     public function approvals(Request $request)
     {
         $status = $request->get('status', 'pending');
-        $query = Booking::with('room')
+        $query = Booking::with('room', 'user')
             ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
             ->where('status', $status);
 

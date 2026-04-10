@@ -19,10 +19,10 @@ use Illuminate\Support\Str;
 use App\Mail\RegistrationOtpMail;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\AbstractProvider;
-use Laravel\Socialite\Two\User as SocialiteUser;
 use Laravel\Socialite\Two\GoogleProvider;
 use Laravel\Socialite\Two\InvalidStateException;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
@@ -345,6 +345,7 @@ class AuthController extends Controller
             'qcid_number' => (string) preg_replace('/\D+/', '', (string) $request->input('qcid_number')),
             'qr_validated_id' => (($qr = (string) preg_replace('/\D+/', '', (string) $request->input('qr_validated_id'))) !== '' ? $qr : null),
             'sex' => strtoupper(trim((string) $request->input('sex'))),
+            'campus' => trim((string) $request->input('campus')),
             'address' => $this->sanitizeAddressInput((string) $request->input('address')),
         ]);
 
@@ -381,6 +382,7 @@ class AuthController extends Controller
             'user_type' => ['required', 'string', 'in:student,employee,alumni'],
             'employee_category' => ['nullable', 'string', 'max:50', 'required_if:user_type,employee'],
             'course' => ['nullable', 'string', 'max:100', 'required_if:user_type,student'],
+            'campus' => ['nullable', 'string', 'required_if:user_type,student', Rule::in(User::STUDENT_CAMPUSES)],
             'sex' => ['nullable', 'string', 'in:MALE,FEMALE,PREFER_NOT_TO_SAY'],
             'civil_status' => ['nullable', 'string'],
             'date_of_birth' => ['nullable', 'date'],
@@ -400,6 +402,8 @@ class AuthController extends Controller
             'qcid_number.size' => 'QC ID number must be exactly 14 digits.',
             'qcid_number.regex' => 'QC ID number must contain digits only.',
             'sex.in' => 'Sex must be Male, Female, or Prefer not to say.',
+            'campus.required_if' => 'Campus is required for student accounts.',
+            'campus.in' => 'Please select a valid campus.',
             'otp_token.required' => 'Email verification is required. Please verify your email address first.',
             'qcid_image.required_without' => 'Please upload and verify your QC ID image before registration.',
         ]);
@@ -413,6 +417,10 @@ class AuthController extends Controller
         }
 
         $validated = $validator->validated();
+
+        if (($validated['user_type'] ?? '') !== 'student') {
+            $validated['campus'] = null;
+        }
 
         // Verify OTP token from cache
         $otpTokenKey = 'reg_otp_verified:' . strtolower($validated['email']);
@@ -540,6 +548,7 @@ class AuthController extends Controller
                 'password' => Hash::make($validated['password']),
                 'role' => 'user',
                 'classification' => $classification,
+                'campus' => $validated['campus'] ?? null,
             ]);
 
             // Create the initial verified registration record

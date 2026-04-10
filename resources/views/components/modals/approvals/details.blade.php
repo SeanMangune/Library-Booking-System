@@ -73,6 +73,12 @@
                         <i class="w-4 h-4 text-purple-500 fa-icon fa-solid fa-envelope text-base leading-none"></i>
                         <span class="text-gray-500" x-text="selectedBooking?.user_email"></span>
                     </div>
+                    <template x-if="selectedBooking?.user_campus || selectedBooking?.user?.campus">
+                        <div class="flex items-center gap-2 text-sm">
+                            <i class="w-4 h-4 text-purple-500 fa-icon fa-solid fa-school text-base leading-none"></i>
+                            <span class="text-gray-500" x-text="selectedBooking?.user_campus || selectedBooking?.user?.campus"></span>
+                        </div>
+                    </template>
                 </div>
             </div>
 
@@ -106,12 +112,12 @@
 
             <template x-if="selectedBooking?.status === 'pending'">
                 <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-                    <label class="block text-sm font-semibold text-red-800 mb-2">Rejection reason (required for reject)</label>
+                    <label class="block text-sm font-semibold text-red-800 mb-2">Decision note (required for approve or reject)</label>
                     <textarea x-model="rejectionReason"
-                              placeholder="Explain why this booking is being rejected..."
+                              placeholder="Add your approval or rejection note..."
                               class="w-full p-3 border border-red-200 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-300 resize-none"
                               rows="3"></textarea>
-                    <p class="mt-2 text-xs text-red-700">This reason will be included in the user's rejection email and notification.</p>
+                    <p class="mt-2 text-xs text-red-700">This note is saved with the booking decision and included in user notifications.</p>
                 </div>
             </template>
 

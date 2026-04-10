@@ -46,6 +46,7 @@
                                     <span class="text-[10px] uppercase font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded" x-text="booking.status"></span>
                                 </div>
                                 <p class="text-xs text-gray-500 truncate" x-text="(booking.user?.name || booking.user_name || 'Unknown') + ' | ' + new Date(booking.date).toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric'}) + ' ' + (booking.formatted_time || '')"></p>
+                                <p x-show="booking.user_campus || booking.user?.campus" class="text-[11px] text-indigo-700 truncate mt-0.5" x-text="booking.user_campus || booking.user?.campus"></p>
                             </div>
                             <i class="fa-solid fa-chevron-right text-xs text-gray-300"></i>
                         </div>

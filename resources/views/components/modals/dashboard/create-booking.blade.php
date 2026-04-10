@@ -253,10 +253,10 @@
                                     </label>
                                      <select x-model.number="bookingForm.attendees" required
                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                                        <template x-for="count in Array.from({ length: 8 }, (_, index) => index + 5)" :key="`attendee-${count}`">
-                                            <option :value="count"
-                                                    :disabled="attendeeInputMax && count > Number(attendeeInputMax)"
-                                                    x-text="attendeeInputMax && count > Number(attendeeInputMax) ? `${count} (Unavailable)` : count"></option>
+                                        <template x-for="option in attendeeOptions" :key="`attendee-${option.value}`">
+                                            <option :value="option.value"
+                                                    :disabled="option.disabled"
+                                                    x-text="option.disabled ? `${option.label} (Unavailable)` : option.label"></option>
                                         </template>
                                      </select>
                                      <p x-show="attendeeGuidance" x-cloak class="mt-1 text-xs text-gray-500" x-text="attendeeGuidance"></p>

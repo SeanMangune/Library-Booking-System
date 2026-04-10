@@ -140,6 +140,7 @@
                 'duration' => $booking->duration,
                 'user_name' => $booking->user_name,
                 'user_email' => $booking->user_email,
+                'user_campus' => $booking->user?->campus,
                 'attendees' => $booking->attendees,
                 'status' => $booking->status,
                 'booking_status' => $booking->booking_status,
@@ -151,6 +152,8 @@
                 'student_capacity_limit' => $booking->room->maxStudentBookingCapacity(),
                 'qr_code_encrypted' => $booking->qr_code_encrypted ?? null,
                 'qr_token' => $booking->qr_token ?? null,
+                'approve_url' => route('approvals.approve', ['booking' => $booking->id]),
+                'reject_url' => route('approvals.reject', ['booking' => $booking->id]),
             ];
         @endphp
         <div class="booking-card bg-white rounded-2xl border border-gray-200 shadow-sm p-6 hover:shadow-xl hover:border-indigo-200 hover:-translate-y-1 transition-all duration-300 cursor-pointer group relative"
@@ -190,6 +193,14 @@
                         <p class="text-sm text-gray-500">
                             Requested by <span class="font-bold text-gray-900" title="{{ $booking->user_name }}">{{ Str::limit($booking->user_name, 14) }}</span>
                         </p>
+                        @if($booking->user?->campus)
+                        <p class="mt-1">
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700 border border-indigo-200">
+                                <i class="fa-solid fa-school"></i>
+                                {{ $booking->user->campus }}
+                            </span>
+                        </p>
+                        @endif
                     </div>
                 </div>
 
@@ -208,10 +219,6 @@
                             Pending Review
                         </span>
                     @endif
-                    <div class="bg-gray-50 group-hover:bg-indigo-50 px-4 py-2 rounded-xl transition-colors duration-300">
-                        <span class="text-[10px] font-bold text-gray-400 uppercase block tracking-tighter">Status Tag</span>
-                        <span class="text-xs font-black text-gray-600 group-hover:text-indigo-700 uppercase">{{ $booking->booking_status ?: 'General' }}</span>
-                    </div>
                 </div>
             </div>
 

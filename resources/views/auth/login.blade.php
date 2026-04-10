@@ -94,6 +94,7 @@
                 'user_type',
                 'employee_category',
                 'course',
+                'campus',
                 'qcid_number',
                 'sex',
                 'civil_status',
@@ -220,6 +221,7 @@ window.signupOldInput = {
     user_type: @json(old('user_type', '')),
     employee_category: @json(old('employee_category', '')),
     course: @json(old('course', '')),
+    campus: @json(old('campus', '')),
     qcid_number: @json(old('qcid_number', '')),
     sex: @json(old('sex', '')),
     civil_status: @json(old('civil_status', '')),
@@ -454,6 +456,18 @@ function signupLoginApp($persist, initialSignupOpen) {
             if (dobError) {
                 this.scan.error = dobError;
                 return;
+            }
+
+            if ((this.signup.user_type || '') === 'student') {
+                if (!String(this.signup.course || '').trim()) {
+                    this.scan.error = 'Please select your course or department.';
+                    return;
+                }
+
+                if (!String(this.signup.campus || '').trim()) {
+                    this.scan.error = 'Please select your campus.';
+                    return;
+                }
             }
 
             if (this.scan.qrIdNumber) {

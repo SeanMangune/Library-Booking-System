@@ -95,6 +95,9 @@
                                         <p class="text-[10px] text-gray-500 uppercase tracking-wide font-medium">Booked By</p>
                                         <p class="text-sm font-semibold text-gray-900" x-text="selectedBooking.user_name"></p>
                                         <p class="text-xs text-gray-500" x-text="selectedBooking.user_email || ''"></p>
+                                        <p x-show="selectedBooking.user_campus || selectedBooking.user?.campus"
+                                           class="text-xs text-indigo-600 font-semibold"
+                                           x-text="selectedBooking.user_campus || selectedBooking.user?.campus"></p>
                                     </div>
                                 </div>
                             </div>

@@ -363,7 +363,7 @@ function buildAttendeeOptions(maxAllowed = BOOKING_REQUEST_MAX_ATTENDEES) {
 
         options.push({
             value: count,
-            label: `${count} people${requestOnly ? ' (Request only)' : ''}`,
+            label: `${count} people${requestOnly ? ' (Request only - needs approval)' : ''}`,
             requestOnly,
             disabled: count > normalizedMax,
         });
@@ -789,6 +789,7 @@ function mapEventFromCalendarInfo(context, info) {
         start_time: derivedStartTime,
         end_time: derivedEndTime,
         user_name: props.user_name || props.userName,
+        user_campus: props.user_campus || props.userCampus || null,
         attendees: props.attendees,
         status: props.status,
         description: props.description,
@@ -1694,13 +1695,6 @@ export function createRoomCalendarApp(config = {}) {
                 !this.isStaffUser && requestedAttendees > BOOKING_STANDARD_MAX_ATTENDEES,
             );
 
-            if (requiresLibrarianApproval) {
-                showNotification(
-                    `Bookings with ${BOOKING_STANDARD_MAX_ATTENDEES + 1}-${BOOKING_REQUEST_MAX_ATTENDEES} attendees are request-only and will be submitted for librarian approval.`,
-                    'warning',
-                );
-            }
-
             this.isSubmitting = true;
 
             try {
@@ -1718,7 +1712,9 @@ export function createRoomCalendarApp(config = {}) {
 
                 if (response.ok && data.success) {
                     this.clearTimeConflictSuggestions();
-                    this.successMessage = data.message || 'Booking created successfully.';
+                    this.successMessage = data.message || (requiresLibrarianApproval
+                        ? `Booking submitted for librarian approval (${BOOKING_STANDARD_MAX_ATTENDEES + 1}-${BOOKING_REQUEST_MAX_ATTENDEES} attendees).`
+                        : 'Booking created successfully.');
                     this.successBooking = data.booking || null;
                     this.closeBookingModal();
                     this.showSuccessModal = true;
@@ -3405,6 +3401,7 @@ export function createDashboardApp(config = {}) {
                 room_location: booking.room_location || booking.room?.location || '',
                 user_name: booking.user_name || booking.user?.name || 'Unknown',
                 user_email: booking.user_email || booking.user?.email || '',
+                user_campus: booking.user_campus || booking.user?.campus || '',
                 date: booking.date || booking.formatted_date || '',
                 formatted_time: booking.formatted_time || this.formatTimeRange(booking.start_time, booking.end_time),
                 formatted_date: booking.formatted_date || booking.date || '',
@@ -3521,13 +3518,6 @@ export function createDashboardApp(config = {}) {
                 !this.isStaffUser && requestedAttendees > BOOKING_STANDARD_MAX_ATTENDEES,
             );
 
-            if (requiresLibrarianApproval) {
-                showNotification(
-                    `Bookings with ${BOOKING_STANDARD_MAX_ATTENDEES + 1}-${BOOKING_REQUEST_MAX_ATTENDEES} attendees are request-only and will be submitted for librarian approval.`,
-                    'warning',
-                );
-            }
-
             this.isSubmitting = true;
 
             try {
@@ -3545,7 +3535,10 @@ export function createDashboardApp(config = {}) {
 
                 if (response.ok && data.success) {
                     this.clearTimeConflictSuggestions();
-                    showNotification(data.message || 'Booking created successfully.', 'success');
+                    const successMessage = data.message || (requiresLibrarianApproval
+                        ? `Booking submitted for librarian approval (${BOOKING_STANDARD_MAX_ATTENDEES + 1}-${BOOKING_REQUEST_MAX_ATTENDEES} attendees).`
+                        : 'Booking created successfully.');
+                    showNotification(successMessage, 'success');
                     this.closeBookingModal();
                     window.setTimeout(() => {
                         window.location.reload();

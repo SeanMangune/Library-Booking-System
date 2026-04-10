@@ -27,6 +27,9 @@
                 <div class="text-indigo-100 text-sm">
                     <p><span class="font-semibold text-white">Member since:</span> {{ $user->created_at?->format('M d, Y') }}</p>
                     <p><span class="font-semibold text-white">Last updated:</span> {{ $user->updated_at?->diffForHumans() }}</p>
+                    @if(!empty($user->campus))
+                        <p><span class="font-semibold text-white">Campus:</span> {{ $user->campus }}</p>
+                    @endif
                 </div>
             </div>
         </div>
@@ -63,6 +66,13 @@
                             @error('email')
                                 <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
                             @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Campus</label>
+                            <input type="text" value="{{ $user->campus ?: 'Not set' }}" disabled
+                                   class="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-100 text-gray-600 cursor-not-allowed" />
+                            <p class="text-xs text-gray-500 mt-1">Campus is captured from signup for student accounts.</p>
                         </div>
 
                         <button type="submit"

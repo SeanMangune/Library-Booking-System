@@ -25,6 +25,18 @@ class User extends Authenticatable
 
     public const ROLE_LIBRARIAN = 'librarian';
 
+    public const CAMPUS_SAN_BARTOLOME_MAIN = 'San Bartolome (Main)';
+
+    public const CAMPUS_SAN_FRANCISCO = 'San Francisco';
+
+    public const CAMPUS_BATASAN = 'Batasan';
+
+    public const STUDENT_CAMPUSES = [
+        self::CAMPUS_SAN_BARTOLOME_MAIN,
+        self::CAMPUS_SAN_FRANCISCO,
+        self::CAMPUS_BATASAN,
+    ];
+
     /**
      * The attributes that are mass assignable.
      *
@@ -37,6 +49,7 @@ class User extends Authenticatable
         'password',
         'role',
         'classification',
+        'campus',
         'provider',
         'provider_id',
         'settings',

@@ -32,7 +32,7 @@ class CalendarController extends Controller
     public function events(Request $request)
     {
         try {
-            $query = Booking::with('room')
+            $query = Booking::with('room', 'user')
                 ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
                 ->where('status', 'approved');
 
@@ -84,6 +84,8 @@ class CalendarController extends Controller
                         'attendees' => $booking->attendees,
                         'userName' => $canViewAll ? $booking->user_name : null,
                         'user_name' => $canViewAll ? $booking->user_name : null,
+                        'userCampus' => $canViewAll ? ($booking->user?->campus ?? null) : null,
+                        'user_campus' => $canViewAll ? ($booking->user?->campus ?? null) : null,
                         'status' => $booking->status,
                         'description' => $canSeeDetails ? $booking->description : '',
                         'formatted_time' => $booking->formatted_time,
@@ -113,7 +115,7 @@ class CalendarController extends Controller
         try {
             $date = $request->get('date', today()->format('Y-m-d'));
 
-            $query = Booking::with('room')
+            $query = Booking::with('room', 'user')
                 ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
                 ->where('status', 'approved')
                 ->whereDate('date', $date);
@@ -145,6 +147,7 @@ class CalendarController extends Controller
                         'formatted_time' => $booking->formatted_time,
                         'formatted_date' => $booking->formatted_date,
                         'user_name' => $canViewAll ? $booking->user_name : null,
+                        'user_campus' => $canViewAll ? ($booking->user?->campus ?? null) : null,
                         'attendees' => $booking->attendees,
                         'status' => $booking->status,
 
@@ -174,7 +177,7 @@ class CalendarController extends Controller
             $startOfMonth = Carbon::createFromDate($year, $month, 1)->startOfMonth();
             $endOfMonth = Carbon::createFromDate($year, $month, 1)->endOfMonth();
 
-            $query = Booking::with('room')
+            $query = Booking::with('room', 'user')
                 ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())
                 ->where('status', 'approved')
                 ->whereBetween('date', [$startOfMonth, $endOfMonth]);
@@ -213,6 +216,7 @@ class CalendarController extends Controller
                         'formatted_time' => $booking->formatted_time,
                         'formatted_date' => $booking->formatted_date,
                         'user_name' => $canViewAll ? $booking->user_name : null,
+                        'user_campus' => $canViewAll ? ($booking->user?->campus ?? null) : null,
                         'status' => $booking->status,
                         'attendees' => $booking->attendees,
 

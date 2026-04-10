@@ -107,8 +107,6 @@ function initializeRealtimeNotifications() {
         ?.getAttribute('content');
 
     const renderState = (state) => {
-        const totalCount = Number(state?.header_notification_count || 0);
-        const unreadCount = Number(state?.user_unread_count || 0);
         const isStaff = Boolean(state?.is_staff);
         const pendingApprovals = Array.isArray(state?.recent_pending_approvals)
             ? state.recent_pending_approvals
@@ -116,6 +114,15 @@ function initializeRealtimeNotifications() {
         const unreadNotifications = Array.isArray(state?.user_unread_notifications)
             ? state.user_unread_notifications
             : [];
+        const pendingApprovalCount = Number(
+            state?.pending_approval_count ?? pendingApprovals.length,
+        );
+        const unreadCount = Number(
+            state?.user_unread_count ?? unreadNotifications.length,
+        );
+        const totalCount = Number(
+            state?.header_notification_count ?? (pendingApprovalCount + unreadCount),
+        );
 
         if (badge) {
             badge.textContent = String(totalCount);
@@ -123,7 +130,9 @@ function initializeRealtimeNotifications() {
         }
 
         if (unreadChip) {
-            unreadChip.textContent = `${totalCount} total`;
+            unreadChip.textContent = isStaff
+                ? `${pendingApprovalCount} pending + ${unreadCount} unread`
+                : `${unreadCount} unread`;
             unreadChip.classList.toggle('hidden', totalCount <= 0);
         }
 

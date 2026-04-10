@@ -257,6 +257,16 @@
                                                     </optgroup>
                                                 </select>
                                             </div>
+                                            <div x-show="signup.user_type === 'student'" x-cloak>
+                                                <label class="block text-sm font-semibold text-slate-700">Campus</label>
+                                                <select name="campus" x-model="signup.campus" :required="signup.user_type === 'student'" :disabled="signup.user_type !== 'student'"
+                                                        class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                    <option value="">Select campus</option>
+                                                    <option value="San Bartolome (Main)" @selected(old('campus') === 'San Bartolome (Main)')>San Bartolome (Main)</option>
+                                                    <option value="San Francisco" @selected(old('campus') === 'San Francisco')>San Francisco</option>
+                                                    <option value="Batasan" @selected(old('campus') === 'Batasan')>Batasan</option>
+                                                </select>
+                                            </div>
                                             <div>
                                                 <label class="block text-sm font-semibold text-slate-700">Sex</label>
                                                 <select name="sex" x-model="signup.sex"
