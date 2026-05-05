@@ -817,7 +817,7 @@ function signupLoginApp($persist, initialSignupOpen) {
 
         evaluateCapturedQcIdQuality(canvasEl) {
             const minEdge = Math.min(canvasEl.width, canvasEl.height);
-            if (minEdge < 700) {
+            if (minEdge < 240) {
                 return 'Move closer so the QC ID fully fills the guide frame before capturing.';
             }
 
