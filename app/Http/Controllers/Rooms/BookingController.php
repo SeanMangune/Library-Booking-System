@@ -817,8 +817,8 @@ class BookingController extends Controller
 
         if ($scheduleChanged) {
             try {
-                $email = $updatedBooking->user_email ?? $updatedBooking->user?->email;
-                if (! empty($email)) {
+                $email = $this->bookingRecipientEmail($updatedBooking);
+                if ($email !== null) {
                     Mail::to($email)->send(new BookingRescheduledMail($updatedBooking, $previousSchedule));
                 }
             } catch (\Throwable $e) {
@@ -908,8 +908,8 @@ class BookingController extends Controller
 
         // Send cancellation email to the booking owner
         try {
-            $email = $booking->user_email ?? $booking->user?->email;
-            if (! empty($email)) {
+            $email = $this->bookingRecipientEmail($booking);
+            if ($email !== null) {
                 Mail::to($email)->queue(new BookingCancelledMail($booking, $cancelledBy));
             }
         } catch (\Throwable $e) {
@@ -979,14 +979,13 @@ class BookingController extends Controller
         $payload['approval_status'] = $fresh->status;
         $payload['qr_status'] = $fresh->booking_status;
     // Always add plain QR code payload for frontend to use in QR code URL
-    $payload['qr_code_encrypted'] = $fresh->qr_token ?? $fresh->booking_code;
-    $payload['qr_validity'] = $fresh->qr_validity;
+        $payload['qr_code_encrypted'] = $fresh->qr_token ?? $fresh->booking_code;
+        $payload['qr_validity'] = $fresh->qr_validity;
 
         try {
-            if (! empty($fresh->user_email)) {
-                Mail::to($fresh->user_email)->queue(new BookingApprovedMail($fresh));
-            } elseif ($fresh->user && ! empty($fresh->user->email)) {
-                Mail::to($fresh->user->email)->queue(new BookingApprovedMail($fresh));
+            $email = $this->bookingRecipientEmail($fresh);
+            if ($email !== null) {
+                Mail::to($email)->queue(new BookingApprovedMail($fresh));
             }
         } catch (\Throwable $e) {
             Log::warning('Booking approval email failed.', [
@@ -1035,8 +1034,8 @@ class BookingController extends Controller
         $fresh = $booking->fresh()->load('room', 'user');
 
         try {
-            $email = $fresh->user_email ?? $fresh->user?->email;
-            if (! empty($email)) {
+            $email = $this->bookingRecipientEmail($fresh);
+            if ($email !== null) {
                 Mail::to($email)->send(new BookingRejectedMail($fresh));
             }
         } catch (\Throwable $e) {
@@ -1265,6 +1264,18 @@ class BookingController extends Controller
         $booking->syncBookingStatus();
 
         return view('rooms.verify', ['booking' => $booking, 'token' => $token]);
+    }
+
+    private function bookingRecipientEmail(Booking $booking): ?string
+    {
+        $directEmail = trim((string) ($booking->user_email ?? ''));
+        if ($directEmail !== '') {
+            return $directEmail;
+        }
+
+        $userEmail = trim((string) ($booking->user?->email ?? ''));
+
+        return $userEmail !== '' ? $userEmail : null;
     }
 
     private function bookingWindowEndDate(): Carbon
