@@ -15,6 +15,7 @@ use App\Services\QcIdOcrVerifier;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Mail;
@@ -926,15 +927,53 @@ class BookingController extends Controller
     {
         $booking->loadMissing('room', 'user');
 
+        if ($booking->status === 'pending' && $booking->determineBookingStatus() === 'expired') {
+            $booking->update([
+                'status' => 'rejected',
+                'reason' => 'Automatically rejected: booking request expired before approval.',
+                'decision_by_user_id' => null,
+                'decision_by_name' => null,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'This booking has already expired and was automatically rejected.',
+            ], 422);
+        }
+
         $validated = $request->validate([
             'reason' => ['required', 'string', 'min:3', 'max:1000'],
+            'password' => ['required', 'string'],
         ]);
+
+        $actingUser = $request->user();
+        $passwordOk = $actingUser && Hash::check((string) ($validated['password'] ?? ''), (string) $actingUser->password);
+        if (! $passwordOk) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Incorrect password.',
+            ], 422);
+        }
+
+        $decisionByName = null;
+        if ($actingUser) {
+            $decisionByName = trim((string) ($actingUser->name ?? ''));
+            if ($decisionByName === '') {
+                $decisionByName = trim((string) ($actingUser->username ?? ''));
+            }
+            if ($decisionByName === '') {
+                $decisionByName = trim((string) ($actingUser->email ?? ''));
+            }
+            $decisionByName = $decisionByName !== '' ? $decisionByName : null;
+        }
 
         $approvalReason = trim((string) $validated['reason']);
 
         $booking->update([
             'status' => 'approved',
             'reason' => $approvalReason,
+            'decision_by_user_id' => $actingUser?->id,
+            'decision_by_name' => $decisionByName,
         ]);
 
         // --- Ensure a unique qr_token exists for this booking ---
@@ -1022,13 +1061,37 @@ class BookingController extends Controller
 
         $validated = $request->validate([
             'reason' => ['required', 'string', 'max:1000'],
+            'password' => ['required', 'string'],
         ]);
+
+        $actingUser = $request->user();
+        $passwordOk = $actingUser && Hash::check((string) ($validated['password'] ?? ''), (string) $actingUser->password);
+        if (! $passwordOk) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Incorrect password.',
+            ], 422);
+        }
+
+        $decisionByName = null;
+        if ($actingUser) {
+            $decisionByName = trim((string) ($actingUser->name ?? ''));
+            if ($decisionByName === '') {
+                $decisionByName = trim((string) ($actingUser->username ?? ''));
+            }
+            if ($decisionByName === '') {
+                $decisionByName = trim((string) ($actingUser->email ?? ''));
+            }
+            $decisionByName = $decisionByName !== '' ? $decisionByName : null;
+        }
 
         $rejectionReason = trim((string) $validated['reason']);
 
         $booking->update([
             'status' => 'rejected',
             'reason' => $rejectionReason !== '' ? $rejectionReason : null,
+            'decision_by_user_id' => $actingUser?->id,
+            'decision_by_name' => $decisionByName,
         ]);
 
         $fresh = $booking->fresh()->load('room', 'user');
@@ -1064,6 +1127,28 @@ class BookingController extends Controller
 
     public function approvals(Request $request)
     {
+        // Auto-reject pending bookings that are already in the past.
+        // This keeps the approvals inbox clean and prevents stale pending requests.
+        $bookingTimezone = (string) config('app.booking_timezone', 'Asia/Manila');
+        $now = now($bookingTimezone);
+        $currentDate = $now->toDateString();
+        $currentTime = $now->format('H:i:s');
+
+        Booking::query()
+            ->where('status', 'pending')
+            ->where(function ($query) use ($currentDate, $currentTime) {
+                $query->whereDate('date', '<', $currentDate)
+                    ->orWhere(function ($inner) use ($currentDate, $currentTime) {
+                        $inner->whereDate('date', '=', $currentDate)
+                            ->whereNotNull('end_time')
+                            ->whereTime('end_time', '<', $currentTime);
+                    });
+            })
+            ->update([
+                'status' => 'rejected',
+                'reason' => 'Automatically rejected: booking request expired before approval.',
+            ]);
+
         $status = $request->get('status', 'pending');
         $query = Booking::with('room', 'user')
             ->whereHas('room', fn ($roomQuery) => $roomQuery->visible())

@@ -110,6 +110,13 @@
                                 $upcomingBookingsForRoom = $roomBookings->filter(fn ($booking) => !$booking->date->isToday() && $booking->date->isAfter(today()))->values();
                                 $roomBookingCount = $roomBookings->count();
 
+                                $dashboardReference = now((string) config('app.booking_timezone', 'Asia/Manila'));
+                                $isOccupied = $dashboardStatus === 'available'
+                                    && $todayBookingsForRoom->contains(fn ($booking) => ($booking->booking_status ?? $booking->determineBookingStatus($dashboardReference)) === 'valid');
+                                if ($isOccupied) {
+                                    $dashboardStatus = 'occupied';
+                                }
+
                                 if ($dashboardStatus === 'closed') {
                                     $statusLabel = 'Closed';
                                     $rowBorderClasses = 'border-slate-200';
@@ -122,6 +129,12 @@
                                     $badgeClasses = 'bg-amber-100 text-amber-700';
                                     $progressClasses = 'from-amber-400 via-orange-400 to-amber-500';
                                     $statusPercent = 45;
+                                } elseif ($dashboardStatus === 'occupied') {
+                                    $statusLabel = 'Occupied';
+                                    $rowBorderClasses = 'border-indigo-100';
+                                    $badgeClasses = 'bg-indigo-100 text-indigo-700';
+                                    $progressClasses = 'from-indigo-400 via-indigo-500 to-indigo-600';
+                                    $statusPercent = 70;
                                 } else {
                                     $statusLabel = 'Available';
                                     $rowBorderClasses = 'border-emerald-100';

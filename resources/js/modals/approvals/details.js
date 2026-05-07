@@ -69,6 +69,7 @@ export function createApprovalDetailsModalState() {
         isLoading: false,
         actionType: null,
         rejectionReason: '',
+        decisionPassword: '',
         approvalsReloadTimer: null,
 
         queueApprovalsReload(delayMs = 1200) {
@@ -84,6 +85,7 @@ export function createApprovalDetailsModalState() {
         openApprovalModal(booking) {
             this.selectedBooking = booking;
             this.rejectionReason = '';
+            this.decisionPassword = '';
             this.showModal = true;
         },
 
@@ -91,6 +93,7 @@ export function createApprovalDetailsModalState() {
             this.showModal = false;
             this.selectedBooking = null;
             this.rejectionReason = '';
+            this.decisionPassword = '';
         },
 
         async approveBooking() {
@@ -101,6 +104,12 @@ export function createApprovalDetailsModalState() {
             const reason = String(this.rejectionReason || '').trim();
             if (!reason) {
                 window.notifyApp?.('error', 'An approval note is required.');
+                return;
+            }
+
+            const password = String(this.decisionPassword || '');
+            if (!password) {
+                window.notifyApp?.('error', 'Password is required to approve.');
                 return;
             }
 
@@ -115,13 +124,20 @@ export function createApprovalDetailsModalState() {
                     `/bookings/${this.selectedBooking.id}/approve`,
                 ], {
                     reason,
+                    password,
                 });
 
                 if (!response.ok || !data?.success) {
                     const fallbackMessage = response.status
                         ? `Failed to approve booking (HTTP ${response.status})`
                         : 'Failed to approve booking';
-                    window.notifyApp?.('error', data?.message || fallbackMessage);
+                    const message = data?.message || fallbackMessage;
+                    window.notifyApp?.('error', message);
+
+                    if (response.status === 422 && /automatically rejected/i.test(String(message))) {
+                        removeBookingCardFromPendingList(this.selectedBooking.id);
+                        this.queueApprovalsReload();
+                    }
                     return;
                 }
 
@@ -143,6 +159,7 @@ export function createApprovalDetailsModalState() {
                 removeBookingCardFromPendingList(this.selectedBooking.id);
                 this.qrImageFailed = false;
                 this.rejectionReason = '';
+                this.decisionPassword = '';
                 this.showModal = false;
                 this.showSuccessModal = true;
                 this.queueApprovalsReload(1500);
@@ -166,6 +183,12 @@ export function createApprovalDetailsModalState() {
                 return;
             }
 
+            const password = String(this.decisionPassword || '');
+            if (!password) {
+                window.notifyApp?.('error', 'Password is required to reject.');
+                return;
+            }
+
             this.isLoading = true;
             this.actionType = 'reject';
 
@@ -177,6 +200,7 @@ export function createApprovalDetailsModalState() {
                     `/bookings/${this.selectedBooking.id}/reject`,
                 ], {
                     reason,
+                    password,
                 });
 
                 if (!response.ok || !data?.success) {
@@ -190,6 +214,7 @@ export function createApprovalDetailsModalState() {
                 this.showModal = false;
                 this.showRejectModal = true;
                 this.rejectionReason = '';
+                this.decisionPassword = '';
                 this.queueApprovalsReload();
             } catch (error) {
                 console.error('Error:', error);

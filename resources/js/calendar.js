@@ -1861,11 +1861,11 @@ export function createDashboardApp(config = {}) {
         normalizeCollaborativeRoomStatus(status) {
             const normalized = String(status || '').toLowerCase();
 
-            if (normalized === 'maintenance' || normalized === 'closed') {
+            if (normalized === 'maintenance' || normalized === 'closed' || normalized === 'occupied') {
                 return normalized;
             }
 
-            if (normalized === 'occupied' || normalized === 'operational' || normalized === 'available') {
+            if (normalized === 'operational' || normalized === 'available') {
                 return 'available';
             }
 
@@ -1893,6 +1893,10 @@ export function createDashboardApp(config = {}) {
                 return 'Closed';
             }
 
+            if (status === 'occupied') {
+                return 'Occupied';
+            }
+
             return 'Available';
         },
 
@@ -1905,6 +1909,10 @@ export function createDashboardApp(config = {}) {
 
             if (status === 'closed') {
                 return 'text-slate-600';
+            }
+
+            if (status === 'occupied') {
+                return 'text-indigo-600';
             }
 
             return 'text-emerald-600';
@@ -1921,6 +1929,10 @@ export function createDashboardApp(config = {}) {
                 return 'bg-slate-200 text-slate-700';
             }
 
+            if (status === 'occupied') {
+                return 'bg-indigo-100 text-indigo-700';
+            }
+
             return 'bg-emerald-100 text-emerald-700';
         },
 
@@ -1933,6 +1945,10 @@ export function createDashboardApp(config = {}) {
 
             if (status === 'closed') {
                 return 'Room is currently closed and cannot accept reservations.';
+            }
+
+            if (status === 'occupied') {
+                return 'Room is currently occupied by an active booking.';
             }
 
             return 'Room is open and ready for reservations.';
@@ -2352,13 +2368,15 @@ export function createDashboardApp(config = {}) {
                     ? 'Under Maintenance'
                     : status === 'closed'
                         ? 'Closed'
-                        : 'Available';
+                        : status === 'occupied'
+                            ? 'Occupied'
+                            : 'Available';
 
                 badge.textContent = label;
                 badge.dataset.collabRoomStatus = label;
 
-                badge.classList.remove('bg-amber-100', 'text-amber-700', 'bg-slate-200', 'text-slate-700', 'bg-emerald-100', 'text-emerald-700');
-                card.classList.remove('border-amber-100', 'border-slate-200', 'border-emerald-100');
+                badge.classList.remove('bg-amber-100', 'text-amber-700', 'bg-slate-200', 'text-slate-700', 'bg-indigo-100', 'text-indigo-700', 'bg-emerald-100', 'text-emerald-700');
+                card.classList.remove('border-amber-100', 'border-slate-200', 'border-indigo-100', 'border-emerald-100');
 
                 if (progressBar) {
                     progressBar.classList.remove(
@@ -2368,6 +2386,9 @@ export function createDashboardApp(config = {}) {
                         'from-slate-400',
                         'via-slate-500',
                         'to-slate-600',
+                        'from-indigo-400',
+                        'via-indigo-500',
+                        'to-indigo-600',
                         'from-emerald-400',
                         'via-teal-500',
                         'to-emerald-500',
@@ -2387,6 +2408,13 @@ export function createDashboardApp(config = {}) {
                     if (progressBar) {
                         progressBar.classList.add('from-slate-400', 'via-slate-500', 'to-slate-600');
                         progressBar.style.width = '20%';
+                    }
+                } else if (status === 'occupied') {
+                    badge.classList.add('bg-indigo-100', 'text-indigo-700');
+                    card.classList.add('border-indigo-100');
+                    if (progressBar) {
+                        progressBar.classList.add('from-indigo-400', 'via-indigo-500', 'to-indigo-600');
+                        progressBar.style.width = '70%';
                     }
                 } else {
                     badge.classList.add('bg-emerald-100', 'text-emerald-700');

@@ -110,6 +110,16 @@
                 </div>
             </template>
 
+            <template x-if="selectedBooking?.status !== 'pending' && selectedBooking?.decision_by_name">
+                <div class="mb-6 p-4 bg-gray-50 rounded-xl">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-2">Decision</h3>
+                    <p class="text-sm text-gray-600">
+                        <span x-text="selectedBooking?.status === 'approved' ? 'Approved by' : 'Rejected by'"></span>
+                        <span class="font-semibold text-gray-900" x-text="selectedBooking?.decision_by_name"></span>
+                    </p>
+                </div>
+            </template>
+
             <template x-if="selectedBooking?.status === 'pending'">
                 <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
                     <label class="block text-sm font-semibold text-red-800 mb-2">Decision note (required for approve or reject)</label>
@@ -117,6 +127,14 @@
                               placeholder="Add your approval or rejection note..."
                               class="w-full p-3 border border-red-200 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-300 resize-none"
                               rows="3"></textarea>
+
+                    <label class="block text-sm font-semibold text-red-800 mt-4 mb-2">Password (required)</label>
+                    <input x-model="decisionPassword"
+                           type="password"
+                           autocomplete="current-password"
+                           placeholder="Enter your password to confirm"
+                           class="w-full p-3 border border-red-200 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-300" />
+
                     <p class="mt-2 text-xs text-red-700">This note is saved with the booking decision and included in user notifications.</p>
                 </div>
             </template>

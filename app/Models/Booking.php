@@ -36,6 +36,8 @@ class Booking extends Model
         'has_conflict',
         'conflicts_with',
         'reason',
+        'decision_by_user_id',
+        'decision_by_name',
         'qr_token',
         'booking_code',
     ];

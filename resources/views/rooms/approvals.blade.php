@@ -150,6 +150,8 @@
                 'requires_capacity_permission' => $booking->requiresCapacityPermission(),
                 'standard_capacity_limit' => $booking->room->standardBookingCapacityLimit(),
                 'student_capacity_limit' => $booking->room->maxStudentBookingCapacity(),
+                'decision_by_user_id' => $booking->decision_by_user_id,
+                'decision_by_name' => $booking->decision_by_name,
                 'qr_code_encrypted' => $booking->qr_code_encrypted ?? null,
                 'qr_token' => $booking->qr_token ?? null,
                 'approve_url' => route('approvals.approve', ['booking' => $booking->id]),
@@ -193,6 +195,12 @@
                         <p class="text-sm text-gray-500">
                             Requested by <span class="font-bold text-gray-900" title="{{ $booking->user_name }}">{{ Str::limit($booking->user_name, 14) }}</span>
                         </p>
+                        @if($booking->status !== 'pending' && ! empty($booking->decision_by_name))
+                        <p class="text-xs text-gray-500 mt-1">
+                            {{ $booking->status === 'approved' ? 'Approved by' : 'Rejected by' }}
+                            <span class="font-bold text-gray-900" title="{{ $booking->decision_by_name }}">{{ Str::limit($booking->decision_by_name, 18) }}</span>
+                        </p>
+                        @endif
                         @if($booking->user?->campus)
                         <p class="mt-1">
                             <span class="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700 border border-indigo-200">

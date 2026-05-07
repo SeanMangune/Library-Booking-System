@@ -599,19 +599,31 @@ function signupLoginApp($persist, initialSignupOpen) {
             this.otpError = '';
 
             try {
-                const response = await fetch(window.signupVerifyOtpUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                    },
-                    body: JSON.stringify({ email: this.otpEmail, otp: this.otpCode }),
-                });
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-                const data = await response.json();
+                let response;
+                try {
+                    response = await fetch(window.signupVerifyOtpUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                        },
+                        signal: controller.signal,
+                        body: JSON.stringify({ email: this.otpEmail, otp: this.otpCode }),
+                    });
+                } finally {
+                    clearTimeout(timeoutId);
+                }
 
-                if (data.success && data.otp_token) {
+                const contentType = (response.headers.get('content-type') || '').toLowerCase();
+                const data = contentType.includes('application/json')
+                    ? await response.json().catch(() => ({}))
+                    : {};
+
+                if (response.ok && data.success && data.otp_token) {
                     this.otpToken = data.otp_token;
                     this.otpModalOpen = false;
 
@@ -620,10 +632,22 @@ function signupLoginApp($persist, initialSignupOpen) {
                         this.$nextTick(() => this.submitSignupForm(this._otpFormEl));
                     }
                 } else {
-                    this.otpError = data.message || 'Verification failed. Please try again.';
+                    // Preserve the same OTP for retries; only show a clear error.
+                    const serverMessage = String(data?.message || '').trim();
+                    if (serverMessage) {
+                        this.otpError = serverMessage;
+                    } else if (response.status === 422) {
+                        this.otpError = 'Wrong code.';
+                    } else {
+                        this.otpError = 'Unable to verify code. Please try again.';
+                    }
                 }
             } catch (error) {
-                this.otpError = 'Unable to verify code. Please try again.';
+                if (error?.name === 'AbortError') {
+                    this.otpError = 'Verification timed out. Please try again.';
+                } else {
+                    this.otpError = 'Unable to verify code. Please try again.';
+                }
             } finally {
                 this.otpVerifying = false;
             }
@@ -788,14 +812,49 @@ function signupLoginApp($persist, initialSignupOpen) {
             this.scan.cameraOpen = true;
 
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: { ideal: 'environment' },
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 },
-                    },
-                    audio: false,
-                });
+                const highResConstraints = {
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 3840 },
+                    height: { ideal: 2160 },
+                };
+
+                let stream;
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: highResConstraints,
+                        audio: false,
+                    });
+                } catch (_) {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: { ideal: 'environment' },
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 },
+                        },
+                        audio: false,
+                    });
+                }
+
+                // Best-effort: ask for continuous focus/exposure if supported.
+                try {
+                    const supported = navigator?.mediaDevices?.getSupportedConstraints?.() || {};
+                    const track = stream?.getVideoTracks?.()[0] || null;
+
+                    if (track && typeof track.applyConstraints === 'function') {
+                        const advanced = [];
+                        if (supported.focusMode) advanced.push({ focusMode: 'continuous' });
+                        if (supported.exposureMode) advanced.push({ exposureMode: 'continuous' });
+                        if (supported.whiteBalanceMode) advanced.push({ whiteBalanceMode: 'continuous' });
+                        if (supported.noiseSuppression) advanced.push({ noiseSuppression: true });
+                        if (supported.autoGainControl) advanced.push({ autoGainControl: true });
+
+                        if (advanced.length > 0) {
+                            track.applyConstraints({ advanced }).catch(() => {});
+                        }
+                    }
+                } catch (_) {
+                    // Ignore unsupported constraint errors.
+                }
 
                 this.scan.cameraStream = stream;
 
@@ -944,8 +1003,8 @@ function signupLoginApp($persist, initialSignupOpen) {
                 const frameHeight = Math.min(frameRect.height, viewportRect.height - frameY);
 
                 // Keep a safety margin so card edges/labels are not clipped.
-                const framePaddingX = frameWidth * 0.08;
-                const framePaddingY = frameHeight * 0.08;
+                const framePaddingX = frameWidth * 0.12;
+                const framePaddingY = frameHeight * 0.12;
                 const paddedFrameX = Math.max(0, frameX - framePaddingX);
                 const paddedFrameY = Math.max(0, frameY - framePaddingY);
                 const paddedFrameWidth = Math.min(viewportRect.width - paddedFrameX, frameWidth + (framePaddingX * 2));
@@ -1140,7 +1199,64 @@ function signupLoginApp($persist, initialSignupOpen) {
                 });
             }
 
-            return this.normalizeSignupOcrText([fullText, sparseText].filter(Boolean).join('\n'));
+            const combinedQuick = this.normalizeSignupOcrText([fullText, sparseText].filter(Boolean).join('\n'));
+            const digitLike = String(combinedQuick)
+                .toUpperCase()
+                .replace(/[OQDP]/g, '0')
+                .replace(/[IL]/g, '1')
+                .replace(/Z/g, '2')
+                .replace(/S/g, '5')
+                .replace(/B/g, '8')
+                .replace(/G/g, '6');
+
+            const hasQcIdCandidate = /\b\d{3}\s*\d{3}\s*\d{6,8}\b|\b\d{12,14}\b/.test(digitLike);
+            const hasDateCandidate = /\b\d{4}\/\d{1,2}\/\d{1,2}\b|\b\d{1,2}\/\d{1,2}\/\d{4}\b|\b\d{8}\b/.test(digitLike);
+
+            let bottomDigitsText = '';
+            if (!hasQcIdCandidate || !hasDateCandidate || combinedQuick.length < 240) {
+                const makeBottomCrop = () => {
+                    const cropY = Math.max(0, Math.floor(enhancedCanvas.height * 0.56));
+                    const cropH = Math.max(1, enhancedCanvas.height - cropY);
+                    const cropW = enhancedCanvas.width;
+
+                    const crop = document.createElement('canvas');
+                    crop.width = cropW;
+                    crop.height = cropH;
+                    const cctx = crop.getContext('2d', { willReadFrequently: true });
+                    if (!cctx) return null;
+
+                    cctx.imageSmoothingEnabled = true;
+                    cctx.imageSmoothingQuality = 'high';
+                    cctx.filter = 'grayscale(100%) contrast(210%) brightness(116%)';
+                    cctx.drawImage(enhancedCanvas, 0, cropY, cropW, cropH, 0, 0, cropW, cropH);
+                    cctx.filter = 'none';
+
+                    const maxEdge = 1700;
+                    const scale = Math.min(2.2, maxEdge / Math.max(cropW, cropH));
+                    if (scale <= 1.05) return crop;
+
+                    const scaled = document.createElement('canvas');
+                    scaled.width = Math.max(1, Math.round(cropW * scale));
+                    scaled.height = Math.max(1, Math.round(cropH * scale));
+                    const sctx = scaled.getContext('2d', { willReadFrequently: true });
+                    if (!sctx) return crop;
+
+                    sctx.imageSmoothingEnabled = true;
+                    sctx.imageSmoothingQuality = 'high';
+                    sctx.drawImage(crop, 0, 0, scaled.width, scaled.height);
+                    return scaled;
+                };
+
+                const bottomCrop = makeBottomCrop();
+                if (bottomCrop) {
+                    bottomDigitsText = await this.recognizeSignupCanvasText(bottomCrop, {
+                        tessedit_pageseg_mode: 6,
+                        tessedit_char_whitelist: '0123456789/ -',
+                    });
+                }
+            }
+
+            return this.normalizeSignupOcrText([combinedQuick, bottomDigitsText].filter(Boolean).join('\n'));
         },
 
         normalizeDate(raw) {
@@ -1240,6 +1356,7 @@ function signupLoginApp($persist, initialSignupOpen) {
                         const tryDecodeImageData = (imageData) => {
                             const options = [
                                 { inversionAttempts: 'attemptBoth' },
+                                { inversionAttempts: 'invertFirst' },
                                 { inversionAttempts: 'dontInvert' },
                             ];
 
@@ -1288,14 +1405,76 @@ function signupLoginApp($persist, initialSignupOpen) {
                             return enhanced;
                         };
 
-                        const decodeVariants = (baseCanvas) => {
-                            const variants = [baseCanvas];
-                            const enhanced = buildQrEnhancedCanvas(baseCanvas);
-                            if (enhanced) {
-                                variants.push(enhanced);
+                        const binarizeCanvas = (sourceCanvas) => {
+                            const ctx = sourceCanvas.getContext('2d', { willReadFrequently: true });
+                            if (!ctx) return null;
+
+                            const { width, height } = sourceCanvas;
+                            if (!width || !height) return null;
+
+                            const imageData = ctx.getImageData(0, 0, width, height);
+                            const pixels = imageData.data;
+
+                            const hist = new Uint32Array(256);
+                            for (let i = 0; i < pixels.length; i += 4) {
+                                const luma = Math.round((0.299 * pixels[i]) + (0.587 * pixels[i + 1]) + (0.114 * pixels[i + 2]));
+                                hist[luma] += 1;
                             }
 
-                            for (const variant of variants) {
+                            const total = width * height;
+                            let sum = 0;
+                            for (let t = 0; t < 256; t += 1) {
+                                sum += t * hist[t];
+                            }
+
+                            let sumB = 0;
+                            let wB = 0;
+                            let wF = 0;
+                            let varMax = 0;
+                            let threshold = 128;
+
+                            for (let t = 0; t < 256; t += 1) {
+                                wB += hist[t];
+                                if (wB === 0) continue;
+                                wF = total - wB;
+                                if (wF === 0) break;
+
+                                sumB += t * hist[t];
+                                const mB = sumB / wB;
+                                const mF = (sum - sumB) / wF;
+                                const between = wB * wF * Math.pow(mB - mF, 2);
+                                if (between > varMax) {
+                                    varMax = between;
+                                    threshold = t;
+                                }
+                            }
+
+                            for (let i = 0; i < pixels.length; i += 4) {
+                                const luma = Math.round((0.299 * pixels[i]) + (0.587 * pixels[i + 1]) + (0.114 * pixels[i + 2]));
+                                const v = luma >= threshold ? 255 : 0;
+                                pixels[i] = v;
+                                pixels[i + 1] = v;
+                                pixels[i + 2] = v;
+                                pixels[i + 3] = 255;
+                            }
+
+                            const out = document.createElement('canvas');
+                            out.width = width;
+                            out.height = height;
+                            const octx = out.getContext('2d', { willReadFrequently: true });
+                            if (!octx) return null;
+                            octx.putImageData(imageData, 0, 0);
+                            return out;
+                        };
+
+                        const decodeVariants = (baseCanvas) => {
+                            const enhanced = buildQrEnhancedCanvas(baseCanvas);
+                            const candidates = [baseCanvas];
+                            if (enhanced) {
+                                candidates.push(enhanced);
+                            }
+
+                            const tryVariant = (variant) => {
                                 const direct = decodeCanvas(variant);
                                 if (direct) return direct;
 
@@ -1305,15 +1484,31 @@ function signupLoginApp($persist, initialSignupOpen) {
                                     const decoded = decodeCanvas(rotated);
                                     if (decoded) return decoded;
                                 }
+
+                                return null;
+                            };
+
+                            for (const variant of candidates) {
+                                const decoded = tryVariant(variant);
+                                if (decoded) return decoded;
+                            }
+
+                            const thresholded = binarizeCanvas(enhanced || baseCanvas);
+                            if (thresholded) {
+                                const decoded = tryVariant(thresholded);
+                                if (decoded) return decoded;
                             }
 
                             return null;
                         };
 
                         const cropAttempts = [
-                            { sx: 0, sy: 0, sw: img.width, sh: img.height, maxEdge: 1400 },
-                            { sx: img.width * 0.45, sy: 0, sw: img.width * 0.55, sh: img.height, maxEdge: 1600 },
-                            { sx: img.width * 0.5, sy: img.height * 0.25, sw: img.width * 0.5, sh: img.height * 0.75, maxEdge: 1700 },
+                            { sx: 0, sy: 0, sw: img.width, sh: img.height, maxEdge: 1700 },
+                            { sx: img.width * 0.35, sy: 0, sw: img.width * 0.65, sh: img.height, maxEdge: 2100 },
+                            { sx: img.width * 0.5, sy: img.height * 0.2, sw: img.width * 0.5, sh: img.height * 0.8, maxEdge: 2200 },
+                            { sx: img.width * 0.55, sy: img.height * 0.55, sw: img.width * 0.45, sh: img.height * 0.45, maxEdge: 1800 },
+                            { sx: img.width * 0.5, sy: img.height * 0.62, sw: img.width * 0.5, sh: img.height * 0.38, maxEdge: 1900 },
+                            { sx: img.width * 0.25, sy: img.height * 0.55, sw: img.width * 0.75, sh: img.height * 0.45, maxEdge: 2000 },
                         ];
 
                         for (const attempt of cropAttempts) {
@@ -1321,9 +1516,9 @@ function signupLoginApp($persist, initialSignupOpen) {
 
                             const sourceWidth = Math.max(1, Math.round(attempt.sw));
                             const sourceHeight = Math.max(1, Math.round(attempt.sh));
-                            const downscale = Math.min(1, attempt.maxEdge / Math.max(sourceWidth, sourceHeight));
-                            const targetWidth = Math.max(220, Math.round(sourceWidth * downscale));
-                            const targetHeight = Math.max(220, Math.round(sourceHeight * downscale));
+                            const scale = Math.min(2.2, attempt.maxEdge / Math.max(sourceWidth, sourceHeight));
+                            const targetWidth = Math.max(220, Math.round(sourceWidth * scale));
+                            const targetHeight = Math.max(220, Math.round(sourceHeight * scale));
 
                             const canvas = document.createElement('canvas');
                             canvas.width = targetWidth;

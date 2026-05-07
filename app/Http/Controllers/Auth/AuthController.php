@@ -320,7 +320,7 @@ class AuthController extends Controller
         if (! Hash::check($validated['otp'], $hashedOtp)) {
             return response()->json([
                 'success' => false,
-                'message' => 'The verification code is incorrect. Please try again.',
+                'message' => 'Wrong code.',
             ], 422);
         }
 
@@ -756,7 +756,7 @@ class AuthController extends Controller
         }
 
         return QcIdRegistration::query()
-            ->whereNotNull('qcid_number')
+            ->whereNotNull('qcid_number', 'and')
             ->whereRaw("REPLACE(REPLACE(REPLACE(REPLACE(qcid_number, ' ', ''), '-', ''), '.', ''), '/', '') = ?", [$digits])
             ->exists();
     }

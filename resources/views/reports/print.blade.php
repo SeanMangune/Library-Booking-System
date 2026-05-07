@@ -146,6 +146,50 @@
             color: var(--muted);
         }
 
+        .chart {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            background: #fff;
+            margin-bottom: 12px;
+        }
+
+        .chart-row {
+            display: grid;
+            grid-template-columns: 120px 1fr 48px;
+            gap: 10px;
+            align-items: center;
+            margin: 6px 0;
+        }
+
+        .chart-date {
+            font-size: 11px;
+            font-weight: 700;
+            color: #111827;
+            white-space: nowrap;
+        }
+
+        .chart-bar {
+            height: 10px;
+            background: #eef2ff;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .chart-fill {
+            height: 100%;
+            background: var(--brand);
+            border-radius: 999px;
+        }
+
+        .chart-value {
+            text-align: right;
+            font-size: 11px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
         @media print {
             body {
                 print-color-adjust: exact;
@@ -161,7 +205,8 @@
             table,
             .stats,
             .filter-grid,
-            .header {
+            .header,
+            .chart {
                 page-break-inside: avoid;
             }
         }
@@ -269,6 +314,31 @@
 
         <section>
             <h2>Daily Activity</h2>
+
+            @php
+                $maxDailyBookings = 1;
+                foreach ($dailyBreakdown as $row) {
+                    $maxDailyBookings = max($maxDailyBookings, (int) ($row['bookings'] ?? 0));
+                }
+            @endphp
+
+            <div class="chart">
+                @forelse($dailyBreakdown as $row)
+                    @php
+                        $total = (int) ($row['bookings'] ?? 0);
+                        $barWidth = $maxDailyBookings > 0 ? (int) round(($total / $maxDailyBookings) * 100) : 0;
+                        $barWidth = max(0, min(100, $barWidth));
+                    @endphp
+                    <div class="chart-row">
+                        <div class="chart-date">{{ \Carbon\Carbon::parse($row['date'])->format('M d') }}</div>
+                        <div class="chart-bar"><div class="chart-fill" style="width: {{ $barWidth }}%"></div></div>
+                        <div class="chart-value">{{ number_format($total) }}</div>
+                    </div>
+                @empty
+                    <div class="muted">No daily activity found.</div>
+                @endforelse
+            </div>
+
             <table>
                 <thead>
                     <tr>

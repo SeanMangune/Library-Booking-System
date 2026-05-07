@@ -122,14 +122,47 @@ class RoomDashboardController extends Controller
             ->orderBy('name')
             ->get()
             ->filter(fn (Room $room) => $room->isCollaborative())
-            ->map(fn (Room $room) => [
-                'id' => $room->id,
-                'name' => $room->name,
-                'status' => $room->dashboardStatus(),
-            ])
             ->values();
 
-        return response()->json(['rooms' => $collaborativeRooms]);
+        if ($collaborativeRooms->isEmpty()) {
+            return response()->json(['rooms' => []]);
+        }
+
+        $dashboardReference = now((string) config('app.booking_timezone', 'Asia/Manila'));
+        $dashboardDate = $dashboardReference->toDateString();
+        $dashboardTime = $dashboardReference->format('H:i:s');
+
+        $occupiedRoomIds = Booking::query()
+            ->whereIn('room_id', $collaborativeRooms->pluck('id')->all())
+            ->where('status', 'approved')
+            ->whereDate('date', '=', $dashboardDate)
+            ->whereNotNull('start_time')
+            ->whereNotNull('end_time')
+            ->whereTime('start_time', '<=', $dashboardTime)
+            ->whereTime('end_time', '>=', $dashboardTime)
+            ->pluck('room_id')
+            ->unique()
+            ->values()
+            ->all();
+
+        $occupiedLookup = array_fill_keys(array_map('strval', $occupiedRoomIds), true);
+
+        $payload = $collaborativeRooms
+            ->map(function (Room $room) use ($occupiedLookup): array {
+                $status = $room->dashboardStatus();
+                if ($status === 'available' && isset($occupiedLookup[(string) $room->id])) {
+                    $status = 'occupied';
+                }
+
+                return [
+                    'id' => $room->id,
+                    'name' => $room->name,
+                    'status' => $status,
+                ];
+            })
+            ->values();
+
+        return response()->json(['rooms' => $payload]);
     }
 
     private function userDashboard($request, $user, $today, $twoWeeksAhead, $calendarData, $rooms, string $classification)
@@ -213,6 +246,13 @@ class RoomDashboardController extends Controller
             ->filter(fn ($booking) => $booking->room?->isCollaborative())
             ->values();
 
+        $collaborativeRooms = Room::query()
+            ->visible()
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (Room $room) => $room->isCollaborative())
+            ->values();
+
         $stats = [
             'pending' => Booking::whereHas('room', fn ($roomQuery) => $roomQuery->visible())->pendingActive()->count(),
             'approved' => Booking::whereHas('room', fn ($roomQuery) => $roomQuery->visible())->where('status', 'approved')->count(),
@@ -239,6 +279,7 @@ class RoomDashboardController extends Controller
             'qcIdRegistration',
             'classification',
             'dashboardAudience',
+            'collaborativeRooms',
         ));
     }
 

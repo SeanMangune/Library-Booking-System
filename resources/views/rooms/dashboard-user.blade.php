@@ -124,6 +124,83 @@
 
                 <div id="user-calendar-compact-anchor" class="hidden space-y-6"></div>
 
+                <!-- Room Availability Card -->
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50">
+                        <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                           <i class="fa-solid fa-door-open text-indigo-500"></i>
+                           Room Availability
+                        </h3>
+                    </div>
+                    <div class="p-4 space-y-3">
+                        @forelse($collaborativeRooms as $room)
+                            @php
+                                $dashboardStatus = $room->dashboardStatus();
+                                $roomBookings = $collabRoomBookings->where('room_id', $room->id)->values();
+                                $todayBookingsForRoom = $roomBookings->filter(fn ($booking) => $booking->date->isToday())->values();
+
+                                $dashboardReference = now((string) config('app.booking_timezone', 'Asia/Manila'));
+                                $isOccupied = $dashboardStatus === 'available'
+                                    && $todayBookingsForRoom->contains(fn ($booking) => ($booking->booking_status ?? $booking->determineBookingStatus($dashboardReference)) === 'valid');
+                                if ($isOccupied) {
+                                    $dashboardStatus = 'occupied';
+                                }
+
+                                if ($dashboardStatus === 'closed') {
+                                    $statusLabel = 'Closed';
+                                    $rowBorderClasses = 'border-slate-200';
+                                    $badgeClasses = 'bg-slate-200 text-slate-700';
+                                    $progressClasses = 'from-slate-400 via-slate-500 to-slate-600';
+                                    $statusPercent = 20;
+                                } elseif ($dashboardStatus === 'maintenance') {
+                                    $statusLabel = 'Under Maintenance';
+                                    $rowBorderClasses = 'border-amber-100';
+                                    $badgeClasses = 'bg-amber-100 text-amber-700';
+                                    $progressClasses = 'from-amber-400 via-orange-400 to-amber-500';
+                                    $statusPercent = 45;
+                                } elseif ($dashboardStatus === 'occupied') {
+                                    $statusLabel = 'Occupied';
+                                    $rowBorderClasses = 'border-indigo-100';
+                                    $badgeClasses = 'bg-indigo-100 text-indigo-700';
+                                    $progressClasses = 'from-indigo-400 via-indigo-500 to-indigo-600';
+                                    $statusPercent = 70;
+                                } else {
+                                    $statusLabel = 'Available';
+                                    $rowBorderClasses = 'border-emerald-100';
+                                    $badgeClasses = 'bg-emerald-100 text-emerald-700';
+                                    $progressClasses = 'from-emerald-400 via-teal-500 to-emerald-500';
+                                    $statusPercent = 100;
+                                }
+                            @endphp
+
+                            <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border transition-all duration-300 {{ $rowBorderClasses }}"
+                                 data-collab-room-id="{{ $room->id }}">
+                                <div class="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0 border border-gray-100">
+                                    <i class="fa-solid fa-door-open text-gray-400"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between mb-1.5 gap-2">
+                                        <span class="text-xs font-bold text-gray-900 truncate">{{ $room->name }}</span>
+                                        <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md {{ $badgeClasses }}"
+                                              data-collab-room-status="{{ $statusLabel }}">
+                                            {{ $statusLabel }}
+                                        </span>
+                                    </div>
+                                    <div class="h-2 bg-gray-200/80 rounded-full overflow-hidden shadow-inner">
+                                        <div class="h-full bg-linear-to-r {{ $progressClasses }} rounded-full transition-all duration-500"
+                                             style="width: {{ $statusPercent }}%"
+                                             data-collab-room-progress></div>
+                                    </div>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="p-6 text-center">
+                                <p class="text-sm text-gray-500">No room status data available.</p>
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+
                 <!-- Verification Status Card -->
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
                     <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">

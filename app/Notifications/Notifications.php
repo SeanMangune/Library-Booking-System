@@ -19,7 +19,7 @@ class BookingApprovedNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'broadcast', 'mail'];
+        return ['database', 'broadcast'];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -66,7 +66,7 @@ class BookingRejectedNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'broadcast', 'mail'];
+        return ['database', 'broadcast'];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -128,7 +128,7 @@ class BookingRescheduledNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'broadcast', 'mail'];
+        return ['database', 'broadcast'];
     }
 
     public function toMail(object $notifiable): MailMessage
