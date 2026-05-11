@@ -43,18 +43,57 @@ function normalizeUserUrl(url, isStaff) {
 window.LaravelLogoutUrl = (typeof window.LaravelLogoutUrl !== 'undefined') ? window.LaravelLogoutUrl : (document.querySelector('form[action][method="POST"]')?.action.includes('/logout') ? document.querySelector('form[action][method="POST"]')?.action : '/logout');
 
 function buildUnreadNotificationItem(item, isStaff) {
-    const url = escapeHtml(normalizeUserUrl(item?.url || '#', isStaff));
     const title = escapeHtml(item?.title || 'Notification');
     const message = escapeHtml(item?.message || '');
     const createdAtHuman = escapeHtml(item?.created_at_human || 'Just now');
+    const url = escapeHtml(normalizeUserUrl(item?.url || '#', isStaff));
+    const itemId = escapeHtml(item?.id || Math.random().toString(36).slice(2));
+    const status = escapeHtml(item?.status || '');
+
+    const statusBadge = status
+        ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${getStatusBadgeClass(status)}">${status}</span>`
+        : '';
 
     return `
-        <a href="${url}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
-            <p class="text-sm font-medium text-gray-900">${title}</p>
-            <p class="text-xs text-gray-600 mt-1">${message}</p>
-            <p class="text-xs text-gray-400 mt-1">${createdAtHuman}</p>
-        </a>
+        <div class="notification-item border-b border-gray-100" data-notif-id="${itemId}">
+            <div class="px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer"
+                 onclick="toggleNotifDetail('${itemId}')">
+                <div class="flex items-center justify-between gap-2">
+                    <p class="text-sm font-medium text-gray-900 flex-1">${title}</p>
+                    ${statusBadge}
+                </div>
+                <p class="text-xs text-gray-600 mt-1 line-clamp-2">${message}</p>
+                <p class="text-xs text-gray-400 mt-1">${createdAtHuman}</p>
+            </div>
+            <div id="notif-detail-${itemId}" class="hidden px-4 pb-3 pt-0">
+                <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                    <p class="text-xs text-gray-700 leading-relaxed">${message}</p>
+                    <div class="mt-3 flex items-center justify-end">
+                        <a href="${url}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors">
+                            <i class="fa-solid fa-file-lines text-[10px]"></i>
+                            To My Reservations
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
     `;
+}
+
+function getStatusBadgeClass(status) {
+    switch (String(status).toLowerCase()) {
+        case 'approved': return 'bg-emerald-100 text-emerald-700';
+        case 'rejected': return 'bg-rose-100 text-rose-700';
+        case 'pending': return 'bg-amber-100 text-amber-700';
+        case 'cancelled': return 'bg-gray-100 text-gray-600';
+        default: return 'bg-blue-100 text-blue-700';
+    }
+}
+
+function toggleNotifDetail(itemId) {
+    const detail = document.getElementById('notif-detail-' + itemId);
+    if (!detail) return;
+    detail.classList.toggle('hidden');
 }
 
 function showNotificationToast(payload) {

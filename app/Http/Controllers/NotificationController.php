@@ -39,14 +39,20 @@ class NotificationController extends Controller
             ->take(3)
             ->get()
             ->map(function ($notification) use ($isStaff): array {
-                $url = (string) ($notification->data['url'] ?? '#');
+                $data = $notification->data ?? [];
+                $url = (string) ($data['url'] ?? '#');
 
                 return [
                     'id' => $notification->id,
-                    'title' => $notification->data['title'] ?? 'Notification',
-                    'message' => $notification->data['message'] ?? '',
+                    'title' => $data['title'] ?? 'Notification',
+                    'message' => $data['message'] ?? '',
                     'url' => $this->safeNotificationUrl($url, $isStaff),
                     'created_at_human' => optional($notification->created_at)->diffForHumans() ?? '',
+                    'booking_id' => $data['booking_id'] ?? null,
+                    'room_name' => $data['room_name'] ?? null,
+                    'status' => $data['status'] ?? null,
+                    'decision_by_name' => $data['decision_by_name'] ?? null,
+                    'alert_type' => $data['alert_type'] ?? null,
                 ];
             })
             ->values();

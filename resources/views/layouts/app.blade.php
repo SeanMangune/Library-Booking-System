@@ -585,11 +585,41 @@
                                     @endif
 
                                     @foreach($userUnreadNotifications as $notification)
-                                    <a href="{{ $safeNotificationUrl($notification->data['url'] ?? '#') }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 transition-colors">
-                                        <p class="text-sm font-medium text-gray-900">{{ $notification->data['title'] ?? 'Notification' }}</p>
-                                        <p class="text-xs text-gray-600 mt-1">{{ $notification->data['message'] ?? '' }}</p>
-                                        <p class="text-xs text-gray-400 mt-1">{{ $notification->created_at->diffForHumans() }}</p>
-                                    </a>
+                                    @php
+                                        $notifId = $notification->id;
+                                        $notifStatus = $notification->data['status'] ?? '';
+                                        $notifStatusClass = match($notifStatus) {
+                                            'approved' => 'bg-emerald-100 text-emerald-700',
+                                            'rejected' => 'bg-rose-100 text-rose-700',
+                                            'pending' => 'bg-amber-100 text-amber-700',
+                                            'cancelled' => 'bg-gray-100 text-gray-600',
+                                            default => 'bg-blue-100 text-blue-700',
+                                        };
+                                    @endphp
+                                    <div class="notification-item border-b border-gray-100" data-notif-id="{{ $notifId }}">
+                                        <div class="px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer"
+                                             onclick="toggleNotifDetail('{{ $notifId }}')">
+                                            <div class="flex items-center justify-between gap-2">
+                                                <p class="text-sm font-medium text-gray-900 flex-1">{{ $notification->data['title'] ?? 'Notification' }}</p>
+                                                @if($notifStatus)
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide {{ $notifStatusClass }}">{{ $notifStatus }}</span>
+                                                @endif
+                                            </div>
+                                            <p class="text-xs text-gray-600 mt-1 line-clamp-2">{{ $notification->data['message'] ?? '' }}</p>
+                                            <p class="text-xs text-gray-400 mt-1">{{ $notification->created_at->diffForHumans() }}</p>
+                                        </div>
+                                        <div id="notif-detail-{{ $notifId }}" class="hidden px-4 pb-3 pt-0">
+                                            <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                                                <p class="text-xs text-gray-700 leading-relaxed">{{ $notification->data['message'] ?? '' }}</p>
+                                                <div class="mt-3 flex items-center justify-end">
+                                                    <a href="{{ $safeNotificationUrl($notification->data['url'] ?? '#') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors">
+                                                        <i class="fa-solid fa-file-lines text-[10px]"></i>
+                                                        To My Reservations
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                     @endforeach
 
                                     @unless($hasCombinedNotifications)
