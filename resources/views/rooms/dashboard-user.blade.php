@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'My Dashboard | SmartSpace')
+@section('title', 'Dashboard | SmartSpace')
 
 @section('breadcrumb')
 <i class="w-4 h-4 text-gray-400 fa-icon fa-solid fa-chevron-right text-base leading-none"></i>
