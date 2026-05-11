@@ -2162,7 +2162,13 @@ export function createDashboardApp(config = {}) {
                 ? timers
                 : timers.filter((timer) => timer.is_owner);
 
-            return filtered.sort((first, second) => first.remainingSeconds - second.remainingSeconds);
+            // Sort: active bookings first (by remaining seconds), then upcoming (by seconds until start)
+            return filtered.sort((first, second) => {
+                if (first.isUpcoming !== second.isUpcoming) {
+                    return first.isUpcoming ? 1 : -1;
+                }
+                return first.remainingSeconds - second.remainingSeconds;
+            });
         },
 
         buildBookingTimerEntry(event, reference, fallbackDate) {
@@ -2177,10 +2183,41 @@ export function createDashboardApp(config = {}) {
             }
 
             const now = reference instanceof Date ? reference : new Date();
-            if (now < range.start || now > range.end) {
+
+            // Pre-start countdown: booking hasn't started yet (up to 12 hours before)
+            const MAX_PRE_START_MS = 12 * 60 * 60 * 1000;
+            if (now < range.start) {
+                const msUntilStart = range.start - now;
+                if (msUntilStart > MAX_PRE_START_MS) {
+                    return null;
+                }
+
+                const secondsUntilStart = Math.max(0, Math.round(msUntilStart / 1000));
+                // Progress bar fills toward start: 100% when far away → 0% right before start
+                const preStartPercent = Math.min(100, Math.max(0, Math.round((msUntilStart / MAX_PRE_START_MS) * 100)));
+                const tone = this.resolvePreStartTimerTone(secondsUntilStart);
+                const timeLabel = `Starts in ${this.formatTimerCountdown(secondsUntilStart)} • ${this.formatTimerRangeLabel(range.start, range.end)}`;
+
+                return {
+                    id: event?.id || `${event?.room_name || 'room'}-${range.start.toISOString()}`,
+                    room_name: event?.room_name || 'Room',
+                    percent: 100 - preStartPercent,
+                    statusLabel: tone.label,
+                    barClass: tone.barClass,
+                    badgeClass: tone.badgeClass,
+                    timeLabel,
+                    remainingSeconds: secondsUntilStart,
+                    is_owner: Boolean(event?.is_owner),
+                    isUpcoming: true,
+                };
+            }
+
+            // Booking has ended
+            if (now > range.end) {
                 return null;
             }
 
+            // Active booking: currently in progress
             const totalSeconds = Math.max(1, Math.round((range.end - range.start) / 1000));
             const elapsedSeconds = Math.min(
                 totalSeconds,
@@ -2201,6 +2238,7 @@ export function createDashboardApp(config = {}) {
                 timeLabel,
                 remainingSeconds,
                 is_owner: Boolean(event?.is_owner),
+                isUpcoming: false,
             };
         },
 
@@ -2261,6 +2299,38 @@ export function createDashboardApp(config = {}) {
                 label: 'In progress',
                 barClass: 'from-emerald-400 via-emerald-500 to-emerald-600',
                 badgeClass: 'bg-emerald-100 text-emerald-700',
+            };
+        },
+
+        resolvePreStartTimerTone(secondsUntilStart) {
+            if (secondsUntilStart <= 5 * 60) {
+                return {
+                    label: 'Starting soon',
+                    barClass: 'from-sky-400 via-blue-500 to-sky-600',
+                    badgeClass: 'bg-sky-100 text-sky-700',
+                };
+            }
+
+            if (secondsUntilStart <= 30 * 60) {
+                return {
+                    label: 'Starts shortly',
+                    barClass: 'from-violet-400 via-purple-500 to-violet-600',
+                    badgeClass: 'bg-violet-100 text-violet-700',
+                };
+            }
+
+            if (secondsUntilStart <= 60 * 60) {
+                return {
+                    label: 'Upcoming',
+                    barClass: 'from-indigo-300 via-indigo-400 to-indigo-500',
+                    badgeClass: 'bg-indigo-100 text-indigo-700',
+                };
+            }
+
+            return {
+                label: 'Scheduled',
+                barClass: 'from-slate-300 via-slate-400 to-slate-500',
+                badgeClass: 'bg-slate-100 text-slate-600',
             };
         },
 

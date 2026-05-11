@@ -40,6 +40,7 @@ class Booking extends Model
         'decision_by_name',
         'qr_token',
         'booking_code',
+        'end_notified_at',
     ];
 
     protected $casts = [
@@ -47,6 +48,7 @@ class Booking extends Model
         'booking_status' => 'string',
         'room_status' => 'string',
         'has_conflict' => 'boolean',
+        'end_notified_at' => 'datetime',
     ];
 
     protected $appends = [

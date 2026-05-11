@@ -98,9 +98,9 @@
                     <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
                         <h3 class="font-bold text-gray-900 flex items-center gap-2">
                             <i class="fa-solid fa-hourglass-half text-emerald-500"></i>
-                            Active Booking Timer
+                            Booking Timer
                         </h3>
-                        <span class="text-[10px] font-black uppercase tracking-wider text-gray-400" x-text="activeBookingTimers.length + ' active'"></span>
+                        <span class="text-[10px] font-black uppercase tracking-wider text-gray-400" x-text="activeBookingTimers.length + ' tracking'"></span>
                     </div>
                     <div class="p-4 space-y-3">
                         <template x-for="timer in activeBookingTimers" :key="timer.id">
@@ -124,7 +124,7 @@
                         </template>
                         <template x-if="activeBookingTimers.length === 0">
                             <div class="p-6 text-center">
-                                <p class="text-sm text-gray-500">No active bookings right now.</p>
+                                <p class="text-sm text-gray-500">No active or upcoming bookings right now.</p>
                             </div>
                         </template>
                     </div>
