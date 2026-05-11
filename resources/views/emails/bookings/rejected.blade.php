@@ -36,6 +36,12 @@
 			<td style="padding: 6px 0; color: #6b7280;">Purpose</td>
 			<td style="padding: 6px 0; font-weight: 700;">{{ $booking->title }}</td>
 		</tr>
+		@if($booking->decision_by_name)
+		<tr>
+			<td style="padding: 6px 0; color: #6b7280;">Rejected By</td>
+			<td style="padding: 6px 0; font-weight: 700;">{{ $booking->decision_by_name }}</td>
+		</tr>
+		@endif
 	</table>
 </div>
 

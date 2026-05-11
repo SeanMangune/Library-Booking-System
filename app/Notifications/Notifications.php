@@ -110,8 +110,12 @@ class BookingRejectedNotification extends Notification
     {
         $roomName = $this->booking->room?->name ?? 'Room';
         $date = optional($this->booking->date)->format('M d, Y') ?? 'N/A';
+        $rejectedBy = trim((string) ($this->booking->decision_by_name ?? ''));
 
         $message = 'Your booking for ' . $roomName . ' on ' . $date . ' was rejected.';
+        if ($rejectedBy !== '') {
+            $message .= ' Rejected by: ' . $rejectedBy . '.';
+        }
         if (! empty($this->booking->reason)) {
             $message .= ' Reason: ' . trim((string) $this->booking->reason);
         }
@@ -122,6 +126,7 @@ class BookingRejectedNotification extends Notification
             'url' => route('reservations.index'),
             'booking_id' => $this->booking->id,
             'status' => 'rejected',
+            'decision_by_name' => $rejectedBy !== '' ? $rejectedBy : null,
         ];
     }
 }
