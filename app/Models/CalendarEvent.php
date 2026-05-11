@@ -22,14 +22,11 @@ class CalendarEvent extends Model
         'created_by',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'date' => 'date',
-            'is_all_day' => 'boolean',
-            'is_recurring' => 'boolean',
-        ];
-    }
+    protected $casts = [
+        'date' => 'date',
+        'is_all_day' => 'boolean',
+        'is_recurring' => 'boolean',
+    ];
 
     public function creator(): BelongsTo
     {
