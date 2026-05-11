@@ -972,6 +972,10 @@ function createRoomBookingForm(config, dateOverride = null) {
 
 export function createRoomCalendarApp(config = {}) {
     const eventsUrl = config.eventsUrl || '/calendar-per-room/events';
+    const calendarEventsUrl = config.calendarEventsUrl || '/calendar-per-room/calendar-events';
+    const storeEventUrl = config.storeEventUrl || '/calendar-events';
+    const updateEventBaseUrl = config.updateEventBaseUrl || '/calendar-events';
+    const deleteEventBaseUrl = config.deleteEventBaseUrl || '/calendar-events';
     const availabilityUrl = config.availabilityUrl || '/calendar-per-room/availability';
     const storeBookingUrl = config.storeBookingUrl || '/reservations';
     const staffUserLookupUrl = config.staffUserLookupUrl || '/calendar-per-room/users/search';
@@ -1022,6 +1026,22 @@ export function createRoomCalendarApp(config = {}) {
         _isLookingUpBookForUser: false,
         _staffLookupDebounceTimer: null,
         _staffLookupRequestToken: 0,
+
+        // Calendar Event state
+        showCalendarEventModal: false,
+        editingEventId: null,
+        eventFormSubmitting: false,
+        eventFormError: '',
+        eventForm: {
+            title: '',
+            description: '',
+            type: '',
+            date: '',
+            is_all_day: true,
+            start_time: '',
+            end_time: '',
+            color: '',
+        },
 
         bookingForm: createRoomBookingForm(config),
 
@@ -1563,12 +1583,43 @@ export function createRoomCalendarApp(config = {}) {
                 },
                 events: this.fetchEvents.bind(this),
                 eventDidMount(info) {
+                    const props = info.event.extendedProps || {};
+                    if (props.is_calendar_event) {
+                        // Calendar events get a subtle pattern
+                        info.el.style.borderLeft = '4px solid ' + (props.color || '#F59E0B');
+                        return;
+                    }
                     const mappedBooking = mapEventFromCalendarInfo(self, info);
                     if (deriveBookingLifecycleStatus(mappedBooking) !== 'upcoming') {
                         info.el.classList.add('opacity-50', 'grayscale', 'cursor-not-allowed');
                     }
                 },
                 eventClick(info) {
+                    const props = info.event.extendedProps || {};
+                    if (props.is_calendar_event) {
+                        info.jsEvent?.preventDefault();
+                        if (self.isStaffUser && props.event_id) {
+                            self.openEventModal({
+                                ...props,
+                                title: info.event.title || '',
+                                date: info.event.startStr?.slice(0, 10) || '',
+                            });
+                        } else {
+                            // Show read-only detail for non-staff
+                            self.selectedEvent = {
+                                purpose: info.event.title,
+                                room: props.type_label || 'Event',
+                                room_name: props.type_label || 'Event',
+                                date: info.event.startStr?.slice(0, 10) || '',
+                                formatted_time: props.is_all_day ? 'All Day' : '',
+                                description: props.description || '',
+                                status: props.type || 'event',
+                                is_calendar_event: true,
+                            };
+                            self.showEventModal = true;
+                        }
+                        return;
+                    }
                     const mappedBooking = mapEventFromCalendarInfo(self, info);
                     if (deriveBookingLifecycleStatus(mappedBooking) !== 'upcoming') {
                         info.jsEvent?.preventDefault();
@@ -1608,9 +1659,25 @@ export function createRoomCalendarApp(config = {}) {
                     params.room_id = this.selectedRoom.id;
                 }
 
-                const response = await fetch(buildUrl(eventsUrl, params));
-                const events = await response.json();
-                successCallback(events);
+                // Fetch bookings and calendar events in parallel
+                const [bookingResponse, calEvtResponse] = await Promise.all([
+                    fetch(buildUrl(eventsUrl, params)),
+                    fetch(buildUrl(calendarEventsUrl, { start: info.startStr, end: info.endStr })),
+                ]);
+
+                const bookings = await bookingResponse.json();
+                let calendarEvents = [];
+                try {
+                    calendarEvents = await calEvtResponse.json();
+                } catch (e) {
+                    console.warn('Failed to parse calendar events:', e);
+                }
+
+                const combined = [
+                    ...(Array.isArray(bookings) ? bookings : []),
+                    ...(Array.isArray(calendarEvents) ? calendarEvents : []),
+                ];
+                successCallback(combined);
             } catch (error) {
                 console.error('Failed to fetch events:', error);
                 failureCallback(error);
@@ -3903,6 +3970,115 @@ export function createDashboardApp(config = {}) {
                 showNotification('An error occurred while creating the booking', 'error');
             } finally {
                 this.isSubmitting = false;
+            }
+        },
+
+        // ── Calendar Event CRUD ─────────────────────────────────
+        openEventModal(existingEvent = null) {
+            this.eventFormError = '';
+            this.eventFormSubmitting = false;
+
+            if (existingEvent && existingEvent.event_id) {
+                // Edit mode
+                this.editingEventId = existingEvent.event_id;
+                this.eventForm = {
+                    title: existingEvent.title || '',
+                    description: existingEvent.description || '',
+                    type: existingEvent.type || 'custom',
+                    date: existingEvent.date || '',
+                    is_all_day: existingEvent.is_all_day !== false,
+                    start_time: existingEvent.start_time || '',
+                    end_time: existingEvent.end_time || '',
+                    color: existingEvent.color || '',
+                };
+            } else {
+                // Create mode
+                this.editingEventId = null;
+                this.eventForm = {
+                    title: '',
+                    description: '',
+                    type: '',
+                    date: new Date().toISOString().slice(0, 10),
+                    is_all_day: true,
+                    start_time: '',
+                    end_time: '',
+                    color: '',
+                };
+            }
+
+            this.showCalendarEventModal = true;
+        },
+
+        async submitEvent() {
+            this.eventFormError = '';
+            this.eventFormSubmitting = true;
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            try {
+                const url = this.editingEventId
+                    ? updateEventBaseUrl + '/' + this.editingEventId
+                    : storeEventUrl;
+
+                const method = this.editingEventId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+                    },
+                    body: JSON.stringify(this.eventForm),
+                });
+
+                const payload = await response.json();
+
+                if (!response.ok) {
+                    const errors = payload.errors || {};
+                    const firstError = Object.values(errors).flat()[0] || payload.message || 'Failed to save event.';
+                    this.eventFormError = firstError;
+                    return;
+                }
+
+                this.showCalendarEventModal = false;
+                this.calendar?.refetchEvents();
+                showNotification(this.editingEventId ? 'Event updated successfully' : 'Event created successfully', 'success');
+            } catch (error) {
+                console.error('Event submit error:', error);
+                this.eventFormError = 'An unexpected error occurred.';
+            } finally {
+                this.eventFormSubmitting = false;
+            }
+        },
+
+        async deleteEvent() {
+            if (!this.editingEventId) return;
+            if (!confirm('Are you sure you want to delete this event?')) return;
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            try {
+                const response = await fetch(deleteEventBaseUrl + '/' + this.editingEventId, {
+                    method: 'DELETE',
+                    headers: {
+                        Accept: 'application/json',
+                        ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+                    },
+                });
+
+                if (!response.ok) {
+                    const payload = await response.json();
+                    this.eventFormError = payload.message || 'Failed to delete event.';
+                    return;
+                }
+
+                this.showCalendarEventModal = false;
+                this.calendar?.refetchEvents();
+                showNotification('Event deleted successfully', 'success');
+            } catch (error) {
+                console.error('Event delete error:', error);
+                this.eventFormError = 'An unexpected error occurred.';
             }
         },
     };

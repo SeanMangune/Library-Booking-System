@@ -33,6 +33,13 @@
                             <i class="w-4 h-4 fa-icon fa-solid fa-plus text-base leading-none"></i>
                             Create Booking
                         </button>
+                        @if(auth()->user()?->isStaff())
+                        <button @click="openEventModal()"
+                                class="inline-flex items-center gap-2 px-5 py-2.5 bg-white/20 hover:bg-white/30 text-white text-sm font-semibold rounded-xl transition-all backdrop-blur-sm border border-white/30">
+                            <i class="w-4 h-4 fa-icon fa-solid fa-calendar-plus text-base leading-none"></i>
+                            Create Event
+                        </button>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -133,6 +140,11 @@
 
     <!-- Event Detail Modal -->
     <x-modals.calendar.event-details />
+
+    @if(auth()->user()?->isStaff())
+    <!-- Create/Edit Event Modal -->
+    <x-modals.calendar.create-event />
+    @endif
 </div>
 
 @push('styles')
@@ -184,6 +196,11 @@
     'defaultRoomId' => $selectedRoom?->id,
     'defaultDate' => now()->format('Y-m-d'),
     'eventsUrl' => route('calendar.events'),
+    'calendarEventsUrl' => route('calendar-events.index'),
+    'storeEventUrl' => auth()->user()?->isStaff() ? route('calendar-events.store') : '',
+    'updateEventBaseUrl' => auth()->user()?->isStaff() ? url('/calendar-events') : '',
+    'deleteEventBaseUrl' => auth()->user()?->isStaff() ? url('/calendar-events') : '',
+    'syncHolidaysUrl' => auth()->user()?->isStaff() ? route('calendar-events.sync-holidays') : '',
     'availabilityUrl' => route('calendar.availability'),
     'staffUserLookupUrl' => route('rooms.users.search'),
     'verifyQcIdUrl' => route('qcid.verify'),

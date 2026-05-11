@@ -11,6 +11,7 @@ use App\Http\Controllers\Rooms\RoomController;
 use App\Http\Controllers\Rooms\BookingController;
 use App\Http\Controllers\Rooms\CalendarController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\CalendarEventController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
@@ -84,6 +85,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/availability', [BookingController::class, 'availability'])->name('calendar.availability');
         Route::get('/users/search', [BookingController::class, 'searchUsers'])->name('rooms.users.search');
         Route::post('/qc-id/verify', QcIdVerificationController::class)->name('qcid.verify');
+        Route::get('/calendar-events', [CalendarEventController::class, 'index'])->name('calendar-events.index');
     });
 
     // Reservations
@@ -140,6 +142,15 @@ Route::middleware(['auth', 'role:admin,librarian'])->group(function () {
     Route::get('/all-reservations/{booking}', [BookingController::class, 'show'])->name('reservations.show');
     Route::put('/all-reservations/{booking}', [BookingController::class, 'update'])->name('reservations.update');
     Route::delete('/all-reservations/{booking}', [BookingController::class, 'destroy'])->name('reservations.destroy');
+
+    // Calendar Events (admin only)
+    Route::post('/calendar-events', [CalendarEventController::class, 'store'])->name('calendar-events.store');
+    Route::put('/calendar-events/{calendarEvent}', [CalendarEventController::class, 'update'])->name('calendar-events.update');
+    Route::delete('/calendar-events/{calendarEvent}', [CalendarEventController::class, 'destroy'])->name('calendar-events.destroy');
+    Route::post('/calendar-events/sync-holidays', function () {
+        \Artisan::call('holidays:sync', ['year' => now()->year]);
+        return response()->json(['success' => true, 'message' => \Artisan::output()]);
+    })->name('calendar-events.sync-holidays');
 
     // Approvals
     Route::get('/rooms/approvals', [BookingController::class, 'approvals'])->name('approvals.index');
