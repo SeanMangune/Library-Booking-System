@@ -7,7 +7,7 @@
 <x-mail::message>
 <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 16px; padding: 24px; color: #ffffff; margin-bottom: 18px;">
 	<p style="margin: 0 0 6px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.9;">SmartSpace Booking Status</p>
-	<h1 style="margin: 0; font-size: 24px; line-height: 1.25; color: #ffffff;">Booking Request Not Approved</h1>
+	<h1 style="margin: 0; font-size: 24px; line-height: 1.25; color: #ffffff;">Booking Request Rejected</h1>
 	<p style="margin: 10px 0 0; font-size: 14px; color: #fee2e2;">This schedule could not be accommodated at the moment.</p>
 </div>
 
