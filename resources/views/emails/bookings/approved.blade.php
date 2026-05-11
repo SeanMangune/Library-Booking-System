@@ -43,6 +43,12 @@
             <td style="padding: 6px 0; color: #6b7280;">Reference</td>
             <td style="padding: 6px 0; font-weight: 700; color: #4f46e5;">{{ $booking->booking_code }}</td>
         </tr>
+        @if(! empty($booking->decision_by_name))
+        <tr>
+            <td style="padding: 6px 0; color: #6b7280;">Approved by</td>
+            <td style="padding: 6px 0; font-weight: 700;">{{ $booking->decision_by_name }}</td>
+        </tr>
+        @endif
     </table>
 </div>
 

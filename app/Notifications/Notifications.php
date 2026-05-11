@@ -27,15 +27,21 @@ class BookingApprovedNotification extends Notification
         $roomName = $this->booking->room?->name ?? 'Room';
         $date = optional($this->booking->date)->format('M d, Y') ?? 'N/A';
         $time = $this->booking->formatted_time ?: 'N/A';
+        $approver = trim((string) ($this->booking->decision_by_name ?? ''));
 
-        return (new MailMessage())
+        $mail = (new MailMessage())
             ->subject('Booking Approved')
             ->greeting('Hello ' . ($notifiable->name ?? 'User') . ',')
             ->line('Your booking request has been approved.')
             ->line('Room: ' . $roomName)
             ->line('Date: ' . $date)
-            ->line('Time: ' . $time)
-            ->action('View Reservations', route('reservations.index'));
+            ->line('Time: ' . $time);
+
+        if ($approver !== '') {
+            $mail->line('Approved by: ' . $approver);
+        }
+
+        return $mail->action('View Reservations', route('reservations.index'));
     }
 
     /**
@@ -45,13 +51,20 @@ class BookingApprovedNotification extends Notification
     {
         $roomName = $this->booking->room?->name ?? 'Room';
         $date = optional($this->booking->date)->format('M d, Y') ?? 'N/A';
+        $approver = trim((string) ($this->booking->decision_by_name ?? ''));
+
+        $message = 'Your booking for ' . $roomName . ' on ' . $date . ' was approved.';
+        if ($approver !== '') {
+            $message .= ' Approved by ' . $approver . '.';
+        }
 
         return [
             'title' => 'Booking approved',
-            'message' => 'Your booking for ' . $roomName . ' on ' . $date . ' was approved.',
+            'message' => $message,
             'url' => route('reservations.index'),
             'booking_id' => $this->booking->id,
             'status' => 'approved',
+            'decision_by_name' => $approver !== '' ? $approver : null,
         ];
     }
 }

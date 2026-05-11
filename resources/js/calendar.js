@@ -444,6 +444,77 @@ function parseTimeToMinutes(value) {
     return (hours * 60) + minutes;
 }
 
+function parseTimeToParts(value) {
+    if (value === null || value === undefined || value === '') {
+        return null;
+    }
+
+    const normalized = String(value).trim();
+    if (!normalized) {
+        return null;
+    }
+
+    const timePart = normalized.includes('T')
+        ? normalized.split('T')[1]
+        : normalized;
+
+    const meridiemMatch = timePart.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AP]M)\b/i);
+    if (meridiemMatch) {
+        let hours = Number(meridiemMatch[1]);
+        const minutes = Number(meridiemMatch[2]);
+        const seconds = Number(meridiemMatch[3] || 0);
+
+        if (Number.isNaN(hours) || Number.isNaN(minutes) || Number.isNaN(seconds)
+            || hours < 1 || hours > 12 || minutes < 0 || minutes > 59 || seconds < 0 || seconds > 59) {
+            return null;
+        }
+
+        const marker = meridiemMatch[4].toUpperCase();
+        if (marker === 'AM' && hours === 12) {
+            hours = 0;
+        }
+        if (marker === 'PM' && hours < 12) {
+            hours += 12;
+        }
+
+        return { hours, minutes, seconds };
+    }
+
+    const twentyFourHourMatch = timePart.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (!twentyFourHourMatch) {
+        return null;
+    }
+
+    const hours = Number(twentyFourHourMatch[1]);
+    const minutes = Number(twentyFourHourMatch[2]);
+    const seconds = Number(twentyFourHourMatch[3] || 0);
+
+    if (Number.isNaN(hours) || Number.isNaN(minutes) || Number.isNaN(seconds)
+        || hours < 0 || hours > 23 || minutes < 0 || minutes > 59 || seconds < 0 || seconds > 59) {
+        return null;
+    }
+
+    return { hours, minutes, seconds };
+}
+
+function buildBookingDateTime(dateValue, timeValue) {
+    const date = parseBookingDate(dateValue);
+    const parts = parseTimeToParts(timeValue);
+
+    if (!date || !parts) {
+        return null;
+    }
+
+    return new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        parts.hours,
+        parts.minutes,
+        parts.seconds,
+    );
+}
+
 function normalizeLifecycleStatus(value) {
     const normalized = String(value || '').trim().toLowerCase();
 
@@ -793,6 +864,7 @@ function mapEventFromCalendarInfo(context, info) {
         attendees: props.attendees,
         status: props.status,
         description: props.description,
+        decision_by_name: props.decision_by_name || props.decisionByName || null,
         booking_status: props.booking_status || null,
     };
 
@@ -1838,6 +1910,8 @@ export function createDashboardApp(config = {}) {
         selectedRoomBookings: [],
         selectedRoomUpcomingBookings: [],
         collaborativeRoomStatuses: {},
+        activeBookingTimers: [],
+        bookingTimerInterval: null,
         
         openRoomModal(room, count, bookings = [], upcomingBookings = []) {
             const roomId = String(room?.id || '');
@@ -2068,6 +2142,156 @@ export function createDashboardApp(config = {}) {
             });
 
             return events;
+        },
+
+        refreshActiveBookingTimers(reference = new Date()) {
+            this.activeBookingTimers = this.buildActiveBookingTimers(reference);
+        },
+
+        buildActiveBookingTimers(reference = new Date()) {
+            const context = getCalendarNowContext(reference);
+            const dayEvents = Array.isArray(this.calendarData?.[context.todayKey])
+                ? this.calendarData[context.todayKey]
+                : [];
+
+            const timers = dayEvents
+                .map((event) => this.buildBookingTimerEntry(event, reference, context.todayKey))
+                .filter(Boolean);
+
+            const filtered = this.isStaffUser
+                ? timers
+                : timers.filter((timer) => timer.is_owner);
+
+            return filtered.sort((first, second) => first.remainingSeconds - second.remainingSeconds);
+        },
+
+        buildBookingTimerEntry(event, reference, fallbackDate) {
+            const status = String(event?.status || '').toLowerCase();
+            if (status !== 'approved') {
+                return null;
+            }
+
+            const range = this.buildBookingTimerRange(event, fallbackDate);
+            if (!range) {
+                return null;
+            }
+
+            const now = reference instanceof Date ? reference : new Date();
+            if (now < range.start || now > range.end) {
+                return null;
+            }
+
+            const totalSeconds = Math.max(1, Math.round((range.end - range.start) / 1000));
+            const elapsedSeconds = Math.min(
+                totalSeconds,
+                Math.max(0, Math.round((now - range.start) / 1000)),
+            );
+            const remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds);
+            const percent = Math.min(100, Math.max(0, Math.round((elapsedSeconds / totalSeconds) * 100)));
+            const tone = this.resolveBookingTimerTone(remainingSeconds, elapsedSeconds);
+            const timeLabel = `Ends in ${this.formatTimerCountdown(remainingSeconds)} • ${this.formatTimerRangeLabel(range.start, range.end)}`;
+
+            return {
+                id: event?.id || `${event?.room_name || 'room'}-${range.start.toISOString()}`,
+                room_name: event?.room_name || 'Room',
+                percent,
+                statusLabel: tone.label,
+                barClass: tone.barClass,
+                badgeClass: tone.badgeClass,
+                timeLabel,
+                remainingSeconds,
+                is_owner: Boolean(event?.is_owner),
+            };
+        },
+
+        buildBookingTimerRange(event, fallbackDate) {
+            const dateValue = event?.date || event?.formatted_date || fallbackDate;
+            let start = buildBookingDateTime(dateValue, event?.start_time || event?.start);
+            let end = buildBookingDateTime(dateValue, event?.end_time || event?.end);
+
+            if ((!start || !end) && event?.formatted_time) {
+                const parts = String(event.formatted_time)
+                    .split(/\s*[–—-]\s*/)
+                    .filter(Boolean);
+                if (!start && parts[0]) {
+                    start = buildBookingDateTime(dateValue, parts[0]);
+                }
+                if (!end && parts[1]) {
+                    end = buildBookingDateTime(dateValue, parts[1]);
+                }
+            }
+
+            if (!start || !end) {
+                return null;
+            }
+
+            if (end <= start) {
+                end = new Date(start.getTime() + 60 * 60 * 1000);
+            }
+
+            return { start, end };
+        },
+
+        resolveBookingTimerTone(remainingSeconds, elapsedSeconds) {
+            if (remainingSeconds <= 10) {
+                return {
+                    label: '10 sec left',
+                    barClass: 'from-rose-500 via-red-500 to-rose-600',
+                    badgeClass: 'bg-rose-100 text-rose-700',
+                };
+            }
+
+            if (remainingSeconds <= 10 * 60) {
+                return {
+                    label: '10 min left',
+                    barClass: 'from-orange-400 via-amber-500 to-orange-600',
+                    badgeClass: 'bg-orange-100 text-orange-700',
+                };
+            }
+
+            if (elapsedSeconds >= 30 * 60) {
+                return {
+                    label: '30 min mark',
+                    barClass: 'from-amber-400 via-yellow-500 to-amber-500',
+                    badgeClass: 'bg-amber-100 text-amber-700',
+                };
+            }
+
+            return {
+                label: 'In progress',
+                barClass: 'from-emerald-400 via-emerald-500 to-emerald-600',
+                badgeClass: 'bg-emerald-100 text-emerald-700',
+            };
+        },
+
+        formatTimerCountdown(seconds) {
+            const totalSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const remaining = totalSeconds % 60;
+
+            if (hours > 0) {
+                return `${hours}h ${String(minutes).padStart(2, '0')}m`;
+            }
+
+            if (minutes > 0) {
+                return `${minutes}m ${String(remaining).padStart(2, '0')}s`;
+            }
+
+            return `${remaining}s`;
+        },
+
+        formatTimerRangeLabel(start, end) {
+            if (!(start instanceof Date) || Number.isNaN(start.getTime())
+                || !(end instanceof Date) || Number.isNaN(end.getTime())) {
+                return '';
+            }
+
+            const formatOptions = { hour: 'numeric', minute: '2-digit' };
+            const startLabel = start.toLocaleTimeString(undefined, formatOptions);
+            const endLabel = end.toLocaleTimeString(undefined, formatOptions);
+
+            return `${startLabel} - ${endLabel}`;
         },
 
         sortEventsByStartTime(events) {
@@ -2316,6 +2540,14 @@ export function createDashboardApp(config = {}) {
             this.statusRefreshInterval = window.setInterval(() => {
                 this.refreshCollaborativeRoomStatuses();
             }, 15000);
+
+            this.refreshActiveBookingTimers();
+            if (this.bookingTimerInterval) {
+                window.clearInterval(this.bookingTimerInterval);
+            }
+            this.bookingTimerInterval = window.setInterval(() => {
+                this.refreshActiveBookingTimers();
+            }, 1000);
         },
 
         async refreshCollaborativeRoomStatuses() {
@@ -3138,6 +3370,7 @@ export function createDashboardApp(config = {}) {
                     year: this.currentYear,
                 }));
                 this.calendarData = await response.json();
+                this.refreshActiveBookingTimers();
             } catch (error) {
                 console.error('Failed to fetch calendar data:', error);
             }
@@ -3170,6 +3403,17 @@ export function createDashboardApp(config = {}) {
                 events: this.fetchDashboardEvents.bind(this),
                 eventDidMount(info) {
                     const mappedBooking = self.mapDashboardEvent(info);
+                    const viewType = info.view?.type || self.dashboardCalendar?.view?.type;
+                    if (viewType === 'listWeek') {
+                        const titleCell = info.el.querySelector('.fc-list-event-title');
+                        if (titleCell && !titleCell.querySelector('[data-booked-badge]')) {
+                            const badge = document.createElement('span');
+                            badge.dataset.bookedBadge = '1';
+                            badge.className = 'ml-2 inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-wider px-2 py-0.5';
+                            badge.textContent = 'Booked';
+                            titleCell.appendChild(badge);
+                        }
+                    }
                     if (deriveBookingLifecycleStatus(mappedBooking) !== 'upcoming') {
                         info.el.classList.add('opacity-50', 'grayscale', 'cursor-not-allowed');
                     }
@@ -3442,6 +3686,7 @@ export function createDashboardApp(config = {}) {
                 qr_token: booking.qr_token || null,
                 qr_code_url: booking.qr_code_url || (booking.qr_token ? `/bookings/qr/${booking.qr_token}` : null),
                 booking_status: booking.booking_status || null,
+                decision_by_name: booking.decision_by_name || booking.decisionByName || null,
             };
 
             mapped.booking_status = deriveBookingLifecycleStatus(mapped);

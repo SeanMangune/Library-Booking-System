@@ -87,14 +87,22 @@
 
                     <!-- Booked By -->
                     <div class="mb-4 p-3 bg-gray-50 rounded-xl">
-                        <div class="flex items-center gap-3">
-                            <div class="w-9 h-9 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
-                                <i class="fa-solid fa-user text-indigo-600"></i>
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-user text-indigo-600"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-[10px] text-gray-500 uppercase tracking-wide font-medium">Booked By</p>
+                                    <p class="text-sm font-semibold text-gray-900" x-text="'****'"></p>
+                                </div>
                             </div>
-                            <div class="min-w-0">
-                                <p class="text-[10px] text-gray-500 uppercase tracking-wide font-medium">Booked By</p>
-                                <p class="text-sm font-semibold text-gray-900" x-text="'****'"></p>
-                            </div>
+                            <template x-if="viewEvent?.decision_by_name || selectedBooking?.decision_by_name">
+                                <div class="flex items-center gap-2 sm:gap-3">
+                                    <p class="text-[10px] text-gray-500 uppercase tracking-wide font-medium">Approved By</p>
+                                    <p class="text-sm font-semibold text-gray-900" x-text="viewEvent?.decision_by_name || selectedBooking?.decision_by_name"></p>
+                                </div>
+                            </template>
                         </div>
                     </div>
 

@@ -67,7 +67,21 @@ class BookingTimeAlertService
             return;
         }
 
-        $staffMembers = User::whereIn('role', ['admin', 'librarian'])->get();
+        $approverIds = $bookings
+            ->pluck('decision_by_user_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($approverIds->isEmpty()) {
+            return;
+        }
+
+        $staffMembers = User::whereIn('id', $approverIds)
+            ->whereIn('role', ['admin', 'librarian'])
+            ->get()
+            ->keyBy('id');
+
         if ($staffMembers->isEmpty()) {
             return;
         }
@@ -83,13 +97,18 @@ class BookingTimeAlertService
                 continue;
             }
 
-            foreach ($staffMembers as $staff) {
-                if ($this->bookingAlertExists($staff, $payload['alert_key'])) {
-                    continue;
-                }
-
-                $this->sendAlertNotification($staff, $booking, $payload);
+            $approver = $booking->decision_by_user_id
+                ? $staffMembers->get($booking->decision_by_user_id)
+                : null;
+            if (! $approver) {
+                continue;
             }
+
+            if ($this->bookingAlertExists($approver, $payload['alert_key'])) {
+                continue;
+            }
+
+            $this->sendAlertNotification($approver, $booking, $payload);
         }
     }
 
@@ -156,10 +175,6 @@ class BookingTimeAlertService
             if ($secondsLeft > 0) {
                 return null;
             }
-
-            if ($booking->qr_validity !== 'valid' && $booking->determineQrValidity($reference) !== 'valid') {
-                return null;
-            }
         } else {
             if ($secondsLeft <= 0) {
                 return null;
@@ -205,11 +220,11 @@ class BookingTimeAlertService
                 : "Your booking for {$roomName} ends in 10 minutes at {$endLabel}. Please finish up and hand over the room promptly.";
         } else {
             $title = $forStaff
-                ? "Booking has expired"
-                : "Your booking has expired";
+                ? "Booking completed"
+                : "Your booking is done";
             $message = $forStaff
-                ? "{$userName}'s booking for {$roomName} expired at {$endLabel}. Confirm the room is available again."
-                : "Your booking for {$roomName} has expired at {$endLabel}. Please vacate the room immediately if you have not already.";
+                ? "{$userName}'s booking for {$roomName} ended at {$endLabel}."
+                : "Your booking for {$roomName} ended at {$endLabel}.";
         }
 
         return [

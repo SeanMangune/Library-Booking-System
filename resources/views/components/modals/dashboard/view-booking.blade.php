@@ -98,6 +98,11 @@
                                         <p x-show="selectedBooking.user_campus || selectedBooking.user?.campus"
                                            class="text-xs text-indigo-600 font-semibold"
                                            x-text="selectedBooking.user_campus || selectedBooking.user?.campus"></p>
+                                        <template x-if="selectedBooking?.decision_by_name">
+                                            <p class="text-xs text-gray-500 mt-1">
+                                                Approved by <span class="font-semibold text-gray-900" x-text="selectedBooking.decision_by_name"></span>
+                                            </p>
+                                        </template>
                                     </div>
                                 </div>
                             </div>

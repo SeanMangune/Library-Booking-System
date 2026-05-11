@@ -93,6 +93,43 @@
 
                 <div id="admin-calendar-compact-anchor" class="hidden space-y-6"></div>
 
+                <!-- Active Booking Timer -->
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 animate-slide-in-up">
+                    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
+                        <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                            <i class="fa-solid fa-hourglass-half text-emerald-500"></i>
+                            Active Booking Timer
+                        </h3>
+                        <span class="text-[10px] font-black uppercase tracking-wider text-gray-400" x-text="activeBookingTimers.length + ' active'"></span>
+                    </div>
+                    <div class="p-4 space-y-3">
+                        <template x-for="timer in activeBookingTimers" :key="timer.id">
+                            <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                <div class="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0 border border-gray-100">
+                                    <i class="fa-solid fa-stopwatch text-gray-400"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between mb-1.5 gap-2">
+                                        <span class="text-xs font-bold text-gray-900 truncate" x-text="timer.room_name"></span>
+                                        <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md" :class="timer.badgeClass" x-text="timer.statusLabel"></span>
+                                    </div>
+                                    <div class="h-2 bg-gray-200/80 rounded-full overflow-hidden shadow-inner">
+                                        <div class="h-full bg-linear-to-r rounded-full transition-all duration-300"
+                                             :class="timer.barClass"
+                                             :style="`width: ${timer.percent}%`"></div>
+                                    </div>
+                                    <p class="mt-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400" x-text="timer.timeLabel"></p>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="activeBookingTimers.length === 0">
+                            <div class="p-6 text-center">
+                                <p class="text-sm text-gray-500">No active bookings right now.</p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
                 <!-- Collaborative Rooms Card -->
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 animate-slide-in-up stagger-3">
                     <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50">

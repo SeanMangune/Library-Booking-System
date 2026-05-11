@@ -88,6 +88,7 @@ class CalendarController extends Controller
                         'user_campus' => $canViewAll ? ($booking->user?->campus ?? null) : null,
                         'status' => $booking->status,
                         'description' => $canSeeDetails ? $booking->description : '',
+                        'decision_by_name' => $canSeeDetails ? $booking->decision_by_name : null,
                         'formatted_time' => $booking->formatted_time,
                         'formatted_date' => $booking->formatted_date,
                         'date' => $date->format('M d, Y'),
@@ -150,6 +151,8 @@ class CalendarController extends Controller
                         'user_campus' => $canViewAll ? ($booking->user?->campus ?? null) : null,
                         'attendees' => $booking->attendees,
                         'status' => $booking->status,
+
+                        'decision_by_name' => $canSeeDetails ? $booking->decision_by_name : null,
 
                         'booking_code' => $canSeeDetails ? ($booking->booking_code ?? null) : null,
                         'qr_code_url' => $canSeeDetails ? ($booking->qr_code_url ?? null) : null,
@@ -219,6 +222,8 @@ class CalendarController extends Controller
                         'user_campus' => $canViewAll ? ($booking->user?->campus ?? null) : null,
                         'status' => $booking->status,
                         'attendees' => $booking->attendees,
+
+                        'decision_by_name' => $canSeeDetails ? $booking->decision_by_name : null,
 
                         'booking_code' => $canSeeDetails ? ($booking->booking_code ?? null) : null,
                         'qr_code_url' => $canSeeDetails ? ($booking->qr_code_url ?? null) : null,

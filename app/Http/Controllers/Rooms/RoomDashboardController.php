@@ -298,27 +298,32 @@ class RoomDashboardController extends Controller
 
         return $bookings->groupBy(function($booking) {
             return $booking->date->format('Y-m-d');
-        })->map(function($dayBookings) use ($canViewAll) {
-            return $dayBookings->map(function($booking) use ($canViewAll) {
+        })->map(function($dayBookings) use ($canViewAll, $user) {
+            return $dayBookings->map(function($booking) use ($canViewAll, $user) {
+                $isOwner = $user && ($booking->user_id === $user->id || $booking->user_email === $user->email);
+                $canSeeDetails = $canViewAll || $isOwner;
+
                 return [
                     'id' => $booking->id,
-                    'title' => $canViewAll ? ($booking->title ?: $booking->user_name) : 'Occupied',
-                    'purpose' => $canViewAll ? $booking->title : 'Occupied',
+                    'title' => $canSeeDetails ? ($booking->title ?: $booking->user_name) : 'Occupied',
+                    'purpose' => $canSeeDetails ? $booking->title : 'Occupied',
                     'room_name' => $booking->room->name,
                     'room_location' => $booking->room->location ?? null,
                     'start_time' => $booking->start_time,
                     'end_time' => $booking->end_time,
                     'formatted_time' => $booking->formatted_time,
                     'formatted_date' => $booking->formatted_date,
-                    'user_name' => $canViewAll ? $booking->user_name : 'Occupied',
-                    'user_email' => $canViewAll ? $booking->user_email : null,
-                    'user_campus' => $canViewAll ? ($booking->user?->campus ?? null) : null,
+                    'user_name' => $canSeeDetails ? $booking->user_name : 'Occupied',
+                    'user_email' => $canSeeDetails ? $booking->user_email : null,
+                    'user_campus' => $canSeeDetails ? ($booking->user?->campus ?? null) : null,
                     'attendees' => $booking->attendees,
                     'status' => $booking->status,
                     'booking_status' => $booking->booking_status ?? $booking->determineBookingStatus(),
                     'qr_token' => $booking->qr_token,
                     'qr_code_url' => $booking->qr_code_url,
-                    'description' => $canViewAll ? $booking->description : null,
+                    'description' => $canSeeDetails ? $booking->description : null,
+                    'decision_by_name' => $canSeeDetails ? $booking->decision_by_name : null,
+                    'is_owner' => (bool) $isOwner,
                 ];
             })->values();
         });

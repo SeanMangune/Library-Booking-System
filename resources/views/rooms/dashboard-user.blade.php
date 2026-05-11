@@ -124,6 +124,43 @@
 
                 <div id="user-calendar-compact-anchor" class="hidden space-y-6"></div>
 
+                <!-- Active Booking Timer -->
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
+                        <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                           <i class="fa-solid fa-hourglass-half text-emerald-500"></i>
+                           Active Booking Timer
+                        </h3>
+                        <span class="text-[10px] font-black uppercase tracking-wider text-gray-400" x-text="activeBookingTimers.length + ' active'"></span>
+                    </div>
+                    <div class="p-4 space-y-3">
+                        <template x-for="timer in activeBookingTimers" :key="timer.id">
+                            <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                <div class="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0 border border-gray-100">
+                                    <i class="fa-solid fa-stopwatch text-gray-400"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between mb-1.5 gap-2">
+                                        <span class="text-xs font-bold text-gray-900 truncate" x-text="timer.room_name"></span>
+                                        <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md" :class="timer.badgeClass" x-text="timer.statusLabel"></span>
+                                    </div>
+                                    <div class="h-2 bg-gray-200/80 rounded-full overflow-hidden shadow-inner">
+                                        <div class="h-full bg-linear-to-r rounded-full transition-all duration-300"
+                                             :class="timer.barClass"
+                                             :style="`width: ${timer.percent}%`"></div>
+                                    </div>
+                                    <p class="mt-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400" x-text="timer.timeLabel"></p>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="activeBookingTimers.length === 0">
+                            <div class="p-6 text-center">
+                                <p class="text-sm text-gray-500">No active bookings right now.</p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
                 <!-- Room Availability Card -->
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
                     <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50">
@@ -375,18 +412,14 @@
                                             <div class="space-y-1 overflow-hidden">
                                                 <template x-for="event in day.events.slice(0, 3)" :key="event.id">
                                                     <div class="relative group/event">
-                                                                                                                     <div class="text-[10px] px-2 py-1 bg-white border border-gray-100 text-gray-700 rounded-lg shadow-sm truncate transition-all font-medium flex items-center gap-1.5"
-                                                                                                                         @click.stop="day.isCurrentMonth && !day.isPast && openViewBookingModal(event)"
-                                                                                                                         :class="day.isCurrentMonth && !day.isPast
-                                                                                                                            ? (event.is_owner
-                                                                                                                                ? 'cursor-pointer hover:border-emerald-400 hover:text-emerald-700'
-                                                                                                                                : 'cursor-pointer hover:border-rose-400 hover:text-rose-700')
-                                                                                                                            : 'cursor-not-allowed'">
-                                                                <span class="w-1.5 h-1.5 rounded-full" :class="event.is_owner ? 'bg-emerald-500' : 'bg-rose-500'"></span>
-                                                                <span x-text="formatEventChipTime(event)"></span>
-                                                                <span class="opacity-60">|</span>
-                                                                <span x-text="event.room_name?.split(' ')[1] || event.room_name"></span>
-                                                            </div>
+                                                        <div class="text-[10px] px-2 py-1 bg-white border border-gray-100 text-gray-700 rounded-lg shadow-sm truncate transition-all font-medium flex items-center gap-1.5"
+                                                             @click.stop="isEventInteractive(event, day) && openViewBookingModal(event)"
+                                                             :class="isEventInteractive(event, day) ? 'cursor-pointer hover:border-rose-400 hover:text-rose-700' : 'cursor-not-allowed opacity-45 grayscale bg-gray-100 text-gray-500 border-gray-200'">
+                                                            <span class="w-1.5 h-1.5 rounded-full" :class="event.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'"></span>
+                                                            <span x-text="formatEventChipTime(event)"></span>
+                                                            <span class="opacity-60">|</span>
+                                                            <span x-text="event.room_name?.split(' ')[1] || event.room_name"></span>
+                                                        </div>
                                                     </div>
                                                 </template>
                                                 <template x-if="day.events.length > 3">
@@ -423,10 +456,12 @@
                                         </div>
                                     </div>
                                                                         <span class="self-start sm:self-center shrink-0 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-colors border ml-15 sm:ml-0"
-                                                                                    :class="event.is_owner
-                                                                                        ? 'bg-red-100 text-red-700 border-red-200 group-hover:bg-red-600 group-hover:text-white group-hover:border-red-600'
-                                                                                        : 'bg-rose-100 text-rose-700 border-rose-200 group-hover:bg-rose-600 group-hover:text-white group-hover:border-rose-600'"
-                                                                                    x-text="event.is_owner ? 'My Booking' : 'Occupied'"></span>
+                                                                              :class="event.status === 'pending'
+                                                                                  ? 'bg-amber-100 text-amber-700 border-amber-200 group-hover:bg-amber-500 group-hover:text-white group-hover:border-amber-500'
+                                                                                  : 'bg-red-100 text-red-700 border-red-200 group-hover:bg-red-600 group-hover:text-white group-hover:border-red-600'"
+                                                                              x-text="(event.status || 'approved') === 'approved'
+                                                                                ? 'Booked'
+                                                                                : (event.status || 'approved').charAt(0).toUpperCase() + (event.status || 'approved').slice(1)"></span>
                                 </div>
                             </template>
                             <template x-if="listEvents.length === 0">
