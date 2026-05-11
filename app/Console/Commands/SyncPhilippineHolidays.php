@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Models\CalendarEvent;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -53,7 +53,8 @@ class SyncPhilippineHolidays extends Command
                 $sourceId = 'nager-ph-' . $date;
 
                 // Skip if already exists for this date/source
-                $exists = CalendarEvent::where('source', 'api')
+                $exists = DB::table('calendar_events')
+                    ->where('source', 'api')
                     ->where('source_id', $sourceId)
                     ->exists();
 
@@ -62,19 +63,23 @@ class SyncPhilippineHolidays extends Command
                     continue;
                 }
 
-                CalendarEvent::create([
+                $now = Carbon::now();
+
+                DB::table('calendar_events')->insert([
                     'title' => $name,
                     'description' => ($holiday['name'] !== $name ? $holiday['name'] : null),
                     'type' => 'holiday',
                     'date' => Carbon::parse($date)->toDateString(),
-                    'is_all_day' => true,
+                    'is_all_day' => DB::raw('true'),
                     'start_time' => null,
                     'end_time' => null,
                     'color' => '#EF4444',
                     'source' => 'api',
                     'source_id' => $sourceId,
-                    'is_recurring' => false,
+                    'is_recurring' => DB::raw('false'),
                     'created_by' => null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
                 ]);
 
                 $created++;
@@ -91,3 +96,4 @@ class SyncPhilippineHolidays extends Command
         }
     }
 }
+
