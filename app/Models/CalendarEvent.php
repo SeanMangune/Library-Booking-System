@@ -43,7 +43,7 @@ class CalendarEvent extends Model
         }
 
         return match ($this->type) {
-            'holiday' => '#EF4444',       // red
+            'holiday' => '#3B82F6',       // blue
             'online_class' => '#8B5CF6',  // purple
             'school_event' => '#F59E0B',  // amber
             default => '#6366F1',          // indigo

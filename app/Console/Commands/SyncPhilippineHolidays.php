@@ -73,7 +73,7 @@ class SyncPhilippineHolidays extends Command
                     'is_all_day' => DB::raw('true'),
                     'start_time' => null,
                     'end_time' => null,
-                    'color' => '#EF4444',
+                    'color' => '#3B82F6',
                     'source' => 'api',
                     'source_id' => $sourceId,
                     'is_recurring' => DB::raw('false'),
