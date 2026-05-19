@@ -10,7 +10,6 @@ export function createApprovalSuccessModalState() {
             this.showSuccessModal = false;
             this.approvedBooking = null;
             this.qrDownloadFormat = 'png';
-            window.location.reload();
         },
 
         normalizeDownloadFormat(format) {

@@ -70,10 +70,16 @@ class Booking extends Model
         });
 
         static::retrieved(function (Booking $booking) {
-            if (self::hasBookingStatusColumn()) {
-                $booking->syncBookingStatus();
+            try {
+                if (self::hasBookingStatusColumn()) {
+                    $booking->syncBookingStatus();
+                }
+                $booking->syncQrValidity();
+            } catch (\Throwable $e) {
+                // Prevent a single booking's sync failure from poisoning the
+                // PostgreSQL transaction and breaking all subsequent queries.
+                report($e);
             }
-            $booking->syncQrValidity();
         });
 
         static::created(function (Booking $booking) {
@@ -236,7 +242,11 @@ class Booking extends Model
             $this->forceFill(['booking_status' => $calculatedStatus]);
 
             if ($persist && $this->exists) {
-                $this->saveQuietly();
+                try {
+                    $this->saveQuietly();
+                } catch (\Throwable $e) {
+                    report($e);
+                }
             }
         }
 
@@ -319,7 +329,11 @@ class Booking extends Model
             $this->forceFill(['qr_validity' => $calculated]);
 
             if ($persist && $this->exists) {
-                $this->saveQuietly();
+                try {
+                    $this->saveQuietly();
+                } catch (\Throwable $e) {
+                    report($e);
+                }
             }
         }
 

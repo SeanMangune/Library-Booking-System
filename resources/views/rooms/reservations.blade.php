@@ -362,10 +362,26 @@ function reservationsApp() {
                 
                 if (data.success) {
                     this.closeCancelModal();
-                    window.notifyApp?.('success', data.message || 'Booking cancelled successfully.');
-                    window.setTimeout(() => {
-                        window.location.reload();
-                    }, 850);
+                    window.notifyApp?.('error', data.message || 'Booking cancelled successfully.');
+
+                    // Remove the cancelled booking's row from the table/card list
+                    const bookingId = id;
+                    document.querySelectorAll(`[data-booking]`).forEach(el => {
+                        try {
+                            const b = JSON.parse(el.dataset.booking || '{}');
+                            if (Number(b.id) === Number(bookingId)) {
+                                el.closest('tr, [class*="p-4"]')?.remove();
+                            }
+                        } catch (e) { /* skip */ }
+                    });
+                    // Also remove cancel buttons targeting this booking
+                    document.querySelectorAll(`button[\\@click="openCancelModal(${bookingId})"]`).forEach(btn => {
+                        btn.closest('td, div')?.querySelectorAll('button').forEach(b => {
+                            if (b.getAttribute('@click')?.includes(`openCancelModal(${bookingId})`)) {
+                                b.remove();
+                            }
+                        });
+                    });
                 } else {
                     this.cancelError = data.message || 'Failed to cancel booking.';
                 }

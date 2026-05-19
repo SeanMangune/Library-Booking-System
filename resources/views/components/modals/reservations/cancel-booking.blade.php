@@ -23,7 +23,7 @@
                           x-model="cancelReason"
                           rows="4"
                           placeholder="Enter your reason for cancellation"
-                          class="textarea textarea-bordered w-full rounded-lg"></textarea>
+                          class="textarea textarea-bordered w-full rounded-lg resize-none"></textarea>
             </div>
 
             <p x-show="cancelError" x-text="cancelError" class="text-sm text-red-600"></p>
@@ -37,8 +37,11 @@
                 </button>
                 <button type="button"
                         @click="confirmCancelBooking()"
-                        :disabled="isCancelling"
-                        class="btn btn-error text-white disabled:opacity-60 disabled:cursor-not-allowed">
+                        :disabled="isCancelling || !cancelReason || cancelReason.trim().length < 3"
+                        class="btn text-white transition-all"
+                        :class="cancelReason && cancelReason.trim().length >= 3
+                            ? 'bg-red-500 hover:bg-red-600 border-red-500 hover:border-red-600'
+                            : 'bg-red-500/50 border-red-300 opacity-60 cursor-not-allowed'">
                     <template x-if="!isCancelling">
                         <span class="inline-flex items-center gap-2">
                             <i class="fa-solid fa-xmark"></i>

@@ -57,7 +57,19 @@ function removeBookingCardFromPendingList(bookingId) {
     if (removedAny) {
         const remainingCards = document.querySelectorAll('.booking-card[data-booking]').length;
         if (remainingCards === 0) {
-            window.location.reload();
+            // All cards removed — let the page reflect the empty state naturally
+            const container = document.querySelector('.space-y-5');
+            if (container) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-3xl border-2 border-dashed border-gray-200 p-16 text-center">
+                        <div class="w-20 h-20 mx-auto bg-gray-50 rounded-full flex items-center justify-center mb-6">
+                            <i class="fa-solid fa-inbox text-gray-300 text-4xl"></i>
+                        </div>
+                        <h3 class="text-2xl font-black text-gray-900 mb-2">Inbox Zero! No pending approvals</h3>
+                        <p class="text-base text-gray-500 max-w-sm mx-auto">All requests have been reviewed. Take a break!</p>
+                    </div>
+                `;
+            }
         }
     }
 }
@@ -70,17 +82,7 @@ export function createApprovalDetailsModalState() {
         actionType: null,
         rejectionReason: '',
         decisionPassword: '',
-        approvalsReloadTimer: null,
 
-        queueApprovalsReload(delayMs = 1200) {
-            if (this.approvalsReloadTimer) {
-                return;
-            }
-
-            this.approvalsReloadTimer = window.setTimeout(() => {
-                window.location.reload();
-            }, delayMs);
-        },
 
         openApprovalModal(booking) {
             this.selectedBooking = booking;
@@ -136,7 +138,6 @@ export function createApprovalDetailsModalState() {
 
                     if (response.status === 422 && /automatically rejected/i.test(String(message))) {
                         removeBookingCardFromPendingList(this.selectedBooking.id);
-                        this.queueApprovalsReload();
                     }
                     return;
                 }
@@ -162,7 +163,7 @@ export function createApprovalDetailsModalState() {
                 this.decisionPassword = '';
                 this.showModal = false;
                 this.showSuccessModal = true;
-                this.queueApprovalsReload(1500);
+                window.notifyApp?.('success', 'Booking approved successfully.');
             } catch (error) {
                 console.error('Error:', error);
                 window.notifyApp?.('error', error?.message || 'An error occurred while approving the booking');
@@ -211,11 +212,12 @@ export function createApprovalDetailsModalState() {
                     return;
                 }
 
+                removeBookingCardFromPendingList(this.selectedBooking.id);
                 this.showModal = false;
                 this.showRejectModal = true;
                 this.rejectionReason = '';
                 this.decisionPassword = '';
-                this.queueApprovalsReload();
+                window.notifyApp?.('error', 'Booking has been rejected.');
             } catch (error) {
                 console.error('Error:', error);
                 window.notifyApp?.('error', error?.message || 'An error occurred while rejecting the booking');
