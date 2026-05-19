@@ -97,9 +97,13 @@ return [
             'schema' => env('DB_SCHEMA', 'laravel'),
             'search_path' => env('DB_SEARCH_PATH', 'public,laravel'),
             'sslmode' => env('DB_SSLMODE', 'prefer'),
-            'options' => extension_loaded('pdo_pgsql') ? array_filter([
-                PDO::ATTR_EMULATE_PREPARES => env('PGSQL_ATTR_EMULATE_PREPARES', true),
-            ]) : [],
+            // Disable server-side prepared statements entirely.
+            // Required for PgBouncer / managed PostgreSQL connection pooling
+            // (DigitalOcean) which rotates backend connections and invalidates
+            // prepared statements, causing SQLSTATE[26000] errors.
+            'options' => extension_loaded('pdo_pgsql') ? [
+                PDO::ATTR_EMULATE_PREPARES => true,
+            ] : [],
         ],
 
         'sqlsrv' => [
