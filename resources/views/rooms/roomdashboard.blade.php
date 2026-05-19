@@ -506,9 +506,8 @@
                         
                         if (response.ok) {
                             window.notifyApp?.('success', 'Booking approved successfully.');
-                            window.setTimeout(() => {
-                                window.location.reload();
-                            }, 850);
+                            this.removeBookingCard(this.selectedBooking.id);
+                            this.closeModal();
                         } else {
                             window.notifyApp?.('error', 'Failed to approve booking');
                         }
@@ -545,10 +544,9 @@
                         });
                         
                         if (response.ok) {
-                            window.notifyApp?.('success', 'Booking rejected successfully.');
-                            window.setTimeout(() => {
-                                window.location.reload();
-                            }, 850);
+                            window.notifyApp?.('error', 'Booking has been rejected.');
+                            this.removeBookingCard(this.selectedBooking.id);
+                            this.closeModal();
                         } else {
                             window.notifyApp?.('error', 'Failed to reject booking');
                         }
@@ -559,6 +557,18 @@
                         this.isLoading = false;
                         this.actionType = null;
                     }
+                },
+
+                removeBookingCard(bookingId) {
+                    const cards = document.querySelectorAll('.booking-card');
+                    cards.forEach(card => {
+                        try {
+                            const clickAttr = card.getAttribute('@click') || card.getAttribute('x-on:click') || '';
+                            if (clickAttr.includes('"id":' + bookingId) || clickAttr.includes('"id": ' + bookingId)) {
+                                card.remove();
+                            }
+                        } catch (e) { /* skip */ }
+                    });
                 }
             }
         }

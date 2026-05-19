@@ -175,6 +175,48 @@ function initializeRealtimeNotifications() {
             unreadChip.classList.toggle('hidden', totalCount <= 0);
         }
 
+        // Sync sidebar approvals badge with the polling data
+        if (isStaff) {
+            const sidebarBadgeExpanded = document.querySelector('.sidebar-badge-expanded[aria-label]');
+            const sidebarBadgeCollapsed = document.querySelector('.sidebar-badge-collapsed');
+
+            if (pendingApprovalCount > 0) {
+                if (sidebarBadgeExpanded) {
+                    sidebarBadgeExpanded.textContent = String(pendingApprovalCount);
+                    sidebarBadgeExpanded.setAttribute('aria-label', `${pendingApprovalCount} pending approvals`);
+                    sidebarBadgeExpanded.classList.remove('hidden');
+                } else {
+                    // Badge doesn't exist yet — inject it into the approvals sidebar link
+                    const approvalsLink = document.querySelector('a[href*="approvals"]');
+                    if (approvalsLink && approvalsLink.classList.contains('sidebar-link')) {
+                        const expandedBadge = document.createElement('span');
+                        expandedBadge.className = 'sidebar-badge sidebar-badge-expanded ml-auto bg-gradient-to-r from-red-500 to-rose-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg shadow-red-500/30 animate-pulse';
+                        expandedBadge.setAttribute('aria-label', `${pendingApprovalCount} pending approvals`);
+                        expandedBadge.textContent = String(pendingApprovalCount);
+
+                        const collapsedBadge = document.createElement('span');
+                        collapsedBadge.className = 'sidebar-badge-collapsed inline-flex items-center justify-center min-w-[1.15rem] h-[1.15rem] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none border border-rose-300/70 shadow-lg shadow-rose-500/40';
+                        collapsedBadge.setAttribute('aria-hidden', 'true');
+                        collapsedBadge.textContent = String(pendingApprovalCount);
+
+                        approvalsLink.appendChild(expandedBadge);
+                        approvalsLink.appendChild(collapsedBadge);
+                    }
+                }
+                if (sidebarBadgeCollapsed) {
+                    sidebarBadgeCollapsed.textContent = String(pendingApprovalCount);
+                    sidebarBadgeCollapsed.classList.remove('hidden');
+                }
+            } else {
+                if (sidebarBadgeExpanded) {
+                    sidebarBadgeExpanded.classList.add('hidden');
+                }
+                if (sidebarBadgeCollapsed) {
+                    sidebarBadgeCollapsed.classList.add('hidden');
+                }
+            }
+        }
+
         if (combinedList) {
             const pendingHtml = isStaff
                 ? pendingApprovals.map((item) => buildPendingApprovalItem(item, approvalsUrl))

@@ -164,6 +164,7 @@ export function createApprovalDetailsModalState() {
                 this.showModal = false;
                 this.showSuccessModal = true;
                 window.notifyApp?.('success', 'Booking approved successfully.');
+                window.dispatchEvent(new CustomEvent('app:notifications-refresh'));
             } catch (error) {
                 console.error('Error:', error);
                 window.notifyApp?.('error', error?.message || 'An error occurred while approving the booking');
@@ -218,6 +219,7 @@ export function createApprovalDetailsModalState() {
                 this.rejectionReason = '';
                 this.decisionPassword = '';
                 window.notifyApp?.('error', 'Booking has been rejected.');
+                window.dispatchEvent(new CustomEvent('app:notifications-refresh'));
             } catch (error) {
                 console.error('Error:', error);
                 window.notifyApp?.('error', error?.message || 'An error occurred while rejecting the booking');
