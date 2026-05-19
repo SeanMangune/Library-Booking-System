@@ -70,16 +70,14 @@ class Booking extends Model
         });
 
         static::retrieved(function (Booking $booking) {
-            try {
-                if (self::hasBookingStatusColumn()) {
-                    $booking->syncBookingStatus();
-                }
-                $booking->syncQrValidity();
-            } catch (\Throwable $e) {
-                // Prevent a single booking's sync failure from poisoning the
-                // PostgreSQL transaction and breaking all subsequent queries.
-                report($e);
+            // Sync computed fields in-memory only (no DB writes).
+            // Persisting on every retrieval corrupts PostgreSQL's prepared
+            // statement cache and causes SQLSTATE[26000] errors on pooled
+            // connections. The saving event handles persistence instead.
+            if (self::hasBookingStatusColumn()) {
+                $booking->syncBookingStatus(persist: false);
             }
+            $booking->syncQrValidity(persist: false);
         });
 
         static::created(function (Booking $booking) {
