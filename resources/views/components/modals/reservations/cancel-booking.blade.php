@@ -17,13 +17,14 @@
         </div>
 
         <div class="p-6 space-y-4">
-            <div>
-                <label for="cancel-reason" class="block text-sm font-semibold text-gray-700 mb-1">Cancellation reason <span class="text-red-600">*</span></label>
+            <div class="p-4 bg-red-50 border border-red-200 rounded-xl">
+                <label for="cancel-reason" class="block text-sm font-semibold text-red-800 mb-2">Cancellation reason <span class="text-red-600">*</span></label>
                 <textarea id="cancel-reason"
                           x-model="cancelReason"
-                          rows="4"
-                          placeholder="Enter your reason for cancellation"
-                          class="textarea textarea-bordered w-full rounded-lg resize-none"></textarea>
+                          rows="3"
+                          placeholder="Enter your reason for cancellation..."
+                          class="w-full p-3 border border-red-200 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-300 resize-none"></textarea>
+                <p class="mt-2 text-xs text-red-700">This note is saved with the booking and included in the cancellation email.</p>
             </div>
 
             <p x-show="cancelError" x-text="cancelError" class="text-sm text-red-600"></p>
