@@ -508,6 +508,8 @@
                             window.notifyApp?.('success', 'Booking approved successfully.');
                             this.removeBookingCard(this.selectedBooking.id);
                             this.closeModal();
+                            window.dispatchEvent(new CustomEvent('app:notifications-refresh'));
+                            window.dispatchEvent(new CustomEvent('app:booking-changed'));
                         } else {
                             window.notifyApp?.('error', 'Failed to approve booking');
                         }
@@ -547,6 +549,8 @@
                             window.notifyApp?.('error', 'Booking has been rejected.');
                             this.removeBookingCard(this.selectedBooking.id);
                             this.closeModal();
+                            window.dispatchEvent(new CustomEvent('app:notifications-refresh'));
+                            window.dispatchEvent(new CustomEvent('app:booking-changed'));
                         } else {
                             window.notifyApp?.('error', 'Failed to reject booking');
                         }

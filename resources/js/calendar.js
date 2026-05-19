@@ -1646,6 +1646,11 @@ export function createRoomCalendarApp(config = {}) {
             this.calendar.render();
             this.currentView = this.calendar.view.type;
             this.calendarTitle = this.calendar.view.title;
+
+            // Real-time sync: refetch events when bookings change on other pages
+            window.addEventListener('app:booking-changed', () => {
+                this.calendar?.refetchEvents();
+            });
         },
 
         async fetchEvents(info, successCallback, failureCallback) {
@@ -1761,7 +1766,9 @@ export function createRoomCalendarApp(config = {}) {
             this.showSuccessModal = false;
             this.successMessage = '';
             this.successBooking = null;
-            window.location.reload();
+            this.calendar?.refetchEvents();
+            window.dispatchEvent(new CustomEvent('app:notifications-refresh'));
+            window.dispatchEvent(new CustomEvent('app:booking-changed'));
         },
 
         formatDate(value) {
@@ -3588,6 +3595,12 @@ export function createDashboardApp(config = {}) {
 
             this.dashboardCalendar.render();
 
+            // Real-time sync: refetch when bookings change
+            window.addEventListener('app:booking-changed', () => {
+                this.dashboardCalendar?.refetchEvents();
+                this.fetchCalendarData();
+            });
+
             if (initialView === 'dayGridMonth') {
                 this.calendarView = 'dayGridMonth';
                 this.setMonthTitle();
@@ -3950,9 +3963,9 @@ export function createDashboardApp(config = {}) {
                         : 'Booking created successfully.');
                     showNotification(successMessage, 'success');
                     this.closeBookingModal();
-                    window.setTimeout(() => {
-                        window.location.reload();
-                    }, 850);
+                    this.fetchCalendarData();
+                    window.dispatchEvent(new CustomEvent('app:notifications-refresh'));
+                    window.dispatchEvent(new CustomEvent('app:booking-changed'));
                 } else {
                     const isConflict = await this.handleBookingConflict(response, data);
 

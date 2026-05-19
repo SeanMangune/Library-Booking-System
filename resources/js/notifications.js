@@ -140,6 +140,7 @@ function initializeRealtimeNotifications() {
     let pollTimer = null;
     let isRefreshing = false;
     let queuedRefresh = false;
+    let lastKnownPendingCount = null;
 
     const csrfToken = document
         .querySelector('meta[name="csrf-token"]')
@@ -239,6 +240,12 @@ function initializeRealtimeNotifications() {
         if (markAllReadContainer) {
             markAllReadContainer.classList.toggle('hidden', unreadCount <= 0);
         }
+
+        // Detect booking changes and notify the calendar
+        if (lastKnownPendingCount !== null && pendingApprovalCount !== lastKnownPendingCount) {
+            window.dispatchEvent(new CustomEvent('app:booking-changed'));
+        }
+        lastKnownPendingCount = pendingApprovalCount;
     };
 
     const refreshState = async () => {

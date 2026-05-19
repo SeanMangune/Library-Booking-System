@@ -88,6 +88,12 @@ class NotificationController extends Controller
         return response()->json([
             'is_staff' => $isStaff,
             'pending_approval_count' => $pendingApprovalCount,
+            'approved_count' => $isStaff
+                ? Booking::query()->whereHas('room', fn ($q) => $q->visible())->where('status', 'approved')->count()
+                : 0,
+            'rejected_count' => $isStaff
+                ? Booking::query()->whereHas('room', fn ($q) => $q->visible())->where('status', 'rejected')->count()
+                : 0,
             'recent_pending_approvals' => $recentPendingApprovals,
             'user_unread_count' => $userUnreadCount,
             'user_unread_notifications' => $unreadNotifications,

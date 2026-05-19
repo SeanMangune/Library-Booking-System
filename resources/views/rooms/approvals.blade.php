@@ -32,7 +32,7 @@
                 <div class="w-14 h-14 rounded-2xl bg-amber-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                     <i class="w-7 h-7 text-amber-600 fa-icon fa-solid fa-clock text-3xl leading-none"></i>
                 </div>
-                <span class="text-4xl font-black text-gray-900">{{ $stats['pending'] }}</span>
+                <span data-stat-pending class="text-4xl font-black text-gray-900">{{ $stats['pending'] }}</span>
             </div>
             <p class="mt-4 text-sm font-bold text-gray-600 uppercase tracking-wider">Pending Reviews</p>
         </a>
@@ -44,7 +44,7 @@
                 <div class="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                     <i class="w-7 h-7 text-green-600 fa-icon fa-solid fa-circle-check text-3xl leading-none"></i>
                 </div>
-                <span class="text-4xl font-black text-gray-900">{{ $stats['approved'] }}</span>
+                <span data-stat-approved class="text-4xl font-black text-gray-900">{{ $stats['approved'] }}</span>
             </div>
             <p class="mt-4 text-sm font-bold text-gray-600 uppercase tracking-wider">Approved</p>
         </a>
@@ -56,7 +56,7 @@
                 <div class="w-14 h-14 rounded-2xl bg-red-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                     <i class="w-7 h-7 text-red-500 fa-icon fa-solid fa-circle-xmark text-3xl leading-none"></i>
                 </div>
-                <span class="text-4xl font-black text-gray-900">{{ $stats['rejected'] }}</span>
+                <span data-stat-rejected class="text-4xl font-black text-gray-900">{{ $stats['rejected'] }}</span>
             </div>
             <p class="mt-4 text-sm font-bold text-gray-600 uppercase tracking-wider">Rejected</p>
         </a>
@@ -301,6 +301,38 @@
     <x-modals.approvals.success />
     <x-modals.approvals.reject />
 </div>
+
+@push('scripts')
+<script>
+(function () {
+    // Live-update approvals stats when notifications refresh
+    async function refreshApprovalStats() {
+        try {
+            const response = await fetch('/notifications/unread', {
+                headers: { 'Accept': 'application/json' }
+            });
+            if (!response.ok) return;
+            const data = await response.json();
+
+            const pending = Number(data.pending_approval_count ?? 0);
+            const approved = Number(data.approved_count ?? 0);
+            const rejected = Number(data.rejected_count ?? 0);
+
+            const pendingStat = document.querySelector('[data-stat-pending]');
+            if (pendingStat) pendingStat.textContent = String(pending);
+
+            const approvedStat = document.querySelector('[data-stat-approved]');
+            if (approvedStat) approvedStat.textContent = String(approved);
+
+            const rejectedStat = document.querySelector('[data-stat-rejected]');
+            if (rejectedStat) rejectedStat.textContent = String(rejected);
+        } catch (e) { /* ignore */ }
+    }
+
+    window.addEventListener('app:notifications-refresh', refreshApprovalStats);
+})();
+</script>
+@endpush
 
 @push('styles')
 <style>
